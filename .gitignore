@@ -1,0 +1,13 @@
+
+*.pyc
+NBP/.DS_Store
+NBP/graphite/AnnihilationEvts.npy
+NBP/graphite/AnnihilationXSec.npy
+NBP/graphite/BremEvts.npy
+NBP/graphite/BremXSec.npy
+NBP/graphite/ComptonEvts.npy
+NBP/graphite/ComptonXSec.npy
+NBP/graphite/DarkV/DarkBremEvts_10MeV.npy
+NBP/graphite/DarkV/DarkBremXSec_10MeV.npy
+NBP/graphite/PairProdEvts.npy
+NBP/graphite/PairProdXSec.npy
