@@ -11,3 +11,4 @@ NBP/graphite/DarkV/DarkBremEvts_10MeV.npy
 NBP/graphite/DarkV/DarkBremXSec_10MeV.npy
 NBP/graphite/PairProdEvts.npy
 NBP/graphite/PairProdXSec.npy
+AllParticles_GeVShower_Graphite.npy

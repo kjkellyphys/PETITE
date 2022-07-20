@@ -17,10 +17,11 @@ class Particle:
     self.x0 = x0
     self.y0 = y0
     self.z0 = z0
-    if E0 < MinEnergy or z0 > ZMax:
-        self.Ended = True
-    else:
-        self.Ended = False
+    #if E0 < MinEnergy or z0 > ZMax:
+    #    self.Ended = True
+    #else:
+    #    self.Ended = False
+    self.Ended = False
     self.Ef = E0
     self.pxf = px0
     self.pyf = py0
@@ -108,11 +109,6 @@ SampDir = PickDir + TargetMaterial + "/"
 Z = {'graphite':6.0} #atomic number of different targets
 A = {'graphite':12.0} #atomic mass of different targets
 rho = {'graphite':2.210} #g/cm^3
-
-#ElecPosSamples = np.load("./BremPickles/ElectronPositron_Samples_Long.npy", allow_pickle=True)
-#EeVec = np.transpose(ElecPosSamples)[0]
-#logEeMin = np.log10(EeVec[0])
-#logEeSS = np.log10(EeVec[1]) - logEeMin
 
 BremSamples = np.load(SampDir+"BremEvts.npy", allow_pickle=True)
 PPSamples = np.load(SampDir+"PairProdEvts.npy", allow_pickle=True)
@@ -373,7 +369,9 @@ def Shower(PID0, p40, ParPID):
                         npart = PhotonSplitSample(ap)
                     else:
                         npart = ComptonSample(ap)
-                AllParticles.append(npart[0])
-                AllParticles.append(npart[1])
+                if (npart[0]).E0 > MinEnergy and (npart[0]).z0 < ZMax:
+                    AllParticles.append(npart[0])
+                if (npart[1]).E0 > MinEnergy and (npart[1]).z0 < ZMax:
+                    AllParticles.append(npart[1])
 
     return AllParticles
