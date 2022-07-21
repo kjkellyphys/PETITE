@@ -1,4 +1,4 @@
-from AllProcesses import *
+from PETITE.AllProcesses import *
 import pickle as pk
 import numpy as np
 import os
