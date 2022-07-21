@@ -344,8 +344,6 @@ def get_scattered_momentum(p4, t, A, Z):
 
 
 me = 0.000511
-MinEnergy = 0.010
-ZMax = 10.0
 
 class Particle:
     def __init__(self, PID, E0, px0, py0, pz0, x0, y0, z0, ID, ParID, ParPID, GenID, GenProcess):
@@ -466,10 +464,11 @@ cmtom = 0.01
 mp0 = 1.673e-24 #g
 
 class Shower:
-    def __init__(self, PickDir, TargetMaterial):
+    def __init__(self, PickDir, TargetMaterial, MinEnergy):
         self.set_PickDir(PickDir)
         self.set_TargetMaterial(TargetMaterial)
         self.set_SampDir(PickDir + TargetMaterial + "/")
+        self.MinEnergy = MinEnergy
 
         self.set_MaterialProps()
         self.set_nTargets()
@@ -718,7 +717,7 @@ class Shower:
                     Part0.set_pf(Part0.get_p0())
             else:
                 Ef = E0 - Losses*dist
-                if Ef <= M0 or Ef < MinEnergy:
+                if Ef <= M0 or Ef < self.MinEnergy:
                     print("Particle lost too much energy along path of propagation!")
                     Part0.set_Ended(True)
                     return Part0
@@ -731,6 +730,10 @@ class Shower:
         p0 = Particle(PID0, p40[0], p40[1], p40[2], p40[3], 0.0, 0.0, 0.0, 1, 0, ParPID, 0, -1)
         AllParticles = [p0]
 
+        if p0.get_p0()[0] < self.MinEnergy:
+            p0.set_Ended(True)
+            return AllParticles
+
         while all([ap.get_Ended() == True for ap in AllParticles]) is False:
             for apI, ap in enumerate(AllParticles):
                 if ap.get_Ended() is True:
@@ -741,11 +744,8 @@ class Shower:
                     elif np.abs(ap.get_IDs()[0]) == 11:
                         ap = self.PropagateParticle(ap, MS=True)
                     AllParticles[apI] = ap
-                    if (all([ap.get_Ended() == True for ap in AllParticles]) is True and ap.get_pf()[0] < MinEnergy) or (all([ap.get_Ended() == True for ap in AllParticles]) is True and ap.get_r0()[2] > ZMax):
+                    if (all([ap.get_Ended() == True for ap in AllParticles]) is True and ap.get_pf()[0] < self.MinEnergy):
                         break
-                    if ap.get_r0()[2] > ZMax:
-                        ap.set_Ended(True)
-                        continue
                     if ap.get_IDs()[0] == 11:
                         npart = self.ElecBremSample(ap)
                     elif ap.get_IDs()[0] == -11:
@@ -762,9 +762,9 @@ class Shower:
                             npart = self.PhotonSplitSample(ap)
                         else:
                             npart = self.ComptonSample(ap)
-                    if (npart[0]).get_p0()[0] > MinEnergy and (npart[0]).get_r0()[2] < ZMax:
+                    if (npart[0]).get_p0()[0] > self.MinEnergy:
                         AllParticles.append(npart[0])
-                    if (npart[1]).get_p0()[0] > MinEnergy and (npart[1]).get_r0()[2] < ZMax:
+                    if (npart[1]).get_p0()[0] > self.MinEnergy:
                         AllParticles.append(npart[1])
 
         return AllParticles

@@ -11,15 +11,6 @@ CompSamp0 = np.load(PickDir+"ComptonPickles.npy", allow_pickle=True)
 BremSamp0 = np.load(PickDir+"ElectronPositron_BremPickles.npy", allow_pickle=True)
 AnnSamp0 = np.load(PickDir+"AnnihilationPickles.npy", allow_pickle=True)
 
-TargetMaterial = 'graphite'
-#TargetMaterial = 'lead'
-Z = {'graphite':6.0, 'lead':82.0}
-SvDir = PickDir + TargetMaterial + "/"
-if os.path.exists(SvDir) == False:
-    os.system("mkdir " + SvDir)
-
-meT, ZT, alT = 0.000511, Z[TargetMaterial], 1.0/137.0
-
 #Momentum Transfer Squared for photon-scattering Pair Production
 def PPQSq(xx, me, w):
     epp, dp, dm, ph = xx
@@ -48,45 +39,60 @@ def GetPts(Dist, npts, WgtIndex=4, LenRet=4):
 
     return ret
 
-UnWS, XSecPP = [], []
-NPts = 30000
-for ki in range(len(PPSamp0)):
-    Eg, integrand = PPSamp0[ki]
-    pts = []
+TargetMaterials = ['graphite','lead']
+Z = {'graphite':6.0, 'lead':82.0}
 
-    xs0 = 0.0
-    for x, wgt in integrand.random():
-        MM0 = wgt*dSPairProd_dP_T([Eg, meT, ZT, alT], x)
-        FF = G2el(ZT, meT, PPQSq(x, meT, Eg))/ZT**2
-        xs0 += MM0*FF
-        pts.append(np.concatenate([x, [MM0, MM0*FF]]))
+meT, alT = 0.000511, 1.0/137.0
 
-    UnWeightedScreening = GetPts(pts, NPts, WgtIndex=5, LenRet=4)
-    UnWS.append(UnWeightedScreening)
-    XSecPP.append([Eg, xs0])
-    print(Eg, len(pts), len(UnWS[ki]), xs0)
-np.save(SvDir + "PairProdXSec", XSecPP)
-np.save(SvDir + "PairProdEvts", UnWS)
+for tm in TargetMaterials:
+    SvDir = PickDir + tm + "/"
+    ZT = Z[tm]
+    if os.path.exists(SvDir) == False:
+        os.system("mkdir " + SvDir)
 
-UnWS_Brem, XSecBrem = [], []
-NPts = 30000
-for ki in range(len(BremSamp0)):
-    Ee, integrand = BremSamp0[ki]
-    pts = []
+    UnWS, XSecPP = [], []
+    NPts = 30000
+    for ki in range(len(PPSamp0)):
+        Eg, integrand = PPSamp0[ki]
+        pts = []
 
-    xs0 = 0.0
-    for x, wgt in integrand.random():
-        MM0 = wgt*dSBrem_dP_T([Ee, meT, ZT, alT], x)
-        FF = G2el(ZT, meT, BremQSq(x[0], x[1], x[2], x[3], meT, Ee))/ZT**2
-        xs0 += MM0*FF
-        pts.append(np.concatenate([x, [MM0, MM0*FF]]))
-    
-    UnWeightedScreening = GetPts(pts, NPts, WgtIndex=5, LenRet=4)
-    UnWS_Brem.append(UnWeightedScreening)
-    XSecBrem.append([Ee, xs0])
-    print(Ee, len(pts), len(UnWS_Brem[ki]), xs0)
-np.save(SvDir + "BremXSec", XSecBrem)
-np.save(SvDir + "BremEvts", UnWS_Brem)
+        xs0 = 0.0
+        for x, wgt in integrand.random():
+            MM0 = wgt*dSPairProd_dP_T([Eg, meT, ZT, alT], x)
+            FF = G2el(ZT, meT, PPQSq(x, meT, Eg))/ZT**2
+            xs0 += MM0*FF
+            pts.append(np.concatenate([x, [MM0, MM0*FF]]))
+
+        UnWeightedScreening = GetPts(pts, NPts, WgtIndex=5, LenRet=4)
+        UnWS.append(UnWeightedScreening)
+        XSecPP.append([Eg, xs0])
+        print(Eg, len(pts), len(UnWS[ki]), xs0)
+    np.save(SvDir + "PairProdXSec", XSecPP)
+    np.save(SvDir + "PairProdEvts", UnWS)
+
+    UnWS_Brem, XSecBrem = [], []
+    NPts = 30000
+    for ki in range(len(BremSamp0)):
+        Ee, integrand = BremSamp0[ki]
+        pts = []
+
+        xs0 = 0.0
+        for x, wgt in integrand.random():
+            MM0 = wgt*dSBrem_dP_T([Ee, meT, ZT, alT], x)
+            FF = G2el(ZT, meT, BremQSq(x[0], x[1], x[2], x[3], meT, Ee))/ZT**2
+            xs0 += MM0*FF
+            pts.append(np.concatenate([x, [MM0, MM0*FF]]))
+        
+        UnWeightedScreening = GetPts(pts, NPts, WgtIndex=5, LenRet=4)
+        UnWS_Brem.append(UnWeightedScreening)
+        XSecBrem.append([Ee, xs0])
+        print(Ee, len(pts), len(UnWS_Brem[ki]), xs0)
+    np.save(SvDir + "BremXSec", XSecBrem)
+    np.save(SvDir + "BremEvts", UnWS_Brem)
+
+SvDirE = PickDir + "/electrons/"
+if os.path.exists(SvDirE) == False:
+    os.system("mkdir " + SvDirE)
 
 UnWComp, XSecComp = [], []
 NPts = 30000
@@ -104,8 +110,8 @@ for ki in range(len(CompSamp0)):
     UnWComp.append(UnWeightedNoScreening)
     XSecComp.append([Eg, xs0])
     print(Eg, len(pts), len(UnWComp[ki]), xs0)
-np.save(SvDir+"ComptonXSec", XSecComp)
-np.save(SvDir+"ComptonEvts", UnWComp)
+np.save(SvDirE+"ComptonXSec", XSecComp)
+np.save(SvDirE+"ComptonEvts", UnWComp)
 
 UnWAnn, XSecAnn = [], []
 NPts = 30000
@@ -125,5 +131,5 @@ for ki in range(len(AnnSamp0)):
 
     print(Ee, len(pts), len(UnWAnn[ki]), xs0)
 
-np.save(SvDir+"AnnihilationXSec", XSecAnn)
-np.save(SvDir+"AnnihilationEvts", UnWAnn)
+np.save(SvDirE+"AnnihilationXSec", XSecAnn)
+np.save(SvDirE+"AnnihilationEvts", UnWAnn)

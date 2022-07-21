@@ -1,11 +1,12 @@
 .DS_Store
 .gitattributes
 .gitignore
-Example_GeVElectronShower.py
 Gen_DarkSamples.py
 Gen_Samples.py
 README.md
 setup.py
+setup.py~
+Inputs/Photons_From_Pi0s_120GeV.npy
 NBP/AnnihilationPickles.npy
 NBP/ComptonPickles.npy
 NBP/ElectronPositron_BremPickles.npy
@@ -18,3 +19,4 @@ PETITE.egg-info/PKG-INFO
 PETITE.egg-info/SOURCES.txt
 PETITE.egg-info/dependency_links.txt
 PETITE.egg-info/top_level.txt
+examples/Example_GeVElectronShower.py
