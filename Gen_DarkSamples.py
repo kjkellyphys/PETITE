@@ -58,8 +58,8 @@ for ki in range(len(BremSamp0)):
     xs0 = 0.0
     for x, wgt in integrand.random():
         MM0 = wgt*dSDBrem_dP_T([Ee, meT, MVT, ZT, alT], x)
-        xs0 += MM0
         FF = G2el(ZT, meT, DarkBremQsq(x[0], x[1], x[2], x[3], meT, MVT, Ee))/ZT**2
+        xs0 += MM0*FF
         pts.append(np.concatenate([x, [MM0, MM0*FF]]))
     
     UnWeightedScreening = GetPts(pts, NPts, WgtIndex=5, LenRet=4)

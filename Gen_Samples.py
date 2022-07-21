@@ -12,7 +12,8 @@ BremSamp0 = np.load(PickDir+"ElectronPositron_BremPickles.npy", allow_pickle=Tru
 AnnSamp0 = np.load(PickDir+"AnnihilationPickles.npy", allow_pickle=True)
 
 TargetMaterial = 'graphite'
-Z = {'graphite':6.0}
+#TargetMaterial = 'lead'
+Z = {'graphite':6.0, 'lead':82.0}
 SvDir = PickDir + TargetMaterial + "/"
 if os.path.exists(SvDir) == False:
     os.system("mkdir " + SvDir)
@@ -20,9 +21,11 @@ if os.path.exists(SvDir) == False:
 meT, ZT, alT = 0.000511, Z[TargetMaterial], 1.0/137.0
 
 #Momentum Transfer Squared for photon-scattering Pair Production
-def PPQSq(epp, dp, dm, ph, me, w):
+def PPQSq(xx, me, w):
+    epp, dp, dm, ph = xx
     epm = w - epp
     return me**2*((dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + me**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2)
+
 #Momentum Transfer Squared for electron/positron bremsstrahlung
 def BremQSq(w, d, dp, ph, me, ep):
     epp = ep - w
@@ -54,10 +57,10 @@ for ki in range(len(PPSamp0)):
     xs0 = 0.0
     for x, wgt in integrand.random():
         MM0 = wgt*dSPairProd_dP_T([Eg, meT, ZT, alT], x)
-        xs0 += MM0
-        FF = G2el(ZT, meT, PPQSq(x[0], x[1], x[2], x[3], meT, Eg))/ZT**2
+        FF = G2el(ZT, meT, PPQSq(x, meT, Eg))/ZT**2
+        xs0 += MM0*FF
         pts.append(np.concatenate([x, [MM0, MM0*FF]]))
-    
+
     UnWeightedScreening = GetPts(pts, NPts, WgtIndex=5, LenRet=4)
     UnWS.append(UnWeightedScreening)
     XSecPP.append([Eg, xs0])
@@ -74,8 +77,8 @@ for ki in range(len(BremSamp0)):
     xs0 = 0.0
     for x, wgt in integrand.random():
         MM0 = wgt*dSBrem_dP_T([Ee, meT, ZT, alT], x)
-        xs0 += MM0
         FF = G2el(ZT, meT, BremQSq(x[0], x[1], x[2], x[3], meT, Ee))/ZT**2
+        xs0 += MM0*FF
         pts.append(np.concatenate([x, [MM0, MM0*FF]]))
     
     UnWeightedScreening = GetPts(pts, NPts, WgtIndex=5, LenRet=4)

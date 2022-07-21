@@ -1,5 +1,5 @@
 import numpy as np
-from math import sqrt
+import os
 from scipy.interpolate import interp1d
 from moliere import get_scattered_momentum
 
@@ -8,36 +8,47 @@ MinEnergy = 0.010
 ZMax = 10.0
 
 class Particle:
-  def __init__(self, PID, E0, px0, py0, pz0, x0, y0, z0, ID, ParID, ParPID, GenID, GenProcess):
-    self.PID = PID
-    self.E0 = E0
-    self.px0 = px0
-    self.py0 = py0
-    self.pz0 = pz0
-    self.x0 = x0
-    self.y0 = y0
-    self.z0 = z0
-    #if E0 < MinEnergy or z0 > ZMax:
-    #    self.Ended = True
-    #else:
-    #    self.Ended = False
-    self.Ended = False
-    self.Ef = E0
-    self.pxf = px0
-    self.pyf = py0
-    self.pzf = pz0
-    self.xf = x0
-    self.yf = y0
-    self.zf = z0
-    self.ID = ID
-    self.ParID = ParID
-    self.ParPID = ParPID
-    self.GenID = GenID
-    self.GenProcess = GenProcess
-    self.D1 = None
-    self.D2 = None
+    def __init__(self, PID, E0, px0, py0, pz0, x0, y0, z0, ID, ParID, ParPID, GenID, GenProcess):
+        self.set_IDs(np.array([PID, ID, ParPID, ParID, GenID, GenProcess]))
 
+        self.set_p0(np.array([E0, px0, py0, pz0]))
+        self.set_r0(np.array([x0, y0, z0]))
 
+        self.set_Ended(False)
+
+        self.set_pf(np.array([E0,px0,py0,pz0]))
+        self.set_rf(np.array([x0, y0, z0]))
+
+    def set_IDs(self, value):
+        self._IDs = value
+    def get_IDs(self):
+        return self._IDs
+
+    def set_p0(self, value):
+        self._p0 = value
+    def get_p0(self):
+        return self._p0
+    def set_pf(self, value):
+        self._pf = value
+    def get_pf(self):
+        return self._pf
+
+    def set_r0(self, value):
+        self._r0 = value
+    def get_r0(self):
+        return self._r0
+    def set_rf(self, value):
+        self._rf = value
+    def get_rf(self):
+        return self._rf
+
+    def set_Ended(self, value):    
+        if value != True and value != False:
+            raise ValueError("Ended property must be a boolean.")
+        self._Ended = value
+    def get_Ended(self):
+        return self._Ended
+        
 def eegFourVecs(ep, me, w, ct, ctp, ph):
     epp = ep - w
     p, pp = np.sqrt(ep**2 - me**2), np.sqrt(epp**2 - me**2)
@@ -102,13 +113,15 @@ def Ann_FVs(Ee, me, mV, ct):
 
     return [pg4v, pV4v]
 
-PickDir = "/Users/kjkelly/Dropbox/ResearchProjects/DarkShowers/LOCAL_Dark_Showers/PETITE/NBP/"
-TargetMaterial = 'graphite'
+Dir0 = os.getcwd()
+PickDir = Dir0 + "/NBP/"
+#TargetMaterial = 'graphite'
+TargetMaterial = 'lead'
 SampDir = PickDir + TargetMaterial + "/"
 
-Z = {'graphite':6.0} #atomic number of different targets
-A = {'graphite':12.0} #atomic mass of different targets
-rho = {'graphite':2.210} #g/cm^3
+Z = {'graphite':6.0, 'lead':82.0} #atomic number of different targets
+A = {'graphite':12.0, 'lead':207.2} #atomic mass of different targets
+rho = {'graphite':2.210, 'lead':11.35} #g/cm^3
 
 BremSamples = np.load(SampDir+"BremEvts.npy", allow_pickle=True)
 PPSamples = np.load(SampDir+"PairProdEvts.npy", allow_pickle=True)
@@ -162,7 +175,7 @@ def BF_Photon_PP(Energy):
     return b0/(b0+b1)
 
 def ElecBremSample(Elec0):
-    Ee0, pex0, pey0, pez0 = Elec0.Ef, Elec0.pxf, Elec0.pyf, Elec0.pzf
+    Ee0, pex0, pey0, pez0 = Elec0.get_pf()
 
     ThZ = np.arccos(pez0/np.sqrt(pex0**2 + pey0**2 + pez0**2))
     PhiZ = np.arctan2(pey0, pex0)
@@ -185,14 +198,17 @@ def ElecBremSample(Elec0):
     
     pe3LF = np.dot(RM, pe3ZF)
     pg3LF = np.dot(RM, pg3ZF)
-
-    NewE = Particle(Elec0.PID, Eef, pe3LF[0], pe3LF[1], pe3LF[2], Elec0.xf, Elec0.yf, Elec0.zf, 2*Elec0.ID+0, Elec0.ID, Elec0.PID, Elec0.GenID+1, 0)
-    NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], Elec0.xf, Elec0.yf, Elec0.zf, 2*Elec0.ID+1, Elec0.ID, Elec0.PID, Elec0.GenID+1, 0)
+    
+    #self.set_IDs(np.array([PID, ID, ParPID, ParID, GenID, GenProcess]))
+    NewE = Particle(Elec0.get_IDs()[0], Eef, pe3LF[0], pe3LF[1], pe3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*Elec0.get_IDs()[1]+0, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 0)
+    #NewE = Particle(Elec0.get_IDs()[0], Eef, pe3LF[0], pe3LF[1], pe3LF[2], Elec0.xf, Elec0.yf, Elec0.zf, 2*Elec0.ID+0, Elec0.ID, Elec0.get_IDs()[0], Elec0.GenID+1, 0)
+    #NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], Elec0.xf, Elec0.yf, Elec0.zf, 2*Elec0.ID+1, Elec0.ID, Elec0.PID, Elec0.GenID+1, 0)
+    NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*Elec0.get_IDs()[1]+1, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 0)
 
     return [NewE, NewG]
 
 def AnnihilationSample(Elec0):
-    Ee0, pex0, pey0, pez0 = Elec0.Ef, Elec0.pxf, Elec0.pyf, Elec0.pzf
+    Ee0, pex0, pey0, pez0 = Elec0.get_pf()
 
     ThZ = np.arccos(pez0/np.sqrt(pex0**2 + pey0**2 + pez0**2))
     PhiZ = np.arctan2(pey0, pex0)
@@ -216,13 +232,15 @@ def AnnihilationSample(Elec0):
     pg3LF1 = np.dot(RM, pg3ZF1)
     pg3LF2 = np.dot(RM, pg3ZF2)   
 
-    NewG1 = Particle(22, Eg1f, pg3LF1[0], pg3LF1[1], pg3LF1[2], Elec0.xf, Elec0.yf, Elec0.zf, 2*Elec0.ID+0, Elec0.ID, Elec0.PID, Elec0.GenID+1, 1)
-    NewG2 = Particle(22, Eg2f, pg3LF2[0], pg3LF2[1], pg3LF2[2], Elec0.xf, Elec0.yf, Elec0.zf, 2*Elec0.ID+1, Elec0.ID, Elec0.PID, Elec0.GenID+1, 1)
+    NewG1 = Particle(22, Eg1f, pg3LF1[0], pg3LF1[1], pg3LF1[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*Elec0.get_IDs()[1]+0, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 1)
+    #NewG1 = Particle(22, Eg1f, pg3LF1[0], pg3LF1[1], pg3LF1[2], Elec0.xf, Elec0.yf, Elec0.zf, 2*Elec0.ID+0, Elec0.ID, Elec0.PID, Elec0.GenID+1, 1)
+    #NewG2 = Particle(22, Eg2f, pg3LF2[0], pg3LF2[1], pg3LF2[2], Elec0.xf, Elec0.yf, Elec0.zf, 2*Elec0.ID+1, Elec0.ID, Elec0.PID, Elec0.GenID+1, 1)
+    NewG2 = Particle(22, Eg2f, pg3LF2[0], pg3LF2[1], pg3LF2[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*Elec0.get_IDs()[1]+1, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 1)
 
     return [NewG1, NewG2]
 
 def PhotonSplitSample(Phot0):
-    Eg0, pgx0, pgy0, pgz0 = Phot0.Ef, Phot0.pxf, Phot0.pyf, Phot0.pzf
+    Eg0, pgx0, pgy0, pgz0 = Phot0.get_pf()
 
     ThZ = np.arccos(pgz0/np.sqrt(pgx0**2 + pgy0**2 + pgz0**2))
     PhiZ = np.arctan2(pgy0, pgx0)
@@ -245,13 +263,15 @@ def PhotonSplitSample(Phot0):
     pep3LF = np.dot(RM, pep3ZF)
     pem3LF = np.dot(RM, pem3ZF)
 
-    NewEp = Particle(-11,Eepf, pep3LF[0], pep3LF[1], pep3LF[2], Phot0.xf, Phot0.yf, Phot0.zf, 2*Phot0.ID+0, Phot0.ID, Phot0.PID, Phot0.GenID+1, 2)
-    NewEm = Particle(11, Eemf, pem3LF[0], pem3LF[1], pem3LF[2], Phot0.xf, Phot0.yf, Phot0.zf, 2*Phot0.ID+1, Phot0.ID, Phot0.PID, Phot0.GenID+1, 2)
+    NewEp = Particle(-11,Eepf, pep3LF[0], pep3LF[1], pep3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*Phot0.get_IDs()[1]+0, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 2)
+    #NewEp = Particle(-11,Eepf, pep3LF[0], pep3LF[1], pep3LF[2], Phot0.xf, Phot0.yf, Phot0.zf, 2*Phot0.ID+0, Phot0.ID, Phot0.PID, Phot0.GenID+1, 2)
+    #NewEm = Particle(11, Eemf, pem3LF[0], pem3LF[1], pem3LF[2], Phot0.xf, Phot0.yf, Phot0.zf, 2*Phot0.ID+1, Phot0.ID, Phot0.PID, Phot0.GenID+1, 2)
+    NewEm = Particle(11, Eemf, pem3LF[0], pem3LF[1], pem3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*Phot0.get_IDs()[1]+1, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 2)
 
     return [NewEp, NewEm]
 
 def ComptonSample(Phot0):
-    Eg0, pgx0, pgy0, pgz0 = Phot0.Ef, Phot0.pxf, Phot0.pyf, Phot0.pzf
+    Eg0, pgx0, pgy0, pgz0 = Phot0.get_pf()
 
     ThZ = np.arccos(pgz0/np.sqrt(pgx0**2 + pgy0**2 + pgz0**2))
     PhiZ = np.arctan2(pgy0, pgx0)
@@ -273,63 +293,58 @@ def ComptonSample(Phot0):
     pe3LF = np.dot(RM, [pexfZF, peyfZF, pezfZF])
     pg3LF = np.dot(RM, [pgxfZF, pgyfZF, pgzfZF])
 
-    NewE = Particle(11, Eef, pe3LF[0], pe3LF[1], pe3LF[2], Phot0.xf, Phot0.yf, Phot0.zf, 2*Phot0.ID+0, Phot0.ID, Phot0.PID, Phot0.GenID+1, 3)
-    NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], Phot0.xf, Phot0.yf, Phot0.zf, 2*Phot0.ID+1, Phot0.ID, Phot0.PID, Phot0.GenID+1, 3)
+    NewE = Particle(11, Eef, pe3LF[0], pe3LF[1], pe3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*Phot0.get_IDs()[1]+0, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 3)
+    #NewE = Particle(11, Eef, pe3LF[0], pe3LF[1], pe3LF[2], Phot0.xf, Phot0.yf, Phot0.zf, 2*Phot0.ID+0, Phot0.ID, Phot0.PID, Phot0.GenID+1, 3)
+    #NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], Phot0.xf, Phot0.yf, Phot0.zf, 2*Phot0.ID+1, Phot0.ID, Phot0.PID, Phot0.GenID+1, 3)
+    NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*Phot0.get_IDs()[1]+1, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 3)
 
     return [NewE, NewG]
 
 def PropagateParticle(Part0, Losses=False, MS=False):
-    if Part0.Ended is True or Part0.E0 < MinEnergy:
-        Part0.Ended = True
-        Part0.xf = Part0.x0
-        Part0.yf = Part0.y0
-        Part0.zf = Part0.z0
-        return Part0
-    elif Part0.z0 > ZMax:
-        Part0.Ended = True
-        Part0.xf = Part0.x0
-        Part0.yf = Part0.y0
-        Part0.zf = Part0.z0
+    if Part0.get_Ended() is True:
+        #Part0.Ended = True
+        Part0.set_rf(Part0.get_rf())
+        #Part0.xf = Part0.x0
+        #Part0.yf = Part0.y0
+        #Part0.zf = Part0.z0
         return Part0
     else:
-        mfp = GetMFP(Part0.PID, Part0.E0)
+        mfp = GetMFP(Part0.get_IDs()[0], Part0.get_p0()[0])
         distC = np.random.uniform(0.0, 1.0)
         dist = mfp*np.log(1.0/(1.0-distC))
-        if np.abs(Part0.PID) == 11:
+        if np.abs(Part0.get_IDs()[0]) == 11:
             M0 = me
-        elif Part0.PID == 22:
+        elif Part0.get_IDs()[0] == 22:
             M0 = 0.0
 
+        E0, px0, py0, pz0 = Part0.get_p0()
         if MS:
-            EF0, PxF0, PyF0, PzF0 = get_scattered_momentum([Part0.E0, Part0.px0, Part0.py0, Part0.pz0], rhoTarget*(dist/cmtom), ATarget, ZTarget)
-            PHatDenom = np.sqrt((PxF0 + Part0.px0)**2 + (PyF0 + Part0.py0)**2 + (PzF0 + Part0.pz0)**2)
-            PHat = [(PxF0 + Part0.px0)/PHatDenom, (PyF0 + Part0.py0)/PHatDenom, (PzF0 + Part0.pz0)/PHatDenom]
+            EF0, PxF0, PyF0, PzF0 = get_scattered_momentum(Part0.get_p0(), rhoTarget*(dist/cmtom), ATarget, ZTarget)
+            PHatDenom = np.sqrt((PxF0 + px0)**2 + (PyF0 + py0)**2 + (PzF0 + pz0)**2)
+            PHat = [(PxF0 + px0)/PHatDenom, (PyF0 + py0)/PHatDenom, (PzF0 + pz0)/PHatDenom]
         else:
-            PHatDenom = sqrt(Part0.px0**2 + Part0.py0**2 + Part0.pz0**2)
-            PHat = [(Part0.px0)/PHatDenom, (Part0.py0)/PHatDenom, (Part0.pz0)/PHatDenom]
+            PHatDenom = np.sqrt(px0**2 + py0**2 + pz0**2)
+            PHat = [(px0)/PHatDenom, (py0)/PHatDenom, (pz0)/PHatDenom]
 
-        p30 = sqrt(Part0.px0**2 + Part0.py0**2 + Part0.pz0**2)
+        p30 = np.sqrt(px0**2 + py0**2 + pz0**2)
 
-        Part0.xf = Part0.x0 + PHat[0]*dist
-        Part0.yf = Part0.y0 + PHat[1]*dist
-        Part0.zf = Part0.z0 + PHat[2]*dist
+        x0, y0, z0 = Part0.get_r0()
+        Part0.set_rf([x0 + PHat[0]*dist, y0 + PHat[1]*dist, z0 + PHat[2]*dist])
 
         if Losses is False:
             if MS:
-                Part0.Ef, Part0.pxf, Part0.pyf, Part0.pzf = Part0.E0, PxF0, PyF0, PzF0
+                Part0.set_pf(np.array([E0, PxF0, PyF0, PzF0]))
             else:
-                Part0.Ef, Part0.pxf, Part0.pyf, Part0.pzf = Part0.E0, Part0.px0, Part0.py0, Part0.pz0
+                Part0.set_pf(Part0.get_p0())
         else:
-            Part0.Ef = Part0.E0 - Losses*dist
-            if Part0.Ef <= M0 or Part0.Ef < MinEnergy:
+            Ef = E0 - Losses*dist
+            if Ef <= M0 or Ef < MinEnergy:
                 print("Particle lost too much energy along path of propagation!")
-                Part0.Ended = True
+                Part0.set_Ended(True)
                 return Part0
-            Part0.pxf = Part0.px0/p30*sqrt(Part0.Ef**2 - M0**2)
-            Part0.pyf = Part0.py0/p30*sqrt(Part0.Ef**2 - M0**2)
-            Part0.pzf = Part0.pz0/p30*sqrt(Part0.Ef**2 - M0**2)
+            Part0.set_pf(np.array([Ef, px0/p30*np.sqrt(Ef**2-M0**2), py0/p30*np.sqrt(Ef**2-M0**2), pz0/p30*np.sqrt(Ef**2-M0**2)]))
 
-        Part0.Ended = True
+        Part0.set_Ended(True)
         return Part0
 
 def Shower(PID0, p40, ParPID):
@@ -337,41 +352,41 @@ def Shower(PID0, p40, ParPID):
 
     AllParticles = [p0]
 
-    while all([ap.Ended == True for ap in AllParticles]) is False:
+    while all([ap.get_Ended() == True for ap in AllParticles]) is False:
         for apI, ap in enumerate(AllParticles):
-            if ap.Ended is True:
+            if ap.get_Ended() is True:
                 continue
             else:
-                if ap.PID == 22:
+                if ap.get_IDs()[0] == 22:
                     ap = PropagateParticle(ap)
-                elif np.abs(ap.PID) == 11:
+                elif np.abs(ap.get_IDs()[0]) == 11:
                     ap = PropagateParticle(ap, MS=True)
                     #ap = PropagateParticle(ap)
                 AllParticles[apI] = ap
-                if (all([ap.Ended == True for ap in AllParticles]) is True and ap.Ef < MinEnergy) or (all([ap.Ended == True for ap in AllParticles]) is True and ap.z0 > ZMax):
+                if (all([ap.get_Ended() == True for ap in AllParticles]) is True and ap.get_pf()[0] < MinEnergy) or (all([ap.get_Ended() == True for ap in AllParticles]) is True and ap.get_r0()[2] > ZMax):
                     break
-                if ap.z0 > ZMax:
-                    ap.Ended = True
+                if ap.get_r0()[2] > ZMax:
+                    ap.set_Ended(True)
                     continue
-                if ap.PID == 11:
+                if ap.get_IDs()[0] == 11:
                     npart = ElecBremSample(ap)
-                elif ap.PID == -11:
-                    BFEpBrem = BF_Positron_Brem(ap.Ef)
+                elif ap.get_IDs()[0] == -11:
+                    BFEpBrem = BF_Positron_Brem(ap.get_pf()[0])
                     ch = np.random.uniform(low=0., high=1.0)
                     if ch < BFEpBrem:
                         npart = ElecBremSample(ap)
                     else:
                         npart = AnnihilationSample(ap)
-                elif ap.PID == 22:
-                    BFPhPP = BF_Photon_PP(ap.Ef)
+                elif ap.get_IDs()[0] == 22:
+                    BFPhPP = BF_Photon_PP(ap.get_pf()[0])
                     ch = np.random.uniform(low=0., high=1.)
                     if ch < BFPhPP:
                         npart = PhotonSplitSample(ap)
                     else:
                         npart = ComptonSample(ap)
-                if (npart[0]).E0 > MinEnergy and (npart[0]).z0 < ZMax:
+                if (npart[0]).get_p0()[0] > MinEnergy and (npart[0]).get_r0()[2] < ZMax:
                     AllParticles.append(npart[0])
-                if (npart[1]).E0 > MinEnergy and (npart[1]).z0 < ZMax:
+                if (npart[1]).get_p0()[0] > MinEnergy and (npart[1]).get_r0()[2] < ZMax:
                     AllParticles.append(npart[1])
 
     return AllParticles

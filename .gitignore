@@ -12,3 +12,14 @@ NBP/graphite/DarkV/DarkBremXSec_10MeV.npy
 NBP/graphite/PairProdEvts.npy
 NBP/graphite/PairProdXSec.npy
 AllParticles_GeVShower_Graphite.npy
+NBP/lead/PairProdXSec.npy
+NBP/lead/PairProdEvts.npy
+NBP/lead/ComptonXSec.npy
+NBP/lead/ComptonEvts.npy
+NBP/lead/BremXSec.npy
+NBP/lead/BremEvts.npy
+NBP/lead/AnnihilationXSec.npy
+NBP/lead/AnnihilationEvts.npy
+AllParticles_SingleShower_GeV_Graphite.npy
+AllParticles_GeVShower_Lead.npy
+AllParticles_SingleShower_GeV_Lead.npy
