@@ -28,3 +28,4 @@ NBP/electrons/AnnihilationEvts.npy
 NBP/electrons/AnnihilationXSec.npy
 NBP/electrons/ComptonEvts.npy
 NBP/electrons/ComptonXSec.npy
+examples/Outputs/PassingPhotons_PionShower_Graphite.npy

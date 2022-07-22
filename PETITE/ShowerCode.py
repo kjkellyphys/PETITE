@@ -468,6 +468,7 @@ class Shower:
         self.set_PickDir(PickDir)
         self.set_TargetMaterial(TargetMaterial)
         self.set_SampDir(PickDir + TargetMaterial + "/")
+        self.set_SampDirE(PickDir + "electrons/")
         self.MinEnergy = MinEnergy
 
         self.set_MaterialProps()
@@ -488,6 +489,10 @@ class Shower:
         self._SampDir = value
     def get_SampDir(self):
         return self._SampDir
+    def set_SampDirE(self, value):
+        self._SampDirE = value
+    def get_SampDirE(self):
+        return self._SampDirE
 
     def set_MaterialProps(self):
         self._ZTarget, self._ATarget, self._rhoTarget = Z[self.get_TargetMaterial()], A[self.get_TargetMaterial()], rho[self.get_TargetMaterial()]
@@ -504,8 +509,8 @@ class Shower:
     def set_samples(self):
         self._BremSamples = np.load(self.get_SampDir()+"BremEvts.npy", allow_pickle=True)
         self._PPSamples = np.load(self.get_SampDir()+"PairProdEvts.npy", allow_pickle=True)
-        self._AnnSamples = np.load(self.get_SampDir()+"AnnihilationEvts.npy", allow_pickle=True)
-        self._CompSamples = np.load(self.get_SampDir()+"ComptonEvts.npy", allow_pickle=True)
+        self._AnnSamples = np.load(self.get_SampDirE()+"AnnihilationEvts.npy", allow_pickle=True)
+        self._CompSamples = np.load(self.get_SampDirE()+"ComptonEvts.npy", allow_pickle=True)
     def get_BremSamples(self, ind):
         return self._BremSamples[ind]
     def get_PPSamples(self, ind):
@@ -518,8 +523,8 @@ class Shower:
     def set_CrossSections(self):
         self._BremXSec = np.load(self.get_SampDir()+"BremXSec.npy", allow_pickle=True)
         self._PPXSec = np.load(self.get_SampDir()+"PairProdXSec.npy", allow_pickle=True)
-        self._AnnXSec = np.load(self.get_SampDir()+"AnnihilationXSec.npy", allow_pickle=True)
-        self._CompXSec = np.load(self.get_SampDir()+"ComptonXSec.npy", allow_pickle=True)
+        self._AnnXSec = np.load(self.get_SampDirE()+"AnnihilationXSec.npy", allow_pickle=True)
+        self._CompXSec = np.load(self.get_SampDirE()+"ComptonXSec.npy", allow_pickle=True)
 
         self._EeVecBrem = np.transpose(self._BremXSec)[0]
         self._EgVecPP = np.transpose(self._PPXSec)[0]
@@ -588,8 +593,10 @@ class Shower:
         pe3LF = np.dot(RM, pe3ZF)
         pg3LF = np.dot(RM, pg3ZF)
         
-        NewE = Particle(Elec0.get_IDs()[0], Eef, pe3LF[0], pe3LF[1], pe3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*Elec0.get_IDs()[1]+0, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 0)
-        NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*Elec0.get_IDs()[1]+1, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 0)
+        NewE = Particle(Elec0.get_IDs()[0], Eef, pe3LF[0], pe3LF[1], pe3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_IDs()[1])+0, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 0)
+        NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_IDs()[1])+1, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 0)
+        #NewE = Particle(Elec0.get_IDs()[0], Eef, pe3LF[0], pe3LF[1], pe3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 0, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 0)
+        #NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 1, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 0)
 
         return [NewE, NewG]
 
@@ -619,8 +626,10 @@ class Shower:
         pg3LF1 = np.dot(RM, pg3ZF1)
         pg3LF2 = np.dot(RM, pg3ZF2)   
 
-        NewG1 = Particle(22, Eg1f, pg3LF1[0], pg3LF1[1], pg3LF1[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*Elec0.get_IDs()[1]+0, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 1)
-        NewG2 = Particle(22, Eg2f, pg3LF2[0], pg3LF2[1], pg3LF2[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*Elec0.get_IDs()[1]+1, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 1)
+        NewG1 = Particle(22, Eg1f, pg3LF1[0], pg3LF1[1], pg3LF1[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_IDs()[1])+0, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 1)
+        NewG2 = Particle(22, Eg2f, pg3LF2[0], pg3LF2[1], pg3LF2[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_IDs()[1])+1, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 1)
+        #NewG1 = Particle(22, Eg1f, pg3LF1[0], pg3LF1[1], pg3LF1[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 0, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 1)
+        #NewG2 = Particle(22, Eg2f, pg3LF2[0], pg3LF2[1], pg3LF2[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 1, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, 1)
 
         return [NewG1, NewG2]
 
@@ -648,8 +657,10 @@ class Shower:
         pep3LF = np.dot(RM, pep3ZF)
         pem3LF = np.dot(RM, pem3ZF)
 
-        NewEp = Particle(-11,Eepf, pep3LF[0], pep3LF[1], pep3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*Phot0.get_IDs()[1]+0, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 2)
-        NewEm = Particle(11, Eemf, pem3LF[0], pem3LF[1], pem3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*Phot0.get_IDs()[1]+1, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 2)
+        NewEp = Particle(-11,Eepf, pep3LF[0], pep3LF[1], pep3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*(Phot0.get_IDs()[1])+0, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 2)
+        NewEm = Particle(11, Eemf, pem3LF[0], pem3LF[1], pem3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*(Phot0.get_IDs()[1])+1, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 2)
+        #NewEp = Particle(-11,Eepf, pep3LF[0], pep3LF[1], pep3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 2)
+        #NewEm = Particle(11, Eemf, pem3LF[0], pem3LF[1], pem3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 3, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 2)
 
         return [NewEp, NewEm]
 
@@ -677,8 +688,10 @@ class Shower:
         pe3LF = np.dot(RM, [pexfZF, peyfZF, pezfZF])
         pg3LF = np.dot(RM, [pgxfZF, pgyfZF, pgzfZF])
 
-        NewE = Particle(11, Eef, pe3LF[0], pe3LF[1], pe3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*Phot0.get_IDs()[1]+0, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 3)
-        NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*Phot0.get_IDs()[1]+1, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 3)
+        NewE = Particle(11, Eef, pe3LF[0], pe3LF[1], pe3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*(Phot0.get_IDs()[1])+0, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 3)
+        NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*(Phot0.get_IDs()[1])+1, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 3)
+        #NewE = Particle(11, Eef, pe3LF[0], pe3LF[1], pe3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 0, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 3)
+        #NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 1, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, 3)
 
         return [NewE, NewG]
 
@@ -726,8 +739,14 @@ class Shower:
             Part0.set_Ended(True)
             return Part0
 
-    def GenShower(self, PID0, p40, ParPID):
+    def GenShower(self, PID0, p40, ParPID, VB=False):
         p0 = Particle(PID0, p40[0], p40[1], p40[2], p40[3], 0.0, 0.0, 0.0, 1, 0, ParPID, 0, -1)
+        if VB:
+            print("Starting shower, initial particle with ID Info")
+            print(p0.get_IDs())
+            print("Initial four-momenta:")
+            print(p0.get_p0())
+
         AllParticles = [p0]
 
         if p0.get_p0()[0] < self.MinEnergy:

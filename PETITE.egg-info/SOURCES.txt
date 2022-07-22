@@ -12,6 +12,8 @@ NBP/ComptonPickles.npy
 NBP/ElectronPositron_BremPickles.npy
 NBP/Photon_PairProdPickles.npy
 NBP/DarkV/ElectronPositron_BremPickles_10MeV.npy
+NBP/graphite/.DS_Store
+NBP/lead/.DS_Store
 PETITE/AllProcesses.py
 PETITE/ShowerCode.py
 PETITE/__init__.py
@@ -19,4 +21,6 @@ PETITE.egg-info/PKG-INFO
 PETITE.egg-info/SOURCES.txt
 PETITE.egg-info/dependency_links.txt
 PETITE.egg-info/top_level.txt
+examples/.DS_Store
 examples/Example_GeVElectronShower.py
+examples/Example_ProtonInducedShower.py
