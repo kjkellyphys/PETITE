@@ -11,6 +11,8 @@ NBP/AnnihilationPickles.npy
 NBP/ComptonPickles.npy
 NBP/ElectronPositron_BremPickles.npy
 NBP/Photon_PairProdPickles.npy
+NBP/DarkV/AnnihilationPickles_10MeV.npy
+NBP/DarkV/ComptonPickles_10MeV.npy
 NBP/DarkV/ElectronPositron_BremPickles_10MeV.npy
 NBP/graphite/.DS_Store
 NBP/lead/.DS_Store

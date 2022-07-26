@@ -29,3 +29,9 @@ NBP/electrons/AnnihilationXSec.npy
 NBP/electrons/ComptonEvts.npy
 NBP/electrons/ComptonXSec.npy
 examples/Outputs/PassingPhotons_PionShower_Graphite.npy
+NBP/electrons/DarkV/AnnihilationEvts_10MeV.npy
+NBP/electrons/DarkV/AnnihilationXSec_10MeV.npy
+NBP/electrons/DarkV/ComptonEvts_10MeV.npy
+NBP/electrons/DarkV/ComptonXSec_10MeV.npy
+examples/Outputs/Particles_PionShower_Graphite.npy
+examples/Outputs/DarkShower_PionShower_10MeV_Graphite.npy
