@@ -24,5 +24,6 @@ PETITE.egg-info/SOURCES.txt
 PETITE.egg-info/dependency_links.txt
 PETITE.egg-info/top_level.txt
 examples/.DS_Store
+examples/Example_DarkShower_10MeV.py
 examples/Example_GeVElectronShower.py
 examples/Example_ProtonInducedShower.py

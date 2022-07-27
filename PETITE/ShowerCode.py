@@ -473,6 +473,7 @@ def Ann_FVs(Ee, me, mV, ct):
 Z = {'graphite':6.0, 'lead':82.0} #atomic number of different targets
 A = {'graphite':12.0, 'lead':207.2} #atomic mass of different targets
 rho = {'graphite':2.210, 'lead':11.35} #g/cm^3
+dEdx = {'graphite':2.0*rho['graphite'], 'lead':2.0*rho['lead']} #MeV per cm
 
 GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm^2
 cmtom = 0.01
@@ -510,12 +511,12 @@ class Shower:
         return self._SampDirE
 
     def set_MaterialProps(self):
-        self._ZTarget, self._ATarget, self._rhoTarget = Z[self.get_TargetMaterial()], A[self.get_TargetMaterial()], rho[self.get_TargetMaterial()]
+        self._ZTarget, self._ATarget, self._rhoTarget, self._dEdx = Z[self.get_TargetMaterial()], A[self.get_TargetMaterial()], rho[self.get_TargetMaterial()], dEdx[self.get_TargetMaterial()]
     def get_MaterialProps(self):
-        return self._ZTarget, self._ATarget, self._rhoTarget
+        return self._ZTarget, self._ATarget, self._rhoTarget, self._dEdx
 
     def set_nTargets(self):
-        ZT, AT, rhoT = self.get_MaterialProps()
+        ZT, AT, rhoT, dEdxT = self.get_MaterialProps()
         self._nTarget = rhoT/mp0/AT
         self._nElecs = self._nTarget*ZT
     def get_nTargets(self):
@@ -715,7 +716,7 @@ class Shower:
 
             E0, px0, py0, pz0 = Part0.get_p0()
             if MS:
-                ZT, AT, rhoT = self.get_MaterialProps()
+                ZT, AT, rhoT, dEdxT = self.get_MaterialProps()
                 EF0, PxF0, PyF0, PzF0 = get_scattered_momentum(Part0.get_p0(), rhoT*(dist/cmtom), AT, ZT)
                 PHatDenom = np.sqrt((PxF0 + px0)**2 + (PyF0 + py0)**2 + (PzF0 + pz0)**2)
                 PHat = [(PxF0 + px0)/PHatDenom, (PyF0 + py0)/PHatDenom, (PzF0 + pz0)/PHatDenom]
@@ -736,7 +737,7 @@ class Shower:
             else:
                 Ef = E0 - Losses*dist
                 if Ef <= M0 or Ef < self.MinEnergy:
-                    print("Particle lost too much energy along path of propagation!")
+                    #print("Particle lost too much energy along path of propagation!")
                     Part0.set_Ended(True)
                     return Part0
                 Part0.set_pf(np.array([Ef, px0/p30*np.sqrt(Ef**2-M0**2), py0/p30*np.sqrt(Ef**2-M0**2), pz0/p30*np.sqrt(Ef**2-M0**2)]))
@@ -766,7 +767,8 @@ class Shower:
                     if ap.get_IDs()[0] == 22:
                         ap = self.PropagateParticle(ap)
                     elif np.abs(ap.get_IDs()[0]) == 11:
-                        ap = self.PropagateParticle(ap, MS=True)
+                        dEdxT = self.get_MaterialProps()[3]*(0.1) #Converting MeV/cm to GeV/m
+                        ap = self.PropagateParticle(ap, MS=True, Losses=dEdxT)
                     AllParticles[apI] = ap
                     if (all([ap.get_Ended() == True for ap in AllParticles]) is True and ap.get_pf()[0] < self.MinEnergy):
                         break
@@ -793,7 +795,7 @@ class Shower:
 
         return AllParticles
 
-MVLib = {'10MeV':0.010}
+MVLib = {'10MeV':0.010,'100MeV':0.100}
 class DarkShower(Shower):
     def __init__(self, PickDir, TargetMaterial, MinEnergy, MVStr):
         super().__init__(PickDir, TargetMaterial, MinEnergy)

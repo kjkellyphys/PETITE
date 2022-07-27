@@ -6,13 +6,7 @@ import random as rnd
 
 Dir0 = os.getcwd()
 PickDir = Dir0 + "/NBP/DarkV/"
-MV = {'10MeV':0.010}
-DarkVMass = '10MeV'
-BremSamp0 = np.load(PickDir+"/ElectronPositron_BremPickles_"+DarkVMass+".npy", allow_pickle=True)
-CompSamp0 = np.load(PickDir+"/ComptonPickles_"+DarkVMass+".npy", allow_pickle=True)
-AnnSamp0 = np.load(PickDir+"/AnnihilationPickles_"+DarkVMass+".npy", allow_pickle=True)
-MVT = MV[DarkVMass]
-
+MV = {'10MeV':0.010, '100MeV':0.100}
 #Momentum Transfer Squared for electron/positron bremsstrahlung of dark photon
 def DarkBremQsq(w, d, dp, ph, me, MV, ep):
     epp = ep - w
@@ -36,78 +30,85 @@ def GetPts(Dist, npts, WgtIndex=4, LenRet=4):
 
     return ret
 
+DarkVMasses = ['10MeV','100MeV']
 TargetMaterials = ['graphite']
 Z = {'graphite':6.0}
 PickDir0 = Dir0 + "/NBP/"
 
 meT, alT = 0.000511, 1.0/137.0
 
-for tm in TargetMaterials:
-    SvDir = PickDir0 + tm + "/DarkV/"
-    if os.path.exists(SvDir) == False:
-        os.system("mkdir " + SvDir)
-    ZT = Z[tm]
+for dvm in DarkVMasses:
+    BremSamp0 = np.load(PickDir+"/ElectronPositron_BremPickles_"+dvm+".npy", allow_pickle=True)
+    CompSamp0 = np.load(PickDir+"/ComptonPickles_"+dvm+".npy", allow_pickle=True)
+    AnnSamp0 = np.load(PickDir+"/AnnihilationPickles_"+dvm+".npy", allow_pickle=True)
+    MVT = MV[dvm]
 
-    UnWS_Brem, XSecBrem = [], []
+    for tm in TargetMaterials:
+        SvDir = PickDir0 + tm + "/DarkV/"
+        if os.path.exists(SvDir) == False:
+            os.system("mkdir " + SvDir)
+        ZT = Z[tm]
+
+        UnWS_Brem, XSecBrem = [], []
+        NPts = 30000
+        for ki in range(len(BremSamp0)):
+            Ee, integrand = BremSamp0[ki]
+            pts = []
+
+            xs0 = 0.0
+            for x, wgt in integrand.random():
+                MM0 = wgt*dSDBrem_dP_T([Ee, meT, MVT, ZT, alT], x)
+                FF = G2el(ZT, meT, DarkBremQsq(x[0], x[1], x[2], x[3], meT, MVT, Ee))/ZT**2
+                xs0 += MM0*FF
+                pts.append(np.concatenate([x, [MM0, MM0*FF]]))
+            
+            UnWeightedScreening = GetPts(pts, NPts, WgtIndex=5, LenRet=4)
+            UnWS_Brem.append(UnWeightedScreening)
+            XSecBrem.append([Ee, xs0])
+            print(Ee, len(pts), len(UnWS_Brem[ki]), xs0)
+        np.save(SvDir + "DarkBremXSec_"+dvm, XSecBrem)
+        np.save(SvDir + "DarkBremEvts_"+dvm, UnWS_Brem)
+
+    SvDirE = PickDir0 + '/electrons/DarkV/'
+    if os.path.exists(SvDirE) == False:
+        os.system("mkdir " + SvDirE)
+
+    UnWComp, XSecComp = [], []
     NPts = 30000
-    for ki in range(len(BremSamp0)):
-        Ee, integrand = BremSamp0[ki]
-        pts = []
+    for ki in range(len(CompSamp0)):
+        Eg, integrand = CompSamp0[ki]
 
         xs0 = 0.0
+        pts = []
         for x, wgt in integrand.random():
-            MM0 = wgt*dSDBrem_dP_T([Ee, meT, MVT, ZT, alT], x)
-            FF = G2el(ZT, meT, DarkBremQsq(x[0], x[1], x[2], x[3], meT, MVT, Ee))/ZT**2
-            xs0 += MM0*FF
-            pts.append(np.concatenate([x, [MM0, MM0*FF]]))
+            MM0 = wgt*dSCompton_dCT([Eg, meT, MVT, alT], x)
+            xs0 += MM0
+            pts.append(np.concatenate([x, [MM0]]))
         
-        UnWeightedScreening = GetPts(pts, NPts, WgtIndex=5, LenRet=4)
-        UnWS_Brem.append(UnWeightedScreening)
-        XSecBrem.append([Ee, xs0])
-        print(Ee, len(pts), len(UnWS_Brem[ki]), xs0)
-    np.save(SvDir + "DarkBremXSec_"+DarkVMass, XSecBrem)
-    np.save(SvDir + "DarkBremEvts_"+DarkVMass, UnWS_Brem)
+        UnWeightedNoScreening = GetPts(pts, NPts, WgtIndex=1, LenRet=1)
+        UnWComp.append(UnWeightedNoScreening)
+        XSecComp.append([Eg, xs0])
+        print(Eg, len(pts), len(UnWComp[ki]), xs0)
+    np.save(SvDirE+"ComptonXSec_"+dvm, XSecComp)
+    np.save(SvDirE+"ComptonEvts_"+dvm, UnWComp)
 
-SvDirE = PickDir0 + '/electrons/DarkV/'
-if os.path.exists(SvDirE) == False:
-    os.system("mkdir " + SvDirE)
+    UnWAnn, XSecAnn = [], []
+    NPts = 30000
+    for ki in range(len(AnnSamp0)):
+        Ee, integrand = AnnSamp0[ki]
 
-UnWComp, XSecComp = [], []
-NPts = 30000
-for ki in range(len(CompSamp0)):
-    Eg, integrand = CompSamp0[ki]
+        xs0 = 0.0
+        pts = []
+        for x, wgt in integrand.random():
+            MM0 = wgt*dAnn_dCT([Ee, meT, alT, MVT], x)
+            xs0 += MM0
+            pts.append(np.concatenate([x, [MM0]]))
+        
+        UnWeightedNoScreening = GetPts(pts, NPts, WgtIndex=1, LenRet=1)
+        UnWAnn.append(UnWeightedNoScreening)
+        XSecAnn.append([Ee, xs0])
 
-    xs0 = 0.0
-    pts = []
-    for x, wgt in integrand.random():
-        MM0 = wgt*dSCompton_dCT([Eg, meT, MVT, alT], x)
-        xs0 += MM0
-        pts.append(np.concatenate([x, [MM0]]))
-    
-    UnWeightedNoScreening = GetPts(pts, NPts, WgtIndex=1, LenRet=1)
-    UnWComp.append(UnWeightedNoScreening)
-    XSecComp.append([Eg, xs0])
-    print(Eg, len(pts), len(UnWComp[ki]), xs0)
-np.save(SvDirE+"ComptonXSec_"+DarkVMass, XSecComp)
-np.save(SvDirE+"ComptonEvts_"+DarkVMass, UnWComp)
+        print(Ee, len(pts), len(UnWAnn[ki]), xs0)
 
-UnWAnn, XSecAnn = [], []
-NPts = 30000
-for ki in range(len(AnnSamp0)):
-    Ee, integrand = AnnSamp0[ki]
-
-    xs0 = 0.0
-    pts = []
-    for x, wgt in integrand.random():
-        MM0 = wgt*dAnn_dCT([Ee, meT, alT, MVT], x)
-        xs0 += MM0
-        pts.append(np.concatenate([x, [MM0]]))
-    
-    UnWeightedNoScreening = GetPts(pts, NPts, WgtIndex=1, LenRet=1)
-    UnWAnn.append(UnWeightedNoScreening)
-    XSecAnn.append([Ee, xs0])
-
-    print(Ee, len(pts), len(UnWAnn[ki]), xs0)
-
-np.save(SvDirE+"AnnihilationXSec_"+DarkVMass, XSecAnn)
-np.save(SvDirE+"AnnihilationEvts_"+DarkVMass, UnWAnn)
+    np.save(SvDirE+"AnnihilationXSec_"+dvm, XSecAnn)
+    np.save(SvDirE+"AnnihilationEvts_"+dvm, UnWAnn)
