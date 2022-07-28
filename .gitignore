@@ -1,16 +1,6 @@
 
 *.pyc
 NBP/.DS_Store
-NBP/graphite/AnnihilationEvts.npy
-NBP/graphite/AnnihilationXSec.npy
-NBP/graphite/BremEvts.npy
-NBP/graphite/BremXSec.npy
-NBP/graphite/ComptonEvts.npy
-NBP/graphite/ComptonXSec.npy
-NBP/graphite/DarkV/DarkBremEvts_10MeV.npy
-NBP/graphite/DarkV/DarkBremXSec_10MeV.npy
-NBP/graphite/PairProdEvts.npy
-NBP/graphite/PairProdXSec.npy
 AllParticles_GeVShower_Graphite.npy
 NBP/lead/PairProdXSec.npy
 NBP/lead/PairProdEvts.npy
@@ -24,15 +14,7 @@ AllParticles_SingleShower_GeV_Graphite.npy
 AllParticles_GeVShower_Lead.npy
 AllParticles_SingleShower_GeV_Lead.npy
 examples/Outputs/AllParticles_PionShower_Graphite.npy
-NBP/electrons/AnnihilationEvts.npy
-NBP/electrons/AnnihilationXSec.npy
-NBP/electrons/ComptonEvts.npy
-NBP/electrons/ComptonXSec.npy
 examples/Outputs/PassingPhotons_PionShower_Graphite.npy
-NBP/electrons/DarkV/AnnihilationEvts_10MeV.npy
-NBP/electrons/DarkV/AnnihilationXSec_10MeV.npy
-NBP/electrons/DarkV/ComptonEvts_10MeV.npy
-NBP/electrons/DarkV/ComptonXSec_10MeV.npy
 examples/Outputs/Particles_PionShower_Graphite.npy
 examples/Outputs/DarkShower_PionShower_10MeV_Graphite.npy
 NBP/electrons/DarkV/AnnihilationEvts_100MeV.npy
