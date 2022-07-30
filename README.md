@@ -1,5 +1,5 @@
 # PETITE
- Monte Carlo generator for production of dark sector objects in thick-target experiments
+Monte Carlo generator for production of dark sector objects in thick-target experiments
 
 Run the script "Gen_Samples.py" to make unweighted samples for lead and graphite simulations.
 
