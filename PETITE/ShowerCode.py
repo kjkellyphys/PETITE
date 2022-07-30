@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
 
-from moliere import get_scattered_momentum 
+from . Moliere import get_scattered_momentum 
 
 import sys
 

@@ -1,5 +1,8 @@
 *~
+build
+PETITE.egg-info
 *.pyc
+.DS_Store
 NBP/.DS_Store
 AllParticles_GeVShower_Graphite.npy
 NBP/lead/PairProdXSec.npy
@@ -13,10 +16,7 @@ NBP/lead/AnnihilationEvts.npy
 AllParticles_SingleShower_GeV_Graphite.npy
 AllParticles_GeVShower_Lead.npy
 AllParticles_SingleShower_GeV_Lead.npy
-examples/Outputs/AllParticles_PionShower_Graphite.npy
-examples/Outputs/PassingPhotons_PionShower_Graphite.npy
-examples/Outputs/Particles_PionShower_Graphite.npy
-examples/Outputs/DarkShower_PionShower_10MeV_Graphite.npy
+examples/Outputs/*
 NBP/electrons/DarkV/AnnihilationEvts_100MeV.npy
 NBP/electrons/DarkV/AnnihilationXSec_100MeV.npy
 NBP/electrons/DarkV/ComptonEvts_100MeV.npy

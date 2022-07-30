@@ -148,14 +148,27 @@ def get_chic_squared(t, beta, A, Z, z):
     return 4.*np.pi*N0 * alpha_EM**2 * t * Z * (Z+1.) * z**2 / (A * p**2 * beta**2)
 
 def get_chic_squared_alt(t, beta, A, Z, z):
-    # Eq. 1 in Lynch & Dahl, 1991
+    """
+    Eq. 1 in Lynch & Dahl, 1991
+    t - path length in g/cm^2 (t[cm] * rho[g/cm^3] = t[g/cm^2])
+    beta - particle velocity
+    A - atomic weight in g/mol (i.e., PDG conventions)
+    Z - nuclear charge number
+    z - particle charge (+/- 1 for electrons/positrons)
+    """
     me_in_MeV = 0.511
     #print(beta**2, "\t", 1. - beta**2)
     p = me_in_MeV * beta / np.sqrt(1. - beta**2)
     return 0.157 * Z * (Z+1)*(t/A)*np.power(z/(p*beta),2.)
 
 def get_chia_squared_alt(beta, A, Z, z):
-    # Eq. 2 in Lynch & Dahl, 1991
+    """
+    Eq. 2 in Lynch & Dahl, 1991
+    beta - particle velocity
+    A - atomic weight in g/mol (i.e., PDG conventions)
+    Z - nuclear charge number
+    z - particle charge (+/- 1 for electrons/positrons)
+    """
     me_in_MeV = 0.511
     p = me_in_MeV * beta / np.sqrt(1. - beta**2)
     alpha_EM = 1./137
@@ -203,6 +216,11 @@ def generate_moliere_angle_simplified_alt(t, beta, A, Z, z):
     """
     Lynch and Dahl, 1991
     Eq. 7 - note that there's a typo, it should be sigma^2! not sigma
+    t - target thickness is measured in g/cm^2 (a common unit for the radiation length)
+    beta - velocity in c=1
+    A - atomic weight in g/mol (i.e., PDG conventions)
+    Z - charge of target nucleus
+    z - charge of beam particle
     """
     F = 0.98
     chic2 = get_chic_squared_alt(t, beta, A, Z, z)
