@@ -4,6 +4,18 @@ class Particle:
     """Container for particle information as it is propagated through target
     """
     def __init__(self, PID, E0, px0, py0, pz0, x0, y0, z0, ID, ParID, ParPID, GenID, GenProcess, Weight):
+        """Initializes an instance of the Particle class
+        Args:
+            PID: PDG id of the particle
+            E0, px0, py0, pz0: energy and components of momentum
+            x0, y0, z0: current coordinates of the particle in the target
+            ID: a unique label of the particle in the shower
+            ParID: shower label of the parent particle
+            ParPID: PGD id of the parent paricle
+            GenID: 
+            GenProcess: id of the process that produced the particle
+            Weight: probability weight for the process that generated this particle
+        """
         self.set_IDs(np.array([PID, ID, ParPID, ParID, GenID, GenProcess, Weight]))
 
         self.set_p0(np.array([E0, px0, py0, pz0]))

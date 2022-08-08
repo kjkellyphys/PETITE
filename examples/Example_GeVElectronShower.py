@@ -11,7 +11,7 @@ NBP_dir = '../NBP/'
 output_dir = './Outputs/'
 
 sLead = Shower(NBP_dir, 'lead', MinEnergy)
-s0 = sLead.GenShower(11, Mom40, 0)
+s0 = sLead.GenShower(11, Mom40, 0, VB=True)
 ts0 = np.array([np.concatenate([s5i.get_r0(), s5i.get_rf(), [s5i.get_IDs()[0]]]) for s5i in s0])
 np.save(output_dir + "AllParticles_SingleShower_GeV_Lead", ts0)
 
