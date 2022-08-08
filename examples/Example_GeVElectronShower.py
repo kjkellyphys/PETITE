@@ -1,5 +1,5 @@
 import numpy as np
-from PETITE.ShowerCode import Shower
+from PETITE.shower import Shower
 meT = 0.000511
 
 NSamp = 100

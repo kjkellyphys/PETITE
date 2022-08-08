@@ -1,11 +1,15 @@
-#from MCCode import *
-from PETITE.ShowerCode import *
+import numpy as np
+from PETITE.dark_shower import DarkShower
+
+NBP_dir = '../NBP/'
+input_dir = '../Inputs/'
+output_dir = './Outputs/'
 
 MinEnergy = 0.015
-sGraphite = DarkShower('/Users/kjkelly/Documents/GitHub/PETITE/NBP/', 'graphite', MinEnergy, '10MeV')
-Parents = np.load("/Users/kjkelly/Documents/GitHub/PETITE/Inputs/Photons_From_Pi0s_120GeV.npy")
+sGraphite = DarkShower(NBP_dir, 'graphite', MinEnergy, '10MeV')
+Parents = np.load(input_dir+"Photons_From_Pi0s_120GeV.npy")
 
-ExDir0 = '/Users/kjkelly/Documents/GitHub/PETITE/examples/Outputs/Particles_PionShower_Graphite.npy'
+ExDir0 = output_dir+'Particles_PionShower_Graphite.npy'
 gds = sGraphite.GenDarkShower(ExDir=ExDir0, SParams=None)
 
-np.save("./Outputs/DarkShower_PionShower_10MeV_Graphite", gds)
+np.save(output_dir+"DarkShower_PionShower_10MeV_Graphite", gds)

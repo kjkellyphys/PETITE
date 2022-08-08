@@ -9,7 +9,6 @@ from .kinematics import eegFourVecs, eeVFourVecs, gepemFourVecs, Compton_FVs, An
 import sys
 
 me = 0.000511
-        
 
 Z = {'graphite':6.0, 'lead':82.0} #atomic number of different targets
 A = {'graphite':12.0, 'lead':207.2} #atomic mass of different targets
