@@ -113,6 +113,7 @@ class Shower:
         """Returns e+e- event from the sample with index ind"""
         return self._AnnSamples[ind]
     def get_CompSamples(self, ind):
+        """Returns the Compton event from the sample with index ind"""
         return self._CompSamples[ind]
 
     def set_CrossSections(self):
@@ -316,7 +317,7 @@ class Shower:
         return [NewEp, NewEm]
 
     def ComptonSample(self, Phot0):
-        """Generate an compton event from an initial photon
+        """Generate a Compton event from an initial photon
             Args:
                 Phot0: incoming photon (instance of) Particle in lab frame
             Returns:
