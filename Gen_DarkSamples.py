@@ -8,15 +8,127 @@ Dir0 = os.getcwd()
 PickDir = Dir0 + "/NBP/DarkV/"
 MV = {'10MeV':0.010, '100MeV':0.100}
 #Momentum Transfer Squared for electron/positron bremsstrahlung of dark photon
+
+
+def doc_string_format(arg_1,arg_2):
+    '''
+    Description of function
+
+    
+    Args:
+            arg_1 (type): describe argument
+            arg_2 (type): describe argument
+
+    Returns: 
+            (type): describe thing that is returned. 
+
+    Raises: 
+            optional section for functions that raise exceptions.
+
+    
+    Example: 
+            Words
+            go
+    `       here
+            
+    '''
+
+    return(0)
+
+
+
 def DarkBremQsq(w, d, dp, ph, me, MV, ep):
+    '''
+    Function that computes the three momentum transfered squared for the bremmstrahlung 
+    of a dark photon off an electron scattering in a static Coulomb field. All variables
+    are defined in the lab frame. 
+
+    See Landau and Lifshitz Vol 4, between Eqs. (93.8)  and (93.9) generalize to include
+    a dark photon, and take the small angle limit (see Eq (93.14) for the SM case). 
+
+    Args:
+            w    (float): energy of dark photon (\omega)
+            d    (float): angle between dark photon and initial electron momentum (\delta)
+            dp   (float): angle between dark photon and final electron momentum (\delta')
+            ph   (float): relative azimuthal angle (\phi)
+            me   (float): mass of electron/lepton 
+            MV   (float): mass of vector bosoon radiated
+            ep   (float): energy of initial electron/lepton (including rest mass)
+          
+
+    Returns: 
+            Qsq (type): magnitude of three momentum transfer squared (p_e' + k' - p_e)^2 
+
+    Raises: 
+            Value Error: MV>ep (production is energetically forbidden)
+                         MV>w  (energy transfer must be bigger than MV)
+                         w>ep  (energy transfer cannot exceed initial energy)
+                         me or MV < 0 (masses must be positive)
+                         Qsq<0  (momentum transfer squared must be positive)
+    
+    '''
+    if MV<0 or me<0:
+        raise ValueError('Masses must be positive semi-definite') 
+    if MV>ep:
+        raise ValueError('Mass of dark photon is too big, production is energetically forbidden')
+    if w>ep;
+        raise ValueError('Energy transfer exceeds energy of lepton')
+    if w<MV:
+        raise ValueError('Energy transfer is smaller than mass of dark photon')
+    
     epp = ep - w
     PF0 = MV**2*ep*epp/w**2
-    return PF0*((d**2 + dp**2 - 2.0*d*dp*np.cos(ph)) + MV**2/(4.0*ep*epp)*(1 + 0.5*(d**2 + dp**2))**2)
+
+    Qsq=PF0*((d**2 + dp**2 - 2.0*d*dp*np.cos(ph)) + MV**2/(4.0*ep*epp)*(1 + 0.5*(d**2 + dp**2))**2)
+
+    if Qsq<0:
+        raise ValueError('Momentum transfered squared is negative')
+    return Qsq
+
 
 def aa(Z, me):
+    '''
+    Computes screening parameter for charge form factor. 
+    See Tsai Rev. Mod. Phys. 46, 815 (1974)
+
+    
+    Args:
+            Z  (int):   charge of atomic nucleus
+            me (float): electron mass
+
+    Returns: 
+            a (float): screening length. Dimensions set by electron mass. 
+
+    Raises: 
+            Value error: me<0 or Z<0
+    '''
+
+    if me<0 or Z<0:
+        raise ValueError('Parameters must be positive')
+    
     return 184.15*(2.718)**-0.5*Z**(-1./3.)/me
-#Form factor for screening effects
+
+
+
 def G2el(Z, me, t):
+    '''
+    Computes atomic screening form factor 
+    See Tsai Rev. Mod. Phys. 46, 815 (1974)
+
+    
+    Args:
+            Z  (int)  : charge of atomic nucleus
+            me (float): electron mass
+            t  (float): three-momentum transfer squared
+
+    ### SUGGESTION SWITCH TO Qsq as variable for clarity and consistency
+
+    Returns: 
+            a (float): screening length. Dimensions set by electron mass. 
+
+    Raises: 
+            Value error: me<0 or Z<0
+    '''
     a0 = aa(Z, me)
     return Z**2*a0**4*t**2/(1 + a0**2*t)**2
 
