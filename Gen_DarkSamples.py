@@ -93,7 +93,7 @@ def aa(Z, me):
 
     
     Args:
-            Z  (int):   charge of atomic nucleus
+            Z  (float): charge of atomic nucleus, typically integer. 
             me (float): electron mass
 
     Returns: 
@@ -117,7 +117,7 @@ def G2el(Z, me, t):
 
     
     Args:
-            Z  (int)  : charge of atomic nucleus
+            Z  (float)  : charge of atomic nucleus, typiically integer
             me (float): electron mass
             t  (float): three-momentum transfer squared
 
