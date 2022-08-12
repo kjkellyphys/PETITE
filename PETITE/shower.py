@@ -412,7 +412,7 @@ class Shower:
             Part0.set_Ended(True)
             return Part0
 
-    def GenShower(self, PID0, p40, ParPID, VB=False):
+    def GenShower(self, PID0, p40, ParPID, VB=False, GlobalMS=True):
         """
         Generates particle shower from an initial particle
         Args:
@@ -433,6 +433,13 @@ class Shower:
 
         AllParticles = [p0]
 
+        if GlobalMS==True:
+            MS_e=True
+            MS_g=False
+        else:
+            MS_e=False
+            MS_g=False
+
         if p0.get_p0()[0] < self.MinEnergy:
             p0.set_Ended(True)
             return AllParticles
@@ -444,10 +451,10 @@ class Shower:
                 else:
                     # Propagate particle until next hard interaction
                     if ap.get_IDs()[0] == 22:
-                        ap = self.PropagateParticle(ap)
+                        ap = self.PropagateParticle(ap,MS=MS_g)
                     elif np.abs(ap.get_IDs()[0]) == 11:
                         dEdxT = self.get_MaterialProps()[3]*(0.1) #Converting MeV/cm to GeV/m
-                        ap = self.PropagateParticle(ap, MS=True, Losses=dEdxT)
+                        ap = self.PropagateParticle(ap, MS=MS_e, Losses=dEdxT)
 
                     AllParticles[apI] = ap
                     
