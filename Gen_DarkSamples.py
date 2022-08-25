@@ -71,7 +71,7 @@ def DarkBremQsq(w, d, dp, ph, me, MV, ep):
         raise ValueError('Masses must be positive semi-definite') 
     if MV>ep:
         raise ValueError('Mass of dark photon is too big, production is energetically forbidden')
-    if w>ep;
+    if w>ep:
         raise ValueError('Energy transfer exceeds energy of lepton')
     if w<MV:
         raise ValueError('Energy transfer is smaller than mass of dark photon')

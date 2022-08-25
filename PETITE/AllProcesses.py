@@ -441,6 +441,17 @@ def DBrem_S_T(EI, VB=False, mode='XSec'):
     igrange = [[MV, ep-me], [0, np.sqrt(ep/MV)], [0, np.sqrt(ep/MV)], [0, 2*np.pi]]
     integrand = vg.Integrator(igrange)
 
+    if mode == 'Pickle':
+        print("Integrator set up")
+        print(EI)
+        integrand(functools.partial(dSDBrem_dP_T, EI), nitn=100, nstrat=[10, 15, 15, 10])
+        print("Burn-in complete")
+        print(EI)
+        result = integrand(functools.partial(dSDBrem_dP_T, EI), nitn=100, nstrat=[10, 15, 15, 10])
+        print("Fully Integrated")
+        print(EI, result.mean)
+
+        return integrand
     if mode == 'XSec':
         resu = integrand(functools.partial(dSDBrem_dP_T, EI), nitn=50, nstrat=[4,20,20,4])
         if VB:
@@ -549,14 +560,8 @@ def PairProd_S_T(EI, VB=False, mode='XSec'):
     integrand = vg.Integrator(igrange)
 
     if mode == 'Pickle':
-        print("Integrator set up")
-        print(EI)
         integrand(functools.partial(dSPairProd_dP_T, EI), nitn=300, nstrat=[15, 25, 25, 15])
-        print("Burn-in complete")
-        print(EI)
         result = integrand(functools.partial(dSPairProd_dP_T, EI), nitn=300, nstrat=[15, 25, 25, 15])
-        print("Fully Integrated")
-        print(EI, result.mean)
         return integrand
     if mode == 'XSec':
         resu = integrand(functools.partial(dSPairProd_dP_T, EI), nitn=100, nstrat=[6, 24, 24, 6])
