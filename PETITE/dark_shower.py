@@ -311,7 +311,7 @@ class DarkShower(Shower):
         through its particles and generating possible dark photon emissions using 
         all available processes.
         Args:
-            ExDir: path to file containing existing SM shower
+            ExDir: path to file containing existing SM shower OR an actual shower (list of Particle objects)
             SParamas: if no path provided, parameters of a new SM shower to generate, 
             consisting of a tuple (PID0, p40, ParPID)
         Returns:
@@ -322,8 +322,10 @@ class DarkShower(Shower):
             print("Need an existing SM shower-file directory or SM shower parameters to run dark shower")
             return None
         
-        if ExDir is not None:
+        if ExDir is not None and type(ExDir)==str:
             ShowerToSamp = np.load(ExDir, allow_pickle=True)
+        elif ExDir is not None and type(ExDir)==list:
+            ShowerToSamp = ExDir
         else:
             PID0, p40, ParPID = SParams
             ShowerToSamp = self.GenShower(PID0, p40, ParPID)
