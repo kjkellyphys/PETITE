@@ -18,7 +18,12 @@ def dSBrem_dP(EvtInfo, varthV):
             Z (Target Atomic Number)
             al (electro-weak fine-structure constant)
     """
-    ep, me, Z, al = EvtInfo
+    ep=EvtInfo['E_inc']
+    me=EvtInfo['m_e']
+    Z =EvtInfo['Z_T']
+    al=EvtInfo['alpha_FS']
+    mV=0
+
     if len(np.shape(varthV)) == 1:
         varthV = np.array([varthV])
 
@@ -60,7 +65,12 @@ def dSBrem_dP_T(EvtInfo, varthTildeV):
             Z (Target Atomic Number)
             al (electro-weak fine-structure constant)
     """
-    ep, me, Z, al = EvtInfo
+    ep=EvtInfo['E_inc']
+    me=EvtInfo['m_e']
+    Z =EvtInfo['Z_T']
+    al=EvtInfo['alpha_FS']
+    mV=0
+
 
     if len(np.shape(varthTildeV)) == 1:
         varthTildeV = np.array([varthTildeV])
@@ -100,7 +110,12 @@ def dSDBrem_dP(EvtInfo, varthV):
             Z (Target Atomic Number)
             al (electro-weak fine-structure constant)
     """
-    ep, me, MV, Z, al = EvtInfo
+    ep=EvtInfo['E_inc']
+    me=EvtInfo['m_e']
+    Z =EvtInfo['Z_T']
+    al=EvtInfo['alpha_FS']
+    mV=EvtInfo['m_V']
+
     if len(np.shape(varthV)) == 1:
         varthV = np.array([varthV])
 
@@ -138,7 +153,11 @@ def dSDBrem_dP_T(EvtInfo, varthV):
             Z (Target Atomic Number)
             al (electro-weak fine-structure constant)
     """
-    ep, me, MV, Z, al = EvtInfo
+    ep=EvtInfo['E_inc']
+    me=EvtInfo['m_e']
+    Z =EvtInfo['Z_T']
+    al=EvtInfo['alpha_FS']
+    mV=EvtInfo['m_V']
 
     if len(np.shape(varthV)) == 1:
         varthV = np.array([varthV])
@@ -148,11 +167,11 @@ def dSDBrem_dP_T(EvtInfo, varthV):
 
         epp = ep - w
 
-        xsq = (d**2 + dp**2 - 2.0*d*dp*np.cos(ph)) + MV**2/(4.0*ep*epp)*(1 + 0.5*(d**2 + dp**2))**2
-        PF = 4.0*al**3*Z**2/(np.pi*MV**2)*w**3/ep**3*1/(xsq**2*epp)*(d*dp)/((1+d**2)*(1+dp**2))
+        xsq = (d**2 + dp**2 - 2.0*d*dp*np.cos(ph)) + mV**2/(4.0*ep*epp)*(1 + 0.5*(d**2 + dp**2))**2
+        PF = 4.0*al**3*Z**2/(np.pi*mV**2)*w**3/ep**3*1/(xsq**2*epp)*(d*dp)/((1+d**2)*(1+dp**2))
         T1 = (ep**2+epp**2)/w**2*xsq
         T2 = -(d**2 - dp**2)**2/((1+d**2)*(1+dp**2))
-        T3 = -MV**2/(4.0*w**2)*(ep/epp*(1+dp**2) + epp/ep*(1+d**2))
+        T3 = -mV**2/(4.0*w**2)*(ep/epp*(1+dp**2) + epp/ep*(1+d**2))
         dSig0 = PF*(T1+T2+T3)
         if dSig0 < 0.0 or np.isnan(dSig0):
             print(dSig0, varth, ep, epp, PF, T1, T2, T3)
@@ -169,22 +188,27 @@ def dAnn_dCT(EvtInfo, varthV):
        Input parameters needed:
             Ee (incident positron energy)
             me (electron mass)
-            MV (Dark Vector Mass -- can be set to zero for SM Case)
+            mV (Dark Vector Mass -- can be set to zero for SM Case)
             al (electro-weak fine-structure constant)
     """
-    Ee, me, al, MV = EvtInfo
+    Ee=EvtInfo['E_inc']
+    me=EvtInfo['m_e']
+    Z =EvtInfo['Z_T']
+    al=EvtInfo['alpha_FS']
+    mV=EvtInfo['m_V']
+
     if len(np.shape(varthV)) == 1:
         varthV = np.array([varthV])
     dSigs = []
     for varth in varthV:
         ct = varth[0]
 
-        if Ee < (MV**2-2*me**2)/(2*me):
+        if Ee < (mV**2-2*me**2)/(2*me):
             return 0.0
 
         s = 2.0*me*(Ee + me)
         b = np.sqrt(1.0 - 4.0*me**2/s)
-        dSigs.append(4.0*np.pi*al**2/(s*(1 - b**2*ct**2))*((s-MV**2)/(2*s)*(1+ct**2) + 2.0*MV**2/(s-MV**2)))
+        dSigs.append(4.0*np.pi*al**2/(s*(1 - b**2*ct**2))*((s-mV**2)/(2*s)*(1+ct**2) + 2.0*mV**2/(s-mV**2)))
     if len(dSigs) == 1:
         return dSigs[0]
     else:
@@ -201,7 +225,13 @@ def dSPairProd_dP(EvtInfo, varthTildeV):
             Z (Target Atomic Number)
             al (electro-weak fine-structure constant)
     """
-    w, me, Z, al = EvtInfo
+
+    w=EvtInfo['E_inc']
+    me=EvtInfo['m_e']
+    Z =EvtInfo['Z_T']
+    al=EvtInfo['alpha_FS']
+    mV=0 # This function does not handle dark photon s
+    
     if len(np.shape(varthTildeV)) == 1:
         varthTildeV = np.array([varthTildeV])
     dSigs = []
@@ -253,7 +283,12 @@ def dSPairProd_dP_T(EvtInfo, varthTildeV):
             Z (Target Atomic Number)
             al (electro-weak fine-structure constant)
     """
-    w, me, Z, al = EvtInfo
+    w=EvtInfo['E_inc']
+    me=EvtInfo['m_e']
+    Z =EvtInfo['Z_T']
+    al=EvtInfo['alpha_FS']
+    mV=0
+    
     if len(np.shape(varthTildeV)) == 1:
         varthTildeV = np.array([varthTildeV])
     dSigs = []
@@ -297,7 +332,12 @@ def dSCompton_dCT(EvtInfo, varthV):
             MV (Dark Vector Mass -- can be set to zero for SM Case)
             al (electro-weak fine-structure constant)
     """
-    Eg, me, mV, al = EvtInfo
+    Eg=EvtInfo['E_inc']
+    me=EvtInfo['m_e']
+    Z =EvtInfo['Z_T']
+    al=EvtInfo['alpha_FS']
+    mV=EvtInfo['m_V']
+
     if len(np.shape(varthV)) == 1:
         varthV = np.array([varthV])
     dSigs = []
@@ -410,8 +450,8 @@ def Brem_S_T(EI, Egmin, VB=False, mode='XSec'):
     return tr
 
 def DBrem_S(EI, VB=False, mode='XSec'):
-    ep, me, MV, Z, al = EI
-    igrange = [[MV, ep-me], [-1, 1], [-1, 1], [0, 2*np.pi]]
+    ep, me, mV, Z, al = EI
+    igrange = [[mV, ep-me], [-1, 1], [-1, 1], [0, 2*np.pi]]
     integrand = vg.Integrator(igrange)
 
     if mode == 'XSec':
@@ -437,8 +477,8 @@ def DBrem_S(EI, VB=False, mode='XSec'):
     return tr
 
 def DBrem_S_T(EI, VB=False, mode='XSec'):
-    ep, me, MV, Z, al = EI
-    igrange = [[MV, ep-me], [0, np.sqrt(ep/MV)], [0, np.sqrt(ep/MV)], [0, 2*np.pi]]
+    ep, me, mV, Z, al = EI
+    igrange = [[mV, ep-me], [0, np.sqrt(ep/mV)], [0, np.sqrt(ep/mV)], [0, 2*np.pi]]
     integrand = vg.Integrator(igrange)
 
     if mode == 'Pickle':
@@ -477,16 +517,16 @@ def DBrem_S_T(EI, VB=False, mode='XSec'):
     return tr
 
 def Ann_S(EI, Egmin, VB=False, mode='XSec'):
-    Ee, me, al, MV = EI
-    EVMin = Egmin + MV
+    Ee, me, mV, al = EI
+    EVMin = Egmin + mV
 
     #Determine ranges of cos(theta) that give photons/dark photons with sufficient energy
-    ctmaxV = np.sqrt(2.0)*(2.0*me*(Ee-EVMin)*(Ee+me)+Ee*MV**2)/(np.sqrt((Ee-me)*(2.0*Ee+me))*(2*me*(Ee+me)-MV**2))
-    ctMaxMV = np.sqrt(2.0)*(Ee*MV**2 - 2.0*me*(Ee - Egmin)*(Ee+me))/(np.sqrt((Ee-me)*(2*Ee+me))*(2*me*(Ee+me)-MV**2))
-    if ctmaxV < 0.0 or ctMaxMV > 0.0:
+    ctmaxV = np.sqrt(2.0)*(2.0*me*(Ee-EVMin)*(Ee+me)+Ee*mV**2)/(np.sqrt((Ee-me)*(2.0*Ee+me))*(2*me*(Ee+me)-mV**2))
+    ctMaxmV = np.sqrt(2.0)*(Ee*mV**2 - 2.0*me*(Ee - Egmin)*(Ee+me))/(np.sqrt((Ee-me)*(2*Ee+me))*(2*me*(Ee+me)-mV**2))
+    if ctmaxV < 0.0 or ctMaxmV > 0.0:
         ctMax = 0.0
     else:
-        ctMax = np.min([np.abs(ctmaxV), np.abs(ctMaxMV)])
+        ctMax = np.min([np.abs(ctmaxV), np.abs(ctMaxmV)])
     igrange = [[-ctMax, ctMax]]
     if ctMax == 0.0:
         if mode == 'XSec':
