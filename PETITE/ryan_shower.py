@@ -1,14 +1,19 @@
 import numpy as np
+import pickle 
 
 from scipy.interpolate import interp1d
 
 from .moliere import get_scattered_momentum 
 from .particle import Particle
 from .kinematics import eegFourVecs, eeVFourVecs, gepemFourVecs, Compton_FVs, Ann_FVs
+import .AllProcesses as AP
+
 
 import sys
+from numpy.random import random as draw_U
 
 me = 0.000511
+alpha_FS = 1/137.0 ### Ryan added this
 
 Z = {'graphite':6.0, 'lead':82.0} #atomic number of different targets
 A = {'graphite':12.0, 'lead':207.2} #atomic mass of different targets
@@ -19,16 +24,16 @@ GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm
 cmtom = 0.01
 mp0 = 1.673e-24 #g
 
-process_code = {'brem':0, 'anni': 1, 'split': 2, 'compt': 3}
+process_code = {'Brem':0, 'Ann': 1, 'PairProd': 2, 'Comp': 3}
 
 class Shower:
     """ Representation of a shower
 
     """
-    def __init__(self, PickDir, TargetMaterial, MinEnergy):
+    def __init__(self, DictDir, TargetMaterial, MinEnergy):
         """Initializes the shower object.
         Args:
-            PickDir: directory containing the pre-computed MC samples of various shower processes
+            DictDir: directory containing the pre-computed VEGAS integrators and auxillary info.
             TargetMaterial: string label of the homogeneous material through which 
             particles propagate (available materials are the dict keys of 
             Z, A, rho, etc)
@@ -36,44 +41,57 @@ class Shower:
             finishes its propagation through the target
         """
 
+        
         ## Need to swap this out for integrator objects
-        self.set_PickDir(PickDir)
+        self.set_DictDir(DictDir)
         self.set_TargetMaterial(TargetMaterial)
-        self.set_SampDir(PickDir + TargetMaterial + "/")
-        self.set_SampDirE(PickDir + "electrons/")
         self.MinEnergy = MinEnergy
 
         self.set_MaterialProps()
         self.set_nTargets()
-        self.set_samples()
         self.set_CrossSections()
         self.set_NSigmas()
 
-    def set_PickDir(self, value):
+    def load_Samp(DictDir, Process, TargetMaterial):
+        samp_file=open( self.get_SampDir() + "samp_Dicts.pkl", 'rb')
+        samp_Dict=pickle.load(samp_file)
+        samp_file.close()
+
+        if Process in samp_Dict:
+            return(samp_Dict[Process])
+        else:
+            raise Exception("Process String does not match library")
+
+    def load_xSec(DictDir, Process, TargetMaterial):
+        xSec_file=open( self.get_SampDir() + "xSec_Dicts.pkl", 'rb')
+        xSec_Dict=pickle.load(xSec_file)
+        xSec_file.close()
+
+        if Process in xSec_Dict:
+            continue
+        else:
+            raise Exception("Process String does not match library")
+        
+        if TargetMaterial in xSec_Dict[Process]:
+            return(xSec_Dict[TargetMaterial])
+        else:
+            raise Exception("Target Material is not in library")
+
+
+
+        
+    def set_DictDir(self, value):
         """Set the top level directory containing pre-computed MC pickles to value"""
-        self._PickDir = value
-    def get_PickDir(self):
+        self._DictDir = value
+    def get_DictDir(self):
         """Get the top level directory containing pre-computed MC pickles""" 
-        return self._PickDir
+        return self._DictDir
     def set_TargetMaterial(self, value):
         """Set the string representing the target material to value"""
         self._TargetMaterial = value
     def get_TargetMaterial(self):
         """Get the string representing the target material"""
         return self._TargetMaterial
-    def set_SampDir(self, value):
-        """Set the directory containing pre-simulated MC events for processes involing target nuclei"""
-        self._SampDir = value
-    def get_SampDir(self):
-        """Get the directory containing pre-simulated MC events for processes involing target nuclei"""
-        return self._SampDir
-    def set_SampDirE(self, value):
-        """Set the directory containing pre-simulated MC events for processes involing target electrons"""
-        self._SampDirE = value
-    def get_SampDirE(self):
-        """Get the directory containing pre-simulated MC events for processes involing target electrons"""
-        return self._SampDirE
-
     def set_MaterialProps(self):
         """Defines material properties (Z, A, rho, etc) based on the target 
         material label
@@ -99,44 +117,17 @@ class Shower:
 
         return self._nTarget, self._nElecs
 
-    def set_samples(self):
-        """Loads the pre-computed MC pickles for shower processes"""
-        ## Need to change this into loading an integrator
-        self._BremSamples = np.load(self.get_SampDir()+"BremEvts.npy", allow_pickle=True)
-        self._PPSamples = np.load(self.get_SampDir()+"PairProdEvts.npy", allow_pickle=True)
-        self._AnnSamples = np.load(self.get_SampDirE()+"AnnihilationEvts.npy", allow_pickle=True)
-        self._CompSamples = np.load(self.get_SampDirE()+"ComptonEvts.npy", allow_pickle=True)
-    def get_BremSamples(self, ind):
-        """Returns brem event from the sample with index ind"""
-        return self._BremSamples[ind]
-    def get_PPSamples(self, ind):
-        """Returns pair production event from the sample with index ind"""
-        return self._PPSamples[ind]
-    def get_AnnSamples(self, ind):
-        """Returns e+e- event from the sample with index ind"""
-        return self._AnnSamples[ind]
-    def get_CompSamples(self, ind):
-        """Returns the Compton event from the sample with index ind"""
-        return self._CompSamples[ind]
-
     def set_CrossSections(self):
         """Loads the pre-computed cross-sections for various shower processes 
         and extracts the minimum/maximum values of initial energies
         """
 
-        # These files are arrays of [energy,cross-section] values
+        # These contain only the cross sections for the chosen target material
+        self._BremXSec = self.load_xSec(self._DictDir, 'Brem', TargetMaterial)
+        self._PPXSec   = self.load_xSec(self._DictDir, 'PaiProd', TargetMaterial)
+        self._AnnXSec  = self.load_xSec(self._DictDir, 'Ann', TargetMaterial)
+        self._CompXSec = self.load_xSec(self._DictDir, 'Comp', TargetMaterial)
 
-        ## Replace these with the dictionaries that I produce
-        ## Should loop over process list
-        
-        self._BremXSec = np.load(self.get_SampDir()+"BremXSec.npy", allow_pickle=True)
-        self._PPXSec = np.load(self.get_SampDir()+"PairProdXSec.npy", allow_pickle=True)
-        self._AnnXSec = np.load(self.get_SampDirE()+"AnnihilationXSec.npy", allow_pickle=True)
-        self._CompXSec = np.load(self.get_SampDirE()+"ComptonXSec.npy", allow_pickle=True)
-
-        # lists of energies for which the cross-sections have been computed
-        ## This should be extractable from the dictionary, so maybe write a funciton to
-        ## do this? 
         self._EeVecBrem = np.transpose(self._BremXSec)[0]
         self._EgVecPP = np.transpose(self._PPXSec)[0]
         self._EeVecAnn = np.transpose(self._AnnXSec)[0]
@@ -191,6 +182,45 @@ class Shower:
         b0, b1 = self._NSigmaPP(Energy), self._NSigmaComp(Energy)
         return b0/(b0+b1)
 
+
+
+
+    def Draw_Sample(self,Einc,LU_Key,Process):
+
+        sample_list=load_Samp(DictDir, Process, TargetMaterial)
+
+        # this grabs the dictionary part rather than the energy. 
+        sample_dict=sample_list[LU_Key][1]
+
+        integrand=sample_dict["integrator"]
+        max_F    =sample_dict["max_F"]
+        max_X    =sample_dict["max_X"]
+        max_wgt  =sample_dict["max_wgt"]
+
+
+        EvtInfo={'E_inc': Einc, 'm_e': me, 'Z_T': self._ZTarget, 'alpha_FS': alpha_FS, 'm_V': 0}
+        diff_xsection_options={"PairProd" : AP.dSPairProd_dP_T,
+                               "Comp"     : AP.dSCompton_dCT,
+                               "Brem"     : AP.dSBrem_dP_T,
+                               "Ann"      : AP.dAnn_dCT }
+
+        if Process in diff_xsection_options:
+            diff_xsec_func = diff_xsection_options[Process]
+        else:
+            raise Exception("Your process is not in the list")
+
+
+        reject =True
+        for x,wgt in integrand.random():    
+            if  max_F*drawU()<wgt*diff_xsec_func(EvtInfo,x):
+                break
+            else:
+                continue
+
+        return(x)
+
+
+
     def ElecBremSample(self, Elec0):
         """Generate a brem event from an initial electron/positron
             Args:
@@ -214,12 +244,13 @@ class Shower:
 
         # Find the closest initial energy among the precomputed samples and get it
         LUKey = int((np.log10(Ee0) - self._logEeMinBrem)/self._logEeSSBrem)
-        ts = self.get_BremSamples(LUKey)
-        SampEvt = ts[np.random.randint(0, len(ts))]
-        EeMod = self._EeVecBrem[LUKey]
 
+        LUKey = LUKey + 1
+        SampEvt = self.DrawSample(self, Ee0, LUKey, 'Brem')
+
+                
         # reconstruct final electron and photon 4-momenta from the MC-sampled variables
-        NFVs = eegFourVecs(Ee0, me, SampEvt[0]*Ee0/EeMod, np.cos(me/EeMod*SampEvt[1]), np.cos(me/(Ee0-SampEvt[0]*Ee0/EeMod)*SampEvt[2]), SampEvt[3])
+        NFVs = eegFourVecs(Ee0, me, SampEvt[0], np.cos(me/Ee0*SampEvt[1]), np.cos(me/(Ee0-SampEvt[0])*SampEvt[2]), SampEvt[3])
 
         Eef, pexfZF, peyfZF, pezfZF = NFVs[1]
         Egf, pgxfZF, pgyfZF, pgzfZF = NFVs[2]
@@ -234,8 +265,8 @@ class Shower:
         pos = Elec0.get_rf()
         init_IDs = Elec0.get_IDs()
 
-        NewE = Particle(init_IDs[0], Eef, pe3LF[0], pe3LF[1], pe3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1,process_code['brem'], 1.0)
-        NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['brem'], 1.0)
+        NewE = Particle(init_IDs[0], Eef, pe3LF[0], pe3LF[1], pe3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1,process_code['Brem'], 1.0)
+        NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Brem'], 1.0)
 
         return [NewE, NewG]
 
@@ -259,9 +290,9 @@ class Shower:
 
         # Find the closest initial energy among the precomputed samples and get it
         LUKey = int((np.log10(Ee0) - self._logEeMinAnn)/self._logEeSSAnn)
-        ts = self.get_AnnSamples(LUKey)
-        SampEvt = ts[np.random.randint(0, len(ts))]
-        EeMod = self._EeVecAnn[LUKey]
+
+        LUKey = LUKey + 1
+        SampEvt = self.DrawSample(self, Ee0, LUKey, 'Ann')
 
         # reconstruct final photon 4-momenta from the MC-sampled variables
         NFVs = Ann_FVs(Ee0, me, 0.0, SampEvt[0])
@@ -278,8 +309,8 @@ class Shower:
         pos = Elec0.get_rf()
         init_IDs = Elec0.get_IDs()
 
-        NewG1 = Particle(22, Eg1f, pg3LF1[0], pg3LF1[1], pg3LF1[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['anni'], 1.0)
-        NewG2 = Particle(22, Eg2f, pg3LF2[0], pg3LF2[1], pg3LF2[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['anni'], 1.0)
+        NewG1 = Particle(22, Eg1f, pg3LF1[0], pg3LF1[1], pg3LF1[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Ann'], 1.0)
+        NewG2 = Particle(22, Eg2f, pg3LF2[0], pg3LF2[1], pg3LF2[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Ann'], 1.0)
 
         return [NewG1, NewG2]
 
@@ -302,12 +333,13 @@ class Shower:
 
         # Find the closest initial energy among the precomputed samples and get it
         LUKey = int((np.log10(Eg0) - self._logEgMinPP)/self._logEgSSPP)
-        ts = self.get_PPSamples(LUKey)
-        SampEvt = ts[np.random.randint(0, len(ts))]
-        EgMod = self._EgVecPP[LUKey]
+        
+        LUKey = LUKey + 1
+        SampEvt = self.DrawSample(self, Ee0, LUKey, 'PairProd')
 
+        
         # reconstruct final electron and positron 4-momenta from the MC-sampled variables
-        NFVs = gepemFourVecs(Eg0, me, SampEvt[0]*Eg0/EgMod, np.cos(me/EgMod*SampEvt[1]), np.cos(me/EgMod*SampEvt[2]), SampEvt[3])
+        NFVs = gepemFourVecs(Eg0, me, SampEvt[0], np.cos(me/Eg0*SampEvt[1]), np.cos(me/Eg0*SampEvt[2]), SampEvt[3])
         Eepf, pepxfZF, pepyfZF, pepzfZF = NFVs[1]
         Eemf, pemxfZF, pemyfZF, pemzfZF = NFVs[2]
 
@@ -320,8 +352,8 @@ class Shower:
         pos = Phot0.get_rf()
         init_IDs = Phot0.get_IDs()
 
-        NewEp = Particle(-11,Eepf, pep3LF[0], pep3LF[1], pep3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['split'], 1.0)
-        NewEm = Particle(11, Eemf, pem3LF[0], pem3LF[1], pem3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['split'], 1.0)
+        NewEp = Particle(-11,Eepf, pep3LF[0], pep3LF[1], pep3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['PairProd'], 1.0)
+        NewEm = Particle(11, Eemf, pem3LF[0], pem3LF[1], pem3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['PairProd'], 1.0)
 
         return [NewEp, NewEm]
 
@@ -345,10 +377,11 @@ class Shower:
 
         # Find the closest initial energy among the precomputed samples and get it
         LUKey = int((np.log10(Eg0) - self._logEgMinComp)/self._logEgSSComp)
-        ts = self.get_CompSamples(LUKey)
-        SampEvt = ts[np.random.randint(0, len(ts))]
-        EgMod = self._EgVecComp[LUKey]
+        
+        LUKey = LUKey + 1
+        SampEvt = self.DrawSample(self, Ee0, LUKey, 'Comp')
 
+        
         # reconstruct final electron and photon 4-momenta from the MC-sampled variables
         NFVs = Compton_FVs(Eg0, me, 0.0, SampEvt[0])
 
@@ -362,8 +395,8 @@ class Shower:
         pos = Phot0.get_rf()
         init_IDs = Phot0.get_IDs()
 
-        NewE = Particle(11, Eef, pe3LF[0], pe3LF[1], pe3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['compt'], 1.0)
-        NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['compt'], 1.0)
+        NewE = Particle(11, Eef, pe3LF[0], pe3LF[1], pe3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Comp'], 1.0)
+        NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Comp'], 1.0)
 
         return [NewE, NewG]
 
