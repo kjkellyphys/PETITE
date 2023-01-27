@@ -123,10 +123,10 @@ for process_key in Process_Files.keys():
 
         ## This is just to speed up the code (for debugging)
         ## by not doing all the energies
-        if counter>2:
-            break
-        print(counter)
-        counter=counter+1
+        #if counter>2:
+        #    break
+        #print(counter)
+        #counter=counter+1
         
         E_inc, integrand = process_file[ki]
         save_copy_integrand=copy.deepcopy(integrand)

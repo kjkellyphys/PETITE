@@ -6,7 +6,8 @@ from scipy.interpolate import interp1d
 from .moliere import get_scattered_momentum 
 from .particle import Particle
 from .kinematics import eegFourVecs, eeVFourVecs, gepemFourVecs, Compton_FVs, Ann_FVs
-import .AllProcesses as AP
+from .AllProcesses import dSPairProd_dP_T, dSCompton_dCT, dSBrem_dP_T, dAnn_dCT 
+
 
 
 import sys
@@ -52,29 +53,30 @@ class Shower:
         self.set_CrossSections()
         self.set_NSigmas()
 
-    def load_Samp(DictDir, Process, TargetMaterial):
-        samp_file=open( self.get_SampDir() + "samp_Dicts.pkl", 'rb')
+    def load_Samp(self, DictDir, Process, TargetMaterial):
+        samp_file=open(DictDir + "samp_Dicts.pkl", 'rb')
         samp_Dict=pickle.load(samp_file)
         samp_file.close()
 
         if Process in samp_Dict:
             return(samp_Dict[Process])
         else:
+            print(Process)
             raise Exception("Process String does not match library")
+    
 
-    def load_xSec(DictDir, Process, TargetMaterial):
-        xSec_file=open( self.get_SampDir() + "xSec_Dicts.pkl", 'rb')
+    def load_xSec(self, DictDir, Process, TargetMaterial):
+        xSec_file=open( DictDir + "xSec_Dicts.pkl", 'rb')
         xSec_Dict=pickle.load(xSec_file)
         xSec_file.close()
 
-        if Process in xSec_Dict:
-            continue
-        else:
+        if Process not in xSec_Dict:
             raise Exception("Process String does not match library")
         
         if TargetMaterial in xSec_Dict[Process]:
-            return(xSec_Dict[TargetMaterial])
+            return(xSec_Dict[Process][TargetMaterial])
         else:
+            print('goodbye')
             raise Exception("Target Material is not in library")
 
 
@@ -123,10 +125,10 @@ class Shower:
         """
 
         # These contain only the cross sections for the chosen target material
-        self._BremXSec = self.load_xSec(self._DictDir, 'Brem', TargetMaterial)
-        self._PPXSec   = self.load_xSec(self._DictDir, 'PaiProd', TargetMaterial)
-        self._AnnXSec  = self.load_xSec(self._DictDir, 'Ann', TargetMaterial)
-        self._CompXSec = self.load_xSec(self._DictDir, 'Comp', TargetMaterial)
+        self._BremXSec = self.load_xSec(self._DictDir, 'Brem', self._TargetMaterial)
+        self._PPXSec   = self.load_xSec(self._DictDir, 'PairProd', self._TargetMaterial)
+        self._AnnXSec  = self.load_xSec(self._DictDir, 'Ann', self._TargetMaterial) 
+        self._CompXSec = self.load_xSec(self._DictDir, 'Comp', self._TargetMaterial) 
 
         self._EeVecBrem = np.transpose(self._BremXSec)[0]
         self._EgVecPP = np.transpose(self._PPXSec)[0]
@@ -187,7 +189,7 @@ class Shower:
 
     def Draw_Sample(self,Einc,LU_Key,Process):
 
-        sample_list=load_Samp(DictDir, Process, TargetMaterial)
+        sample_list=self.load_Samp(self._DictDir, Process, self._TargetMaterial)
 
         # this grabs the dictionary part rather than the energy. 
         sample_dict=sample_list[LU_Key][1]
@@ -199,10 +201,10 @@ class Shower:
 
 
         EvtInfo={'E_inc': Einc, 'm_e': me, 'Z_T': self._ZTarget, 'alpha_FS': alpha_FS, 'm_V': 0}
-        diff_xsection_options={"PairProd" : AP.dSPairProd_dP_T,
-                               "Comp"     : AP.dSCompton_dCT,
-                               "Brem"     : AP.dSBrem_dP_T,
-                               "Ann"      : AP.dAnn_dCT }
+        diff_xsection_options={"PairProd" : dSPairProd_dP_T,
+                               "Comp"     : dSCompton_dCT,
+                               "Brem"     : dSBrem_dP_T,
+                               "Ann"      : dAnn_dCT }
 
         if Process in diff_xsection_options:
             diff_xsec_func = diff_xsection_options[Process]
@@ -212,7 +214,7 @@ class Shower:
 
         reject =True
         for x,wgt in integrand.random():    
-            if  max_F*drawU()<wgt*diff_xsec_func(EvtInfo,x):
+            if  max_F*draw_U()<wgt*diff_xsec_func(EvtInfo,x):
                 break
             else:
                 continue
@@ -246,7 +248,7 @@ class Shower:
         LUKey = int((np.log10(Ee0) - self._logEeMinBrem)/self._logEeSSBrem)
 
         LUKey = LUKey + 1
-        SampEvt = self.DrawSample(self, Ee0, LUKey, 'Brem')
+        SampEvt = self.Draw_Sample(Ee0, LUKey, 'Brem')
 
                 
         # reconstruct final electron and photon 4-momenta from the MC-sampled variables
