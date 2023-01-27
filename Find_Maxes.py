@@ -87,7 +87,10 @@ def Unity(Z, me, t):
 TargetMaterials = ['graphite','lead']
 Z = {'graphite':6.0, 'lead':82.0}
 
-Process_Files={"PairProd" : PPSamp0, "Comp": CompSamp0, "Brem" : BremSamp0, "Ann": AnnSamp0}
+Process_Files={"PairProd" : PPSamp0,
+               "Comp": CompSamp0,
+               "Brem" : BremSamp0,
+               "Ann": AnnSamp0}
 
 diff_xsections={"PairProd" : dSPairProd_dP_T,
                 "Comp"     : dSCompton_dCT,    
@@ -115,6 +118,8 @@ for process_key in Process_Files.keys():
     QSq        =QSq_functions[process_key]
     xSec_dict[process_key]={}
     samp_dict[process_key]=[]
+
+
     for tm in TargetMaterials:
         xSec_dict[process_key][tm]=[]
 
@@ -158,7 +163,6 @@ for process_key in Process_Files.keys():
                 max_F=MM_H
                 max_x = np.asarray(x)
                 max_wgt= wgt 
-
 
             
             for tm in TargetMaterials:

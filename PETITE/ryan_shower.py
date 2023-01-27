@@ -53,6 +53,8 @@ class Shower:
         self.set_CrossSections()
         self.set_NSigmas()
 
+
+        
     def load_Samp(self, DictDir, Process, TargetMaterial):
         samp_file=open(DictDir + "samp_Dicts.pkl", 'rb')
         samp_Dict=pickle.load(samp_file)
@@ -76,7 +78,6 @@ class Shower:
         if TargetMaterial in xSec_Dict[Process]:
             return(xSec_Dict[Process][TargetMaterial])
         else:
-            print('goodbye')
             raise Exception("Target Material is not in library")
 
 
@@ -212,7 +213,6 @@ class Shower:
             raise Exception("Your process is not in the list")
 
 
-        reject =True
         for x,wgt in integrand.random():    
             if  max_F*draw_U()<wgt*diff_xsec_func(EvtInfo,x):
                 break
@@ -246,8 +246,8 @@ class Shower:
 
         # Find the closest initial energy among the precomputed samples and get it
         LUKey = int((np.log10(Ee0) - self._logEeMinBrem)/self._logEeSSBrem)
-
         LUKey = LUKey + 1
+        
         SampEvt = self.Draw_Sample(Ee0, LUKey, 'Brem')
 
                 
@@ -292,8 +292,8 @@ class Shower:
 
         # Find the closest initial energy among the precomputed samples and get it
         LUKey = int((np.log10(Ee0) - self._logEeMinAnn)/self._logEeSSAnn)
-
         LUKey = LUKey + 1
+        
         SampEvt = self.DrawSample(self, Ee0, LUKey, 'Ann')
 
         # reconstruct final photon 4-momenta from the MC-sampled variables
@@ -335,8 +335,8 @@ class Shower:
 
         # Find the closest initial energy among the precomputed samples and get it
         LUKey = int((np.log10(Eg0) - self._logEgMinPP)/self._logEgSSPP)
-        
         LUKey = LUKey + 1
+        
         SampEvt = self.DrawSample(self, Ee0, LUKey, 'PairProd')
 
         
@@ -378,9 +378,9 @@ class Shower:
             [-np.sin(ThZ), 0, np.cos(ThZ)]]
 
         # Find the closest initial energy among the precomputed samples and get it
-        LUKey = int((np.log10(Eg0) - self._logEgMinComp)/self._logEgSSComp)
-        
+        LUKey = int((np.log10(Eg0) - self._logEgMinComp)/self._logEgSSComp)        
         LUKey = LUKey + 1
+        
         SampEvt = self.DrawSample(self, Ee0, LUKey, 'Comp')
 
         
