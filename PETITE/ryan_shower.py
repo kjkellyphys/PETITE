@@ -8,7 +8,7 @@ from .particle import Particle
 from .kinematics import eegFourVecs, eeVFourVecs, gepemFourVecs, Compton_FVs, Ann_FVs
 from .AllProcesses import dSPairProd_dP_T, dSCompton_dCT, dSBrem_dP_T, dAnn_dCT 
 
-
+np.random.seed(19121974)
 
 import sys
 from numpy.random import random as draw_U
@@ -212,6 +212,7 @@ class Shower:
         else:
             raise Exception("Your process is not in the list")
 
+        i0 = integrand.random()
 
         for x,wgt in integrand.random():    
             if  max_F*draw_U()<wgt*diff_xsec_func(EvtInfo,x):
@@ -294,7 +295,7 @@ class Shower:
         LUKey = int((np.log10(Ee0) - self._logEeMinAnn)/self._logEeSSAnn)
         LUKey = LUKey + 1
         
-        SampEvt = self.DrawSample(self, Ee0, LUKey, 'Ann')
+        SampEvt = self.Draw_Sample(Ee0, LUKey, 'Ann')
 
         # reconstruct final photon 4-momenta from the MC-sampled variables
         NFVs = Ann_FVs(Ee0, me, 0.0, SampEvt[0])
@@ -337,7 +338,7 @@ class Shower:
         LUKey = int((np.log10(Eg0) - self._logEgMinPP)/self._logEgSSPP)
         LUKey = LUKey + 1
         
-        SampEvt = self.DrawSample(self, Ee0, LUKey, 'PairProd')
+        SampEvt = self.Draw_Sample(Eg0, LUKey, 'PairProd')
 
         
         # reconstruct final electron and positron 4-momenta from the MC-sampled variables
@@ -381,7 +382,7 @@ class Shower:
         LUKey = int((np.log10(Eg0) - self._logEgMinComp)/self._logEgSSComp)        
         LUKey = LUKey + 1
         
-        SampEvt = self.DrawSample(self, Ee0, LUKey, 'Comp')
+        SampEvt = self.Draw_Sample(Eg0, LUKey, 'Comp')
 
         
         # reconstruct final electron and photon 4-momenta from the MC-sampled variables
