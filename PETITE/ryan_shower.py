@@ -200,7 +200,6 @@ class Shower:
         max_X    =sample_dict["max_X"]
         max_wgt  =sample_dict["max_wgt"]
 
-
         EvtInfo={'E_inc': Einc, 'm_e': me, 'Z_T': self._ZTarget, 'alpha_FS': alpha_FS, 'm_V': 0}
         diff_xsection_options={"PairProd" : dSPairProd_dP_T,
                                "Comp"     : dSCompton_dCT,
@@ -212,13 +211,13 @@ class Shower:
         else:
             raise Exception("Your process is not in the list")
 
-        i0 = integrand.random()
-
-        for x,wgt in integrand.random():    
-            if  max_F*draw_U()<wgt*diff_xsec_func(EvtInfo,x):
-                break
-            else:
-                continue
+        i0 = list(integrand.random())
+        samped = False
+        while samped is False:
+            randkey = np.random.choice(len(i0))
+            x,wgt = i0[randkey]
+            if max_F*draw_U() < wgt*diff_xsec_func(EvtInfo,x):
+                samped = True
 
         return(x)
 
