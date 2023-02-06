@@ -7,8 +7,11 @@ from .moliere import get_scattered_momentum
 from .particle import Particle
 from .kinematics import eegFourVecs, eeVFourVecs, gepemFourVecs, Compton_FVs, Ann_FVs
 from .AllProcesses import dSPairProd_dP_T, dSCompton_dCT, dSBrem_dP_T, dAnn_dCT 
+from datetime import datetime
 
-np.random.seed(19121974)
+
+np.random.seed(datetime.now().timestamp())
+#np.random.seed(19121974)
 
 import sys
 from numpy.random import random as draw_U
@@ -53,7 +56,10 @@ class Shower:
         self.set_CrossSections()
         self.set_NSigmas()
 
+        self.set_samples()
 
+
+                
         
     def load_Samp(self, DictDir, Process, TargetMaterial):
         samp_file=open(DictDir + "samp_Dicts.pkl", 'rb')
@@ -61,6 +67,7 @@ class Shower:
         samp_file.close()
 
         if Process in samp_Dict:
+            samp_Dict['integrator_list']=list(samp_Dict('integrator') )
             return(samp_Dict[Process])
         else:
             print(Process)
@@ -113,6 +120,13 @@ class Shower:
         self._nTarget = rhoT/mp0/AT
         self._nElecs = self._nTarget*ZT
 
+    def set_samples(self):
+        self._loaded_samples={}
+        for Process in process_code.keys():
+            self._loaded_samples[Process]= \
+                load_Samp(self._DictDir, Process, self._TargetMaterial)
+
+        
     def get_nTargets(self):
         """Returns nuclear and electron target densities for the 
            target material in 1/cm^3
@@ -190,15 +204,15 @@ class Shower:
 
     def Draw_Sample(self,Einc,LU_Key,Process):
 
-        sample_list=self.load_Samp(self._DictDir, Process, self._TargetMaterial)
+        sample_list=self._loaded_samples 
 
         # this grabs the dictionary part rather than the energy. 
         sample_dict=sample_list[LU_Key][1]
 
-        integrand=sample_dict["integrator"]
-        max_F    =sample_dict["max_F"]
-        max_X    =sample_dict["max_X"]
-        max_wgt  =sample_dict["max_wgt"]
+        integ_list = sample_dict["integrator_list"]
+        max_F      = sample_dict["max_F"]
+        max_X      = sample_dict["max_X"]
+        max_wgt    = sample_dict["max_wgt"]
 
         EvtInfo={'E_inc': Einc, 'm_e': me, 'Z_T': self._ZTarget, 'alpha_FS': alpha_FS, 'm_V': 0}
         diff_xsection_options={"PairProd" : dSPairProd_dP_T,
@@ -211,7 +225,7 @@ class Shower:
         else:
             raise Exception("Your process is not in the list")
 
-        i0 = list(integrand.random())
+        i0=integ_list
         samped = False
         while samped is False:
             randkey = np.random.choice(len(i0))
