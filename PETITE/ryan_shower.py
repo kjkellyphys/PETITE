@@ -16,8 +16,10 @@ np.random.seed(datetime.now().timestamp())
 import sys
 from numpy.random import random as draw_U
 
-me = 0.000511
-alpha_FS = 1/137.0 ### Ryan added this
+
+##  https://pdg.lbl.gov/2019/reviews/rpp2018-rev-phys-constants.pdf
+me = 0.51099895000 
+alpha_FS =  1/137.035999084 
 
 Z = {'graphite':6.0, 'lead':82.0} #atomic number of different targets
 A = {'graphite':12.0, 'lead':207.2} #atomic mass of different targets
