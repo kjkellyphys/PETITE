@@ -36,7 +36,7 @@ class Shower:
     """ Representation of a shower
 
     """
-    def __init__(self, DictDir, TargetMaterial, MinEnergy):
+    def __init__(self, DictDir, TargetMaterial, MinEnergy, maxF_fudge_global=1):
         """Initializes the shower object.
         Args:
             DictDir: directory containing the pre-computed VEGAS integrators and auxillary info.
@@ -57,8 +57,9 @@ class Shower:
         self.set_nTargets()
         self.set_CrossSections()
         self.set_NSigmas()
-
         self.set_samples()
+
+        self._maxF_fudge_global=maxF_fudge_global
 
 
                 
@@ -212,7 +213,7 @@ class Shower:
         sample_dict=sample_list[LU_Key][1]
 
         integ_list = sample_dict["integrator_list"]
-        max_F      = sample_dict["max_F"]
+        max_F      = sample_dict["max_F"]*self._maxF_fudge_global
         max_X      = sample_dict["max_X"]
         max_wgt    = sample_dict["max_wgt"]
 
