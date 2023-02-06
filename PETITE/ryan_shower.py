@@ -10,8 +10,8 @@ from .AllProcesses import dSPairProd_dP_T, dSCompton_dCT, dSBrem_dP_T, dAnn_dCT
 from datetime import datetime
 
 
-np.random.seed(datetime.now().timestamp())
-#np.random.seed(19121974)
+#np.random.seed(datetime.now().timestamp())
+np.random.seed(19121974)
 
 import sys
 from numpy.random import random as draw_U
@@ -69,8 +69,7 @@ class Shower:
         samp_Dict=pickle.load(samp_file)
         samp_file.close()
 
-        if Process in samp_Dict:
-            samp_Dict['integrator_list']=list(samp_Dict('integrator') )
+        if Process in samp_Dict.keys():
             return(samp_Dict[Process])
         else:
             print(Process)
@@ -127,7 +126,7 @@ class Shower:
         self._loaded_samples={}
         for Process in process_code.keys():
             self._loaded_samples[Process]= \
-                load_Samp(self._DictDir, Process, self._TargetMaterial)
+                self.load_Samp(self._DictDir, Process, self._TargetMaterial)
 
         
     def get_nTargets(self):
@@ -210,9 +209,9 @@ class Shower:
         sample_list=self._loaded_samples 
 
         # this grabs the dictionary part rather than the energy. 
-        sample_dict=sample_list[LU_Key][1]
+        sample_dict=sample_list[Process][LU_Key][1]
 
-        integ_list = sample_dict["integrator_list"]
+        integrand = sample_dict["integrator"]
         max_F      = sample_dict["max_F"]*self._maxF_fudge_global
         max_X      = sample_dict["max_X"]
         max_wgt    = sample_dict["max_wgt"]
@@ -228,13 +227,10 @@ class Shower:
         else:
             raise Exception("Your process is not in the list")
 
-        i0=integ_list
-        samped = False
-        while samped is False:
-            randkey = np.random.choice(len(i0))
-            x,wgt = i0[randkey]
-            if max_F*draw_U() < wgt*diff_xsec_func(EvtInfo,x):
-                samped = True
+        integrand.set(max_nhcube=1)
+        for x,wgt in integrand.random():    
+            if  max_F*draw_U()<wgt*diff_xsec_func(EvtInfo,x):
+                break
 
         return(x)
 
