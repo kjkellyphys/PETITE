@@ -10,8 +10,8 @@ from .AllProcesses import dSPairProd_dP_T, dSCompton_dCT, dSBrem_dP_T, dAnn_dCT
 from datetime import datetime
 
 
-np.random.seed(datetime.now().timestamp())
-#np.random.seed(19121974)
+#np.random.seed(datetime.now().timestamp())
+np.random.seed(19121974)
 
 import sys
 from numpy.random import random as draw_U
