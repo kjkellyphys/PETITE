@@ -151,14 +151,14 @@ for process_key in Process_Files.keys():
              
             EvtInfo={'E_inc': E_inc, 'm_e': meT, 'Z_T': Z_H, 'alpha_FS': alT, 'm_V': 0}
             MM_H_0 = wgt*diff_xsec(EvtInfo, x)
-            EvtInfo['E_inc'] = E_inc*1.2
-            MM_H_higher = wgt*diff_xsec(EvtInfo, x)
-            EvtInfo['E_inc'] = E_inc*0.8
-            MM_H_lower = wgt*diff_xsec(EvtInfo, x)
+            #EvtInfo['E_inc'] = E_inc*1.2
+            #MM_H_higher = wgt*diff_xsec(EvtInfo, x)
+            #EvtInfo['E_inc'] = E_inc*0.8
+            #MM_H_lower = wgt*diff_xsec(EvtInfo, x)
 
             EvtInfo['E_inc'] = E_inc
 
-            MM_H= max(MM_H_0, MM_H_higher, MM_H_lower)
+            MM_H= MM_H_0   #max(MM_H_0, MM_H_higher, MM_H_lower)
             if MM_H > max_wgtTimesF:
                 max_F=MM_H
                 max_x = np.asarray(x)
@@ -183,8 +183,8 @@ for process_key in Process_Files.keys():
     xSec_dict[process_key][tm]= np.asarray(xSec_dict[process_key][tm] ) 
     samp_dict[process_key]    = samp_dict[process_key]
 
-f_xSecs = open(SvDir + "xSec_Dicts.pkl","wb")
-f_samps = open(SvDir + "samp_Dicts.pkl","wb")
+f_xSecs = open(SvDir + "Feb7_xSec_Dicts.pkl","wb")
+f_samps = open(SvDir + "Feb7_samp_Dicts.pkl","wb")
 
 pickle.dump(xSec_dict,f_xSecs)
 pickle.dump(samp_dict,f_samps)
