@@ -35,7 +35,7 @@ class Shower:
     """ Representation of a shower
 
     """
-    def __init__(self, DictDir, TargetMaterial, MinEnergy, maxF_fudge_global=1):
+    def __init__(self, DictDir, TargetMaterial, MinEnergy, maxF_fudge_global=1,neval=300):
         """Initializes the shower object.
         Args:
             DictDir: directory containing the pre-computed VEGAS integrators and auxillary info.
@@ -60,6 +60,7 @@ class Shower:
 
         self._maxF_fudge_global=maxF_fudge_global
 
+        self._neval_VEGAS=neval
 
                 
         
@@ -232,14 +233,15 @@ class Shower:
         if Process in diff_xsection_options:
             diff_xsec_func = diff_xsection_options[Process]
             FF_func        = FF_dict[Process]
+            QSq_func       = QSq_dict[Process]
         else:
             raise Exception("Your process is not in the list")
 
-        integrand.set(max_nhcube=1, neval=300)
+        integrand.set(max_nhcube=1, neval=self._neval_VEGAS)
         if VB:
             sampcount = 0
         for x,wgt in integrand.random():
-            FF_eval=FF_func(EvtInfo['Z_T'], me, QSq(x, me, EvtInfo['E_inc'] ) )
+            FF_eval=FF_func(EvtInfo['Z_T'], me, QSq_func(x, me, EvtInfo['E_inc'] ) )
             if VB:
                 sampcount += 1  
             if  max_F*draw_U()<wgt*diff_xsec_func(EvtInfo,x)*FF_eval:
