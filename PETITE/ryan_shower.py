@@ -17,7 +17,7 @@ from numpy.random import random as draw_U
 
 
 ##  https://pdg.lbl.gov/2019/reviews/rpp2018-rev-phys-constants.pdf
-me = 0.51099895000 
+me =0.51099895000 
 alpha_FS =  1/137.035999084 
 
 Z = {'graphite':6.0, 'lead':82.0} #atomic number of different targets
@@ -229,8 +229,6 @@ class Shower:
         QSq_dict             ={"PairProd" : PPQSq, "Brem"     : BremQSq, "Comp": dummy, "Ann": dummy }
 
         
-        ZT=EvtInfo['Z_T']
-        me=EvtInfo['m_e']
         if Process in diff_xsection_options:
             diff_xsec_func = diff_xsection_options[Process]
             FF_func        = FF_dict[Process]
@@ -241,7 +239,7 @@ class Shower:
         if VB:
             sampcount = 0
         for x,wgt in integrand.random():
-            FF_eval=FF_func(ZT, me, QSq(x, me, EvtInfo['E_inc'] ) )
+            FF_eval=FF_func(EvtInfo['Z_T'], me, QSq(x, me, EvtInfo['E_inc'] ) )
             if VB:
                 sampcount += 1  
             if  max_F*draw_U()<wgt*diff_xsec_func(EvtInfo,x)*FF_eval:
