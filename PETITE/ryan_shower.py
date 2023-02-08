@@ -353,7 +353,7 @@ class Shower:
 
         return [NewG1, NewG2]
 
-    def PhotonSplitSample(self, Phot0, VB=False):
+    def PairProdSample(self, Phot0, VB=False):
         """Generate a photon splitting event from an initial photon
             Args:
                 Phot0: incoming positron (instance of) Particle in lab frame
@@ -568,7 +568,7 @@ class Shower:
                         BFPhPP = self.BF_Photon_PP(ap.get_pf()[0])
                         ch = np.random.uniform(low=0., high=1.)
                         if ch < BFPhPP:
-                            npart = self.PhotonSplitSample(ap, VB=VB)
+                            npart = self.PairProdSample(ap, VB=VB)
                         else:
                             npart = self.ComptonSample(ap, VB=VB)
                     if (npart[0]).get_p0()[0] > self.MinEnergy:
