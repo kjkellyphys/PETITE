@@ -7,6 +7,13 @@ import random as rnd
 #Differential Cross Sections for Incident Electrons/Positrons/Photons
 #--------------------------------------------------------------------
 
+def Unity(Z, me, t):
+    return(1.0)
+
+def dummy(x,y,z):
+    return(0)
+
+
 def dSBrem_dP(EvtInfo, varthV):
     """Standard Model Bremsstrahlung
        e (ep) + Z -> e (epp) + gamma (w) + Z

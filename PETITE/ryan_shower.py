@@ -6,7 +6,7 @@ from scipy.interpolate import interp1d
 from .moliere import get_scattered_momentum 
 from .particle import Particle
 from .kinematics import eegFourVecs, eeVFourVecs, gepemFourVecs, Compton_FVs, Ann_FVs
-from .AllProcesses import dSPairProd_dP_T, dSCompton_dCT, dSBrem_dP_T, dAnn_dCT 
+from .AllProcesses import *
 from datetime import datetime
 
 #np.random.seed(datetime.now().timestamp())
@@ -220,19 +220,31 @@ class Shower:
                                "Comp"     : dSCompton_dCT,
                                "Brem"     : dSBrem_dP_T,
                                "Ann"      : dAnn_dCT }
+        
+        FF_dict              ={"PairProd" : G2el,
+                               "Comp"     : Unity,
+                               "Brem"     : G2el,
+                               "Ann"      : Unity }
 
+        QSq_dict             ={"PairProd" : PPQSq, "Brem"     : BremQSq, "Comp": dummy, "Ann": dummy }
+
+        
+        ZT=EvtInfo['Z_T']
+        me=EvtInfo['m_e']
         if Process in diff_xsection_options:
             diff_xsec_func = diff_xsection_options[Process]
+            FF_func        = FF_dict[Process]
         else:
             raise Exception("Your process is not in the list")
 
         integrand.set(max_nhcube=1, neval=300)
         if VB:
             sampcount = 0
-        for x,wgt in integrand.random():  
+        for x,wgt in integrand.random():
+            FF_eval=FF_func(ZT, me, QSq(x, me, EvtInfo['E_inc'] ) )
             if VB:
                 sampcount += 1  
-            if  max_F*draw_U()<wgt*diff_xsec_func(EvtInfo,x):
+            if  max_F*draw_U()<wgt*diff_xsec_func(EvtInfo,x)*FF_eval:
                 break
         if VB:
             return np.concatenate([list(x), [sampcount]])

@@ -30,11 +30,6 @@ AnnSamp0 = np.load(PickDir+"AnnihilationPickles.npy", allow_pickle=True)
 
 
 
-#just a placeholder
-def dummy(x,y,z):
-    return(0) 
-
-
 def PPQSq(xx, me, w):
     """Computes momentum transfer squared for photon-scattering pair production
     Args:
@@ -81,8 +76,6 @@ def G2el(Z, me, t):
     a0 = aa(Z, me)
     return Z**2*a0**4*t**2/(1 + a0**2*t)**2
 
-def Unity(Z, me, t):
-    return(1.0)
 
 TargetMaterials = ['graphite','lead']
 Z = {'graphite':6.0, 'lead':82.0}
