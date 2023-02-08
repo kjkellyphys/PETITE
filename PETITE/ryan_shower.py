@@ -9,7 +9,6 @@ from .kinematics import eegFourVecs, eeVFourVecs, gepemFourVecs, Compton_FVs, An
 from .AllProcesses import dSPairProd_dP_T, dSCompton_dCT, dSBrem_dP_T, dAnn_dCT 
 from datetime import datetime
 
-
 #np.random.seed(datetime.now().timestamp())
 np.random.seed(19121974)
 
@@ -204,7 +203,7 @@ class Shower:
 
 
 
-    def Draw_Sample(self,Einc,LU_Key,Process):
+    def Draw_Sample(self,Einc,LU_Key,Process,VB=False):
 
         sample_list=self._loaded_samples 
 
@@ -227,16 +226,22 @@ class Shower:
         else:
             raise Exception("Your process is not in the list")
 
-        integrand.set(max_nhcube=1)
-        for x,wgt in integrand.random():    
+        integrand.set(max_nhcube=1, neval=300)
+        if VB:
+            sampcount = 0
+        for x,wgt in integrand.random():  
+            if VB:
+                sampcount += 1  
             if  max_F*draw_U()<wgt*diff_xsec_func(EvtInfo,x):
                 break
+        if VB:
+            return np.concatenate([list(x), [sampcount]])
+        else:
+            return(x)
 
-        return(x)
 
 
-
-    def ElecBremSample(self, Elec0):
+    def ElecBremSample(self, Elec0, VB=False):
         """Generate a brem event from an initial electron/positron
             Args:
                 Elec0: incoming electron/positron (instance of) Particle 
@@ -261,7 +266,7 @@ class Shower:
         LUKey = int((np.log10(Ee0) - self._logEeMinBrem)/self._logEeSSBrem)
         LUKey = LUKey + 1
         
-        SampEvt = self.Draw_Sample(Ee0, LUKey, 'Brem')
+        SampEvt = self.Draw_Sample(Ee0, LUKey, 'Brem', VB=VB)
 
                 
         # reconstruct final electron and photon 4-momenta from the MC-sampled variables
@@ -280,12 +285,16 @@ class Shower:
         pos = Elec0.get_rf()
         init_IDs = Elec0.get_IDs()
 
-        NewE = Particle(init_IDs[0], Eef, pe3LF[0], pe3LF[1], pe3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1,process_code['Brem'], 1.0)
-        NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Brem'], 1.0)
+        if VB:
+            newparticlewgt = SampEvt[-1]
+        else:
+            newparticlewgt = 1.0
+        NewE = Particle(init_IDs[0], Eef, pe3LF[0], pe3LF[1], pe3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1,process_code['Brem'], newparticlewgt)
+        NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Brem'], newparticlewgt)
 
         return [NewE, NewG]
 
-    def AnnihilationSample(self, Elec0):
+    def AnnihilationSample(self, Elec0, VB=False):
         """Generate an annihilation event from an initial positron
             Args:
                 Elec0: incoming positron (instance of) Particle in lab frame
@@ -307,7 +316,7 @@ class Shower:
         LUKey = int((np.log10(Ee0) - self._logEeMinAnn)/self._logEeSSAnn)
         LUKey = LUKey + 1
         
-        SampEvt = self.Draw_Sample(Ee0, LUKey, 'Ann')
+        SampEvt = self.Draw_Sample(Ee0, LUKey, 'Ann', VB=VB)
 
         # reconstruct final photon 4-momenta from the MC-sampled variables
         NFVs = Ann_FVs(Ee0, me, 0.0, SampEvt[0])
@@ -324,12 +333,17 @@ class Shower:
         pos = Elec0.get_rf()
         init_IDs = Elec0.get_IDs()
 
-        NewG1 = Particle(22, Eg1f, pg3LF1[0], pg3LF1[1], pg3LF1[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Ann'], 1.0)
-        NewG2 = Particle(22, Eg2f, pg3LF2[0], pg3LF2[1], pg3LF2[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Ann'], 1.0)
+        if VB:
+            newparticlewgt = SampEvt[-1]
+        else:
+            newparticlewgt = 1.0
+
+        NewG1 = Particle(22, Eg1f, pg3LF1[0], pg3LF1[1], pg3LF1[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Ann'], newparticlewgt)
+        NewG2 = Particle(22, Eg2f, pg3LF2[0], pg3LF2[1], pg3LF2[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Ann'], newparticlewgt)
 
         return [NewG1, NewG2]
 
-    def PhotonSplitSample(self, Phot0):
+    def PhotonSplitSample(self, Phot0, VB=False):
         """Generate a photon splitting event from an initial photon
             Args:
                 Phot0: incoming positron (instance of) Particle in lab frame
@@ -350,7 +364,7 @@ class Shower:
         LUKey = int((np.log10(Eg0) - self._logEgMinPP)/self._logEgSSPP)
         LUKey = LUKey + 1
         
-        SampEvt = self.Draw_Sample(Eg0, LUKey, 'PairProd')
+        SampEvt = self.Draw_Sample(Eg0, LUKey, 'PairProd', VB=VB)
 
         
         # reconstruct final electron and positron 4-momenta from the MC-sampled variables
@@ -367,12 +381,17 @@ class Shower:
         pos = Phot0.get_rf()
         init_IDs = Phot0.get_IDs()
 
-        NewEp = Particle(-11,Eepf, pep3LF[0], pep3LF[1], pep3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['PairProd'], 1.0)
-        NewEm = Particle(11, Eemf, pem3LF[0], pem3LF[1], pem3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['PairProd'], 1.0)
+        if VB:
+            newparticlewgt = SampEvt[-1]
+        else:
+            newparticlewgt = 1.0
+
+        NewEp = Particle(-11,Eepf, pep3LF[0], pep3LF[1], pep3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['PairProd'], newparticlewgt)
+        NewEm = Particle(11, Eemf, pem3LF[0], pem3LF[1], pem3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['PairProd'], newparticlewgt)
 
         return [NewEp, NewEm]
 
-    def ComptonSample(self, Phot0):
+    def ComptonSample(self, Phot0, VB=False):
         """Generate a Compton event from an initial photon
             Args:
                 Phot0: incoming photon (instance of) Particle in lab frame
@@ -394,7 +413,7 @@ class Shower:
         LUKey = int((np.log10(Eg0) - self._logEgMinComp)/self._logEgSSComp)        
         LUKey = LUKey + 1
         
-        SampEvt = self.Draw_Sample(Eg0, LUKey, 'Comp')
+        SampEvt = self.Draw_Sample(Eg0, LUKey, 'Comp', VB=VB)
 
         
         # reconstruct final electron and photon 4-momenta from the MC-sampled variables
@@ -410,8 +429,13 @@ class Shower:
         pos = Phot0.get_rf()
         init_IDs = Phot0.get_IDs()
 
-        NewE = Particle(11, Eef, pe3LF[0], pe3LF[1], pe3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Comp'], 1.0)
-        NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Comp'], 1.0)
+        if VB:
+            newparticlewgt = SampEvt[-1]
+        else:
+            newparticlewgt = 1.0
+
+        NewE = Particle(11, Eef, pe3LF[0], pe3LF[1], pe3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Comp'], newparticlewgt)
+        NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Comp'], newparticlewgt)
 
         return [NewE, NewG]
 
@@ -522,21 +546,21 @@ class Shower:
                     # Note: secondaries include the scattered parent particle 
                     # (i.e. the original the parent is not modified)
                     if ap.get_IDs()[0] == 11:
-                        npart = self.ElecBremSample(ap)
+                        npart = self.ElecBremSample(ap, VB=VB)
                     elif ap.get_IDs()[0] == -11:
                         BFEpBrem = self.BF_Positron_Brem(ap.get_pf()[0])
                         ch = np.random.uniform(low=0., high=1.0)
                         if ch < BFEpBrem:
-                            npart = self.ElecBremSample(ap)
+                            npart = self.ElecBremSample(ap, VB=VB)
                         else:
-                            npart = self.AnnihilationSample(ap)
+                            npart = self.AnnihilationSample(ap, VB=VB)
                     elif ap.get_IDs()[0] == 22:
                         BFPhPP = self.BF_Photon_PP(ap.get_pf()[0])
                         ch = np.random.uniform(low=0., high=1.)
                         if ch < BFPhPP:
-                            npart = self.PhotonSplitSample(ap)
+                            npart = self.PhotonSplitSample(ap, VB=VB)
                         else:
-                            npart = self.ComptonSample(ap)
+                            npart = self.ComptonSample(ap, VB=VB)
                     if (npart[0]).get_p0()[0] > self.MinEnergy:
                         AllParticles.append(npart[0])
                     if (npart[1]).get_p0()[0] > self.MinEnergy:
