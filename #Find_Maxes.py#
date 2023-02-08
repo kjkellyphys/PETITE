@@ -29,12 +29,7 @@ BremSamp0 = np.load(PickDir+"ElectronPositron_BremPickles.npy", allow_pickle=Tru
 AnnSamp0 = np.load(PickDir+"AnnihilationPickles.npy", allow_pickle=True)
 
 
-
-#just a placeholder
-def dummy(x,y,z):
-    return(0) 
-
-
+ 
 def PPQSq(xx, me, w):
     """Computes momentum transfer squared for photon-scattering pair production
     Args:
@@ -81,13 +76,14 @@ def G2el(Z, me, t):
     a0 = aa(Z, me)
     return Z**2*a0**4*t**2/(1 + a0**2*t)**2
 
-def Unity(Z, me, t):
-    return(1.0)
 
 TargetMaterials = ['graphite','lead']
 Z = {'graphite':6.0, 'lead':82.0}
 
-Process_Files={"PairProd" : PPSamp0, "Comp": CompSamp0, "Brem" : BremSamp0, "Ann": AnnSamp0}
+Process_Files={"PairProd" : PPSamp0,
+               "Comp": CompSamp0,
+               "Brem" : BremSamp0,
+               "Ann": AnnSamp0}
 
 diff_xsections={"PairProd" : dSPairProd_dP_T,
                 "Comp"     : dSCompton_dCT,    
@@ -115,6 +111,8 @@ for process_key in Process_Files.keys():
     QSq        =QSq_functions[process_key]
     xSec_dict[process_key]={}
     samp_dict[process_key]=[]
+
+
     for tm in TargetMaterials:
         xSec_dict[process_key][tm]=[]
 
@@ -123,10 +121,10 @@ for process_key in Process_Files.keys():
 
         ## This is just to speed up the code (for debugging)
         ## by not doing all the energies
-        if counter>2:
-            break
-        print(counter)
-        counter=counter+1
+        #if counter>2:
+        #    break
+        #print(counter)
+        #counter=counter+1
         
         E_inc, integrand = process_file[ki]
         save_copy_integrand=copy.deepcopy(integrand)
@@ -146,19 +144,18 @@ for process_key in Process_Files.keys():
              
             EvtInfo={'E_inc': E_inc, 'm_e': meT, 'Z_T': Z_H, 'alpha_FS': alT, 'm_V': 0}
             MM_H_0 = wgt*diff_xsec(EvtInfo, x)
-            EvtInfo['E_inc'] = E_inc*1.2
-            MM_H_higher = wgt*diff_xsec(EvtInfo, x)
-            EvtInfo['E_inc'] = E_inc*0.8
-            MM_H_lower = wgt*diff_xsec(EvtInfo, x)
+            #EvtInfo['E_inc'] = E_inc*1.2
+            #MM_H_higher = wgt*diff_xsec(EvtInfo, x)
+            #EvtInfo['E_inc'] = E_inc*0.8
+            #MM_H_lower = wgt*diff_xsec(EvtInfo, x)
 
             EvtInfo['E_inc'] = E_inc
 
-            MM_H= max(MM_H_0, MM_H_higher, MM_H_lower)
+            MM_H= MM_H_0   #max(MM_H_0, MM_H_higher, MM_H_lower)
             if MM_H > max_wgtTimesF:
                 max_F=MM_H
                 max_x = np.asarray(x)
                 max_wgt= wgt 
-
 
             
             for tm in TargetMaterials:
@@ -179,8 +176,8 @@ for process_key in Process_Files.keys():
     xSec_dict[process_key][tm]= np.asarray(xSec_dict[process_key][tm] ) 
     samp_dict[process_key]    = samp_dict[process_key]
 
-f_xSecs = open(SvDir + "xSec_Dicts.pkl","wb")
-f_samps = open(SvDir + "samp_Dicts.pkl","wb")
+f_xSecs = open(SvDir + "Feb7_xSec_Dicts.pkl","wb")
+f_samps = open(SvDir + "Feb7_samp_Dicts.pkl","wb")
 
 pickle.dump(xSec_dict,f_xSecs)
 pickle.dump(samp_dict,f_samps)

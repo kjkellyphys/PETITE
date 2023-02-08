@@ -29,54 +29,6 @@ BremSamp0 = np.load(PickDir+"ElectronPositron_BremPickles.npy", allow_pickle=Tru
 AnnSamp0 = np.load(PickDir+"AnnihilationPickles.npy", allow_pickle=True)
 
 
-
-def PPQSq(xx, me, w):
-    """Computes momentum transfer squared for photon-scattering pair production
-    Args:
-        xx: tuple consisting of kinematic rescaled kinematic variables 
-            epsilon_plus, delta_plus, delta_minus, phi (see ... for definitions) 
-        me: electron mass 
-        w:  frequency of emitted virtual photon, equal to sum of energies of outgoing e+- pair
-    Returns:
-        nuclear momentum transfer squared
-    """
-    epp, dp, dm, ph = xx
-    epm = w - epp
-    return me**2*((dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + me**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2)
- 
-
-def BremQSq(xx, me, ep):
-    """Momentum Transfer Squared for electron/positron bremsstrahlung
-    Args:
-        w: frequency of radiated photon 
-        d: rescaled emission angle, equal to theta * epsilon/m, 
-           where epsilon energy of incoming lepton
-        dp: rescaled emission angle, equal to theta * epsilon'/m, 
-           where epsilon' energy of outgoing lepton
-        ph: angle phi
-        me: electron mass
-        ep: epsilon', e+/e- energy after radiation
-    Returns:
-        nuclear momentum transfer squared
-    """
-    w, d, dp, ph = xx
-    epp = ep - w
-    return me**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + me**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
-
-def aa(Z, me):
-    """Elastic screening length from Eq. B. 42 in 
-    https://journals.aps.org/rmp/pdf/10.1103/RevModPhys.46.815
-    """
-    return 184.15*(2.718)**-0.5*Z**(-1./3.)/me
-
-def G2el(Z, me, t):
-    """Elastic atomic form-factor that accounts for screening at low momentum transfers, see Eq. B.38 in 
-    https://journals.aps.org/rmp/pdf/10.1103/RevModPhys.46.815
-    """
-    a0 = aa(Z, me)
-    return Z**2*a0**4*t**2/(1 + a0**2*t)**2
-
-
 TargetMaterials = ['graphite','lead']
 Z = {'graphite':6.0, 'lead':82.0}
 

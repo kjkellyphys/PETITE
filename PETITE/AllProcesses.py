@@ -13,6 +13,39 @@ def Unity(Z, me, t):
 def dummy(x,y,z):
     return(0)
 
+def PPQSq(xx, me, w):
+    """Computes momentum transfer squared for photon-scattering pair production
+    Args:
+        xx: tuple consisting of kinematic rescaled kinematic variables 
+            epsilon_plus, delta_plus, delta_minus, phi (see ... for definitions) 
+        me: electron mass 
+        w:  frequency of emitted virtual photon, equal to sum of energies of outgoing e+- pair
+    Returns:
+        nuclear momentum transfer squared
+    """
+    epp, dp, dm, ph = xx
+    epm = w - epp
+    return me**2*((dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + me**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2)
+ 
+
+def BremQSq(xx, me, ep):
+    """Momentum Transfer Squared for electron/positron bremsstrahlung
+    Args:
+        w: frequency of radiated photon 
+        d: rescaled emission angle, equal to theta * epsilon/m, 
+           where epsilon energy of incoming lepton
+        dp: rescaled emission angle, equal to theta * epsilon'/m, 
+           where epsilon' energy of outgoing lepton
+        ph: angle phi
+        me: electron mass
+        ep: epsilon', e+/e- energy after radiation
+    Returns:
+        nuclear momentum transfer squared
+    """
+    w, d, dp, ph = xx
+    epp = ep - w
+    return me**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + me**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
+
 
 def dSBrem_dP(EvtInfo, varthV):
     """Standard Model Bremsstrahlung
