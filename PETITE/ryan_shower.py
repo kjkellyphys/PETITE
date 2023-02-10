@@ -9,15 +9,15 @@ from .kinematics import eegFourVecs, eeVFourVecs, gepemFourVecs, Compton_FVs, An
 from .AllProcesses import *
 from datetime import datetime
 
-#np.random.seed(datetime.now().timestamp())
-np.random.seed(19121974)
+np.random.seed(int(datetime.now().timestamp()))
+#np.random.seed(8302385)
 
 import sys
 from numpy.random import random as draw_U
 
 
 ##  https://pdg.lbl.gov/2019/reviews/rpp2018-rev-phys-constants.pdf
-me =0.51099895000 
+me =0.00051099895000 
 alpha_FS =  1/137.035999084 
 
 Z = {'graphite':6.0, 'lead':82.0} #atomic number of different targets
