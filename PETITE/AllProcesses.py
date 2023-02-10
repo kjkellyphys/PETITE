@@ -385,18 +385,29 @@ def dSCompton_dCT(EvtInfo, varthV):
         ct = varth[0]
 
         s = me**2 + 2*Eg*me
-        dSigs.append((al**2*np.pi*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s))*((1 + 3*ct**2)*me**10 - me**8*((3 + 9*ct**2)*mV**2 + (7 + 17*ct**2)*s + ct*(3 + ct**2)*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s))) + 
-   me**6*((3 + 9*ct**2)*mV**4 + 2*mV**2*(2*(4 + 7*ct**2)*s + ct*(3 + ct**2)*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s))) + 2*s*((-31 + 3*ct**2)*s + 2*ct*(4 + ct**2)*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s)))) + 
-   s**2*((-5 + ct**2)*mV**6 + mV**4*((11 + ct**2)*s - ct*(3 + ct**2)*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s))) + mV**2*s*(-((11 + 5*ct**2)*s) + 2*ct*(3 + ct**2)*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s))) + 
-     s**2*((5 + 3*ct**2)*s - ct*(7 + ct**2)*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s)))) + me**2*s*((2 + 6*ct**2)*mV**6 + s**2*((13 - 25*ct**2)*s + 4*ct*(2 + ct**2)*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s))) + 
-     mV**4*((5 - 33*ct**2)*s + 2*ct*(3 + ct**2)*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s))) + 2*mV**2*s*(2*(-16 + 9*ct**2)*s - ct*(11 + ct**2)*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s)))) - 
-   me**4*((1 + 3*ct**2)*mV**6 + mV**4*((11 + 17*ct**2)*s + ct*(3 + ct**2)*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s))) + 
-     2*mV**2*s*(-((31 + 23*ct**2)*s) + ct*(11 + ct**2)*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s))) + 2*s**2*((71 - 15*ct**2)*s + ct*(-41 + 3*ct**2)*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s))))))/(2*s**2*(-me**2 + s)**3*(me**2 - mV**2 + s - ct*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s)))**2))
+        JacFac = 0.5*(s**2-me**4)/s
+        t = -1/2*(me**4 + s*(-mV**2 + s + ct*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s))) - me**2*(mV**2 + 2*s + ct*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s))))/s
+        PF = 2.0*np.pi*al**2/(s-me**2)**2
+
+        if mV == 0.:
+            T1 = (6.0*me**2*s + 3.0*me**4 - s**2)/((me**2-s)*(-me**2+s+t))
+            T2 = 4*me**4/(s+t-me**2)**2
+            T3 = (t*(s-me**2) + (s+me**2)**2)/(s-me**2)**2
+        else:
+            T1 = (2.0*me**2*(mV**2-3*s)-3*me**4-2*mV**2*s+2*mV**4+s**2)/((me**2-s)*(me**2+mV**2-s-t))
+            T2 = (2*me**2*(2*me**2+mV**2))/(me**2+mV**2-s-t)**2
+            T3 = ((me**2+s)*(me**2+mV**2+s)+t*(s-me**2))/(me**2-s)**2
+
+        dSig0 = PF*JacFac*(T1+T2+T3)
+        if np.isnan(dSig0):
+            print(dSig0, PF, JacFac, T1, T2, T3, ct, s, t, varth)
+        dSigs.append(dSig0)
 
     if len(dSigs) == 1:
         return dSigs[0]
     else:
         return dSigs
+
 
 #Function for drawing unweighted events from a weighted distribution
 def GetPts(Dist, npts):
@@ -638,29 +649,30 @@ def PairProd_S_T(EI, VB=False, mode='XSec'):
     w, me, Z, al = EI
     igrange = [[me, w-me], [0.0, np.sqrt(w/me)], [0.0, np.sqrt(w/me)], [0.0, 2.0*np.pi]]
     integrand = vg.Integrator(igrange)
+    
+    EvtInfo={'E_inc': w, 'm_e': me, 'Z_T': 1.0, 'alpha_FS': al}
 
     if mode == 'Pickle':
-        integrand(functools.partial(dSPairProd_dP_T, EI), nitn=300, nstrat=[15, 25, 25, 15])
-        result = integrand(functools.partial(dSPairProd_dP_T, EI), nitn=300, nstrat=[15, 25, 25, 15])
+        integrand(functools.partial(dSPairProd_dP_T, EvtInfo), nitn=300, nstrat=[15, 25, 25, 15])
+        result = integrand(functools.partial(dSPairProd_dP_T, EvtInfo), nitn=300, nstrat=[15, 25, 25, 15])
         return integrand
     if mode == 'XSec':
-        resu = integrand(functools.partial(dSPairProd_dP_T, EI), nitn=100, nstrat=[6, 24, 24, 6])
+        resu = integrand(functools.partial(dSPairProd_dP_T, EvtInfo), nitn=100, nstrat=[6, 24, 24, 6])
         if VB:
             print(resu.summary())
         tr = resu.mean
 
     elif mode == 'Sample' or mode == 'UnweightedSample':
-        integrand(functools.partial(dSPairProd_dP_T, EI), nitn=30, nstrat=[12, 16, 16, 12])    
-        result = integrand(functools.partial(dSPairProd_dP_T, EI), nitn=100, nstrat=[12, 16, 16, 12])    
+        integrand(functools.partial(dSPairProd_dP_T, EvtInfo), nitn=30, nstrat=[12, 16, 16, 12])    
+        result = integrand(functools.partial(dSPairProd_dP_T, EvtInfo), nitn=100, nstrat=[12, 16, 16, 12])    
 
         integral, pts = 0.0, []
         for x, wgt in integrand.random_batch():
-            integral += wgt.dot(dSPairProd_dP_T(EI,x))
+            integral += wgt.dot(dSPairProd_dP_T(EvtInfo,x))
         NSamp = 1
         for kc in range(NSamp):
             for x, wgt in integrand.random():
-                #M0 = wgt*integral*dSPairProd_dP_T(EI,x)
-                M0 = wgt*dSPairProd_dP_T(EI,x)
+                M0 = wgt*dSPairProd_dP_T(EvtInfo,x)
                 pts.append(np.concatenate([x,[M0]]))
         if mode == 'Sample':
             tr = np.array([integral, pts], dtype=object)
@@ -673,6 +685,7 @@ def Compton_S(EI, VB=False, mode='XSec'):
     Eg, me, mV, al = EI
     igrange = [[-1.0, 1.0]]
     integrand = vg.Integrator(igrange)
+    EvtInfo={'E_inc': Eg, 'm_e': me, 'Z_T': 1.0, 'alpha_FS': al, 'm_V': mV}
 
     if Eg <= mV*(1.0 + mV/(2*me)):
         if mode == 'Pickle':
@@ -683,24 +696,24 @@ def Compton_S(EI, VB=False, mode='XSec'):
             return np.array([0.0, [0.0 for k in range(NPts)]], dtype=object)
 
     if mode == 'Pickle':
-        integrand(functools.partial(dSCompton_dCT, EI), nitn=5000, nstrat=[300])
-        result = integrand(functools.partial(dSCompton_dCT, EI), nitn=5000, nstrat=[300])
+        integrand(functools.partial(dSCompton_dCT, EvtInfo), nitn=5000, nstrat=[300])
+        result = integrand(functools.partial(dSCompton_dCT, EvtInfo), nitn=5000, nstrat=[300])
         return integrand
     elif mode == 'XSec':
-        resu = integrand(functools.partial(dSCompton_dCT, EI), nitn=100)
+        resu = integrand(functools.partial(dSCompton_dCT, EvtInfo), nitn=100)
         if VB:
             print(resu.summary())
         tr = resu.mean
     elif mode == 'Sample' or mode == 'UnweightedSample':
-        integrand(functools.partial(dSCompton_dCT, EI), nitn=30)
-        result = integrand(functools.partial(dSCompton_dCT, EI), nitn=30)
+        integrand(functools.partial(dSCompton_dCT, EvtInfo), nitn=30)
+        result = integrand(functools.partial(dSCompton_dCT, EvtInfo), nitn=30)
         integral, pts = 0.0, []
         for x, wgt in integrand.random_batch():
-            integral += wgt.dot(dSCompton_dCT(EI,x))
+            integral += wgt.dot(dSCompton_dCT(EvtInfo,x))
         NSamp = 10
         for kc in range(NSamp):
             for x, wgt in integrand.random():
-                M0 = wgt*integral*dSCompton_dCT(EI,x)
+                M0 = wgt*integral*dSCompton_dCT(EvtInfo,x)
                 pts.append(np.concatenate([x,[M0]]))
         if mode == 'Sample':
             tr = np.array([integral, pts], dtype=object)
