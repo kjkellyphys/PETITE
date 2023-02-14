@@ -283,10 +283,64 @@ def GetPts(Dist, npts):
 #------------------------------------------------------------------------------
 NPts = 10000 #Default number of points to draw for unweighted samples
 
-def Brem_S_T(EI, Egmin, VB=False, mode='XSec'):
-    """Function for Integration of Standard Model Bremsstrahlung
-            (in the small-angle approximation)
-       e + Z -> e + gamma + Z
+diff_xsection_options={"PairProd" : dSPairProd_dP_T,
+                       "Comp"     : dSCompton_dCT,
+                       "Brem"     : dSBrem_dP_T,
+                       "Ann"      : dAnn_dCT }
+nitn_options={"PairProd":500,
+              "Brem":500,
+              "DarkBrem":500,
+              "Comp":5000,
+              "Ann":5000}
+nstrat_options={"PairProd":[15, 25, 25, 15],
+                "Brem":[15, 25, 25, 15],
+                "DarkBrem":[15, 25, 25, 15],
+                "Comp":[300],
+                "Ann":[300]}
+
+FourD = {"PairProd", "Brem", "DarkBrem"}
+TwoD = {"Comp", "Ann"}
+def IGRange(EI, Process):
+    EInc=EI['E_inc']
+    me=EI['m_e']
+    Egmin=EI['Eg_min']
+    mV=EI['m_V']
+    if Process in FourD:
+        if Process == "PairProd":
+            minE = Egmin
+            maxdel = np.sqrt(EInc/me)
+        else:
+            minE = np.max([Egmin,mV])
+            maxdel = np.sqrt(EInc/np.max([me,mV]))
+        return [[minE, EInc-me], [0., maxdel], [0., maxdel], [0., 2*np.pi]]
+    elif Process in TwoD:
+        if Process == "Comp":
+            return [[-1., 1.0]]
+        elif Process == "Ann":
+            EVMin = Egmin + mV
+            ctmaxV = np.sqrt(2.0)*(2.0*me*(EInc-EVMin)*(EInc+me)+EInc*mV**2)/(np.sqrt((EInc-me)*(2.0*EInc+me))*(2*me*(EInc+me)-mV**2))
+            ctMaxmV = np.sqrt(2.0)*(EInc*mV**2 - 2.0*me*(EInc - Egmin)*(EInc+me))/(np.sqrt((EInc-me)*(2*EInc+me))*(2*me*(EInc+me)-mV**2))
+            if ctmaxV < 0.0 or ctMaxmV > 0.0:
+                ctMax = 0.0
+            else:
+                ctMax = np.min([np.abs(ctmaxV), np.abs(ctMaxmV)])
+            return [[-ctMax, ctMax]]
+    else:
+        raise Exception("Your process is not in the list")
+
+def VEGASIntegration(EI, Process, VB=False, mode='XSec'):
+    """Function for Integration of Various SM/BSM Differential
+       Cross Sections.
+
+       Available Processes ('Process'):
+        -- 'Brem': Standard Model e + Z -> e + gamma + Z
+        -- 'DarkBrem': BSM e + Z -> e + V + Z
+        -- 'PairProd': SM gamma + Z -> e^+ + e^- + Z
+        -- 'Comp': SM/BSM gamma + e -> e + gamma/V
+        -- 'Ann': SM/BSM e^+ e^- -> gamma + gamma/V
+
+        ('Brem', 'DarkBrem', 'PairProd' calculated in 
+         small-angle approximation)
 
        Input parameters needed:
             EI: dictionary containing
@@ -294,7 +348,8 @@ def Brem_S_T(EI, Egmin, VB=False, mode='XSec'):
               -- 'm_e' (electron mass)
               -- 'Z_T' (Target Atomic Number)
               -- 'alpha_FS' (electro-weak fine-structure constant)
-            Egmin: minimum lab-frame energy (GeV) of outgoing photons
+              -- 'm_V' (Dark vector mass, assumed to be zero if absent)
+              -- 'Eg_min': minimum lab-frame energy (GeV) of outgoing photons
 
         Optional arguments:
             VB: verbose flag for printing some status updates
@@ -304,295 +359,46 @@ def Brem_S_T(EI, Egmin, VB=False, mode='XSec'):
              -- 'Sample': return VEGAS sample (including weights)
              -- 'UnweightedSample' return unweighted sample of events
     """
-    ep=EI['E_inc']
-    me=EI['m_e']
-
-    igrange = [[Egmin, ep-me], [0.0, np.sqrt(ep/me)], [0.0, np.sqrt(ep/me)], [0.0, 2.0*np.pi]]
+    if Process in diff_xsection_options:
+        if ('m_V' in EI.keys()) == False:
+            EI['m_V'] = 0.0
+        if ('Eg_min' in EI.keys()) == False:
+            EI['Eg_min'] = 0.0
+        igrange = IGRange(EI, Process)
+        diff_xsec_func = diff_xsection_options[Process] 
+    else:
+        raise Exception("You process is not in the list")
     integrand = vg.Integrator(igrange)
-
-    if mode == 'Pickle':
+    if mode == 'Pickle' or mode == 'XSec':
         if VB:
-            print("Integrator set up")
-            print(EI)
-        integrand(functools.partial(dSBrem_dP_T, EI), nitn=500, nstrat=[15, 25, 25, 15])
+            print("Integrator set up", Process, EI)
+        integrand(functools.partial(diff_xsec_func, EI), nitn=nitn_options[Process], nstrat=nstrat_options[Process])
         if VB:
-            print("Burn-in complete")
-            print(EI)
-        result = integrand(functools.partial(dSBrem_dP_T, EI), nitn=500, nstrat=[15, 25, 25, 15])
+            print("Burn-in complete", EI)
+        result = integrand(functools.partial(diff_xsec_func, EI), nitn=nitn_options[Process], nstrat=nstrat_options[Process])
         if VB:
-            print("Fully Integrated")
-            print(EI, result.mean)
-        return integrand
-    elif mode == 'XSec':
-        resu = integrand(functools.partial(dSBrem_dP_T, EI), nitn=100, nstrat=[10, 30, 30, 10])
-        if VB:
-            print(resu.summary())
-        tr = resu.mean
+            print("Fully Integrated", EI, result.mean)
+        if mode == 'Pickle':
+            return integrand
+        else:
+            return result.mean
     elif mode == 'Sample' or mode == 'UnweightedSample':
-        integrand(functools.partial(dSBrem_dP_T, EI), nitn=50, nstrat=[12, 16, 16, 12])
-        result = integrand(functools.partial(dSBrem_dP_T, EI), nitn=50, nstrat=[12, 16, 16, 12])
+        integrand(functools.partial(diff_xsec_func, EI), nitn=nitn_options[Process], nstrat=nstrat_options[Process])
+        result = integrand(functools.partial(diff_xsec_func, EI), nitn=nitn_options[Process], nstrat=nstrat_options[Process])
 
         integral, pts = 0.0, []
         for x, wgt in integrand.random_batch():
-            integral += wgt.dot(dSBrem_dP_T(EI, x))
+            integral += wgt.dot(diff_xsec_func(EI, x))
         if VB:
             print(integral)
         NSamp = 1
         for kc in range(NSamp):
             for x, wgt in integrand.random():
-                M0 = wgt*dSBrem_dP_T(EI, x)
-                pts.append(np.concatenate([x, [M0]]))
+                M0 = wgt*diff_xsec_func(EI, x)
+                pts.append(np.concatenate([list(x), [M0]]))
         if mode == 'Sample':
             tr = np.array([integral, pts], dtype=object)
         elif mode == 'UnweightedSample':
             tr = np.array([integral, GetPts(pts, NPts)], dtype=object)
-
-    return tr
-
-def DBrem_S_T(EI, VB=False, mode='XSec'):
-    """Function for Integration of Dark Bremsstrahlung
-            (in the small-angle approximation)
-       e + Z -> e + V + Z
-
-       Input parameters needed:
-            EI: dictionary containing
-              -- 'E_inc' (incident electron/positron energy)
-              -- 'm_e' (electron mass)
-              -- 'm_V" (dark photon mass)
-              -- 'Z_T' (Target Atomic Number)
-              -- 'alpha_FS' (electro-weak fine-structure constant)
-
-        Optional arguments:
-            VB: verbose flag for printing some status updates
-            mode: Options for how to integrate/return information:
-             -- 'XSec': return total integrated cross section (default)
-             -- 'Pickle': return VEGAS integrator object
-             -- 'Sample': return VEGAS sample (including weights)
-             -- 'UnweightedSample' return unweighted sample of events
-    """
-    ep=EI['E_inc']
-    me=EI['m_e']
-    mV=EI['m_V']
-    igrange = [[mV, ep-me], [0, np.sqrt(ep/mV)], [0, np.sqrt(ep/mV)], [0, 2*np.pi]]
-    integrand = vg.Integrator(igrange)
-
-    if mode == 'Pickle':
-        if VB:
-            print("Integrator set up")
-            print(EI)
-        integrand(functools.partial(dSDBrem_dP_T, EI), nitn=100, nstrat=[10, 15, 15, 10])
-        if VB:
-            print("Burn-in complete")
-            print(EI)
-        result = integrand(functools.partial(dSDBrem_dP_T, EI), nitn=100, nstrat=[10, 15, 15, 10])
-        if VB:
-            print("Fully Integrated")
-            print(EI, result.mean)
-        return integrand
-    if mode == 'XSec':
-        resu = integrand(functools.partial(dSDBrem_dP_T, EI), nitn=50, nstrat=[4,20,20,4])
-        if VB:
-            print(resu.summary())
-        tr = resu.mean
-
-    elif mode == 'Sample' or mode == 'UnweightedSample':
-        integrand(functools.partial(dSDBrem_dP_T, EI), nitn=50, nstrat=[12, 16, 16, 12])
-        result = integrand(functools.partial(dSDBrem_dP_T, EI), nitn=50, nstrat=[12, 16, 16, 12])
-        integral, pts = 0.0, []
-        for x, wgt in integrand.random_batch():
-            integral += wgt.dot(dSDBrem_dP_T(EI,x))
-        NSamp = 1
-        for kc in range(NSamp):
-            for x, wgt in integrand.random():
-                #M0 = wgt*integral*dSDBrem_dP_T(EI,x)
-                M0 = wgt*dSDBrem_dP_T(EI,x)
-                pts.append(np.concatenate([x,[M0]]))
-        if mode == 'Sample':
-            tr = np.array([integral, pts], dtype=object)
-        elif mode == 'UnweightedSample':
-            tr = np.array([integral, GetPts(pts, NPts)], dtype=object)
-    return tr
-
-def Ann_S(EI, Egmin, VB=False, mode='XSec'):
-    """Function for Integration of Positron Annihilation
-       e^+ + e^- -> \gamma + \gamma (V)
-
-       Input parameters needed:
-            EI: dictionary containing
-              -- 'E_inc' (incident positron energy)
-              -- 'm_e' (electron mass)
-              -- 'm_V" (dark photon mass -- can be set to zero for SM case)
-              -- 'alpha_FS' (electro-weak fine-structure constant)
-            Egmin: minimum lab-frame energy (GeV) of outgoing photons
-
-        Optional arguments:
-            VB: verbose flag for printing some status updates
-            mode: Options for how to integrate/return information:
-             -- 'XSec': return total integrated cross section (default)
-             -- 'Pickle': return VEGAS integrator object
-             -- 'Sample': return VEGAS sample (including weights)
-             -- 'UnweightedSample' return unweighted sample of events
-    """    
-    Ee=EI['E_inc']
-    me=EI['m_e']
-    mV=EI['m_V']
-    EVMin = Egmin + mV
-
-    #Determine ranges of cos(theta) that give photons/dark photons with sufficient energy
-    ctmaxV = np.sqrt(2.0)*(2.0*me*(Ee-EVMin)*(Ee+me)+Ee*mV**2)/(np.sqrt((Ee-me)*(2.0*Ee+me))*(2*me*(Ee+me)-mV**2))
-    ctMaxmV = np.sqrt(2.0)*(Ee*mV**2 - 2.0*me*(Ee - Egmin)*(Ee+me))/(np.sqrt((Ee-me)*(2*Ee+me))*(2*me*(Ee+me)-mV**2))
-    if ctmaxV < 0.0 or ctMaxmV > 0.0:
-        ctMax = 0.0
-    else:
-        ctMax = np.min([np.abs(ctmaxV), np.abs(ctMaxmV)])
-    igrange = [[-ctMax, ctMax]]
-    if ctMax == 0.0: #No phase space given the input parameters/desired energy range
-        if mode == 'XSec':
-            return 0.0
-        elif mode == 'Pickle':
-            return None
-        else:
-            return np.array([0.0, [0.0 for k in range(NPts)]], dtype=object)
-    integrand = vg.Integrator(igrange)
-
-    if mode == 'Pickle':
-        integrand(functools.partial(dAnn_dCT, EI), nitn=5000, nstrat=[300])
-        result = integrand(functools.partial(dAnn_dCT, EI), nitn=5000, nstrat=[300])
-        return integrand
-
-    if mode == 'XSec':
-        resu = integrand(functools.partial(dAnn_dCT, EI), nitn=100)
-        if VB:
-            print(resu.summary())
-        tr = resu.mean
-    elif mode == 'Sample' or mode == 'UnweightedSample':
-        integrand(functools.partial(dAnn_dCT, EI), nitn=100)
-        result = integrand(functools.partial(dAnn_dCT, EI), nitn=100)
-        integral, pts = 0.0, []
-        for x, wgt in integrand.random_batch():
-            integral += wgt.dot(dAnn_dCT(EI,x))
-        NSamp = 10
-        for kc in range(NSamp):
-            for x, wgt in integrand.random():
-                M0 = wgt*integral*dAnn_dCT(EI,x)
-                pts.append(np.concatenate([x,[M0]]))
-        if mode == 'Sample':
-            tr = np.array([integral, pts], dtype=object)
-        elif mode == 'UnweightedSample':
-            tr = np.array([integral, GetPts(pts,NPts)], dtype=object)
-    return tr
-
-def PairProd_S_T(EI, VB=False, mode='XSec'):
-    """Function for Integration of SM Pair Production
-          (in the small-angle approximation)
-       \gamma + Z -> e^+ + e^- + Z
-
-       Input parameters needed:
-            EI: dictionary containing
-              -- 'E_inc' (incident photon energy)
-              -- 'm_e' (electron mass)
-              -- 'Z_T' (Target Atomic Number)
-              -- 'alpha_FS' (electro-weak fine-structure constant)
-
-        Optional arguments:
-            VB: verbose flag for printing some status updates
-            mode: Options for how to integrate/return information:
-             -- 'XSec': return total integrated cross section (default)
-             -- 'Pickle': return VEGAS integrator object
-             -- 'Sample': return VEGAS sample (including weights)
-             -- 'UnweightedSample' return unweighted sample of events
-    """    
-    w=EI['E_inc']
-    me=EI['m_e']
-    igrange = [[me, w-me], [0.0, np.sqrt(w/me)], [0.0, np.sqrt(w/me)], [0.0, 2.0*np.pi]]
-    integrand = vg.Integrator(igrange)
-
-    if mode == 'Pickle':
-        integrand(functools.partial(dSPairProd_dP_T, EI), nitn=300, nstrat=[15, 25, 25, 15])
-        result = integrand(functools.partial(dSPairProd_dP_T, EI), nitn=300, nstrat=[15, 25, 25, 15])
-        return integrand
-    if mode == 'XSec':
-        resu = integrand(functools.partial(dSPairProd_dP_T, EI), nitn=100, nstrat=[6, 24, 24, 6])
-        if VB:
-            print(resu.summary())
-        tr = resu.mean
-
-    elif mode == 'Sample' or mode == 'UnweightedSample':
-        integrand(functools.partial(dSPairProd_dP_T, EI), nitn=30, nstrat=[12, 16, 16, 12])    
-        result = integrand(functools.partial(dSPairProd_dP_T, EI), nitn=100, nstrat=[12, 16, 16, 12])    
-
-        integral, pts = 0.0, []
-        for x, wgt in integrand.random_batch():
-            integral += wgt.dot(dSPairProd_dP_T(EI,x))
-        NSamp = 1
-        for kc in range(NSamp):
-            for x, wgt in integrand.random():
-                M0 = wgt*dSPairProd_dP_T(EI,x)
-                pts.append(np.concatenate([x,[M0]]))
-        if mode == 'Sample':
-            tr = np.array([integral, pts], dtype=object)
-        elif mode == 'UnweightedSample':
-            tr = np.array([integral, GetPts(pts,NPts)], dtype=object)
-
-    return tr
-
-def Compton_S(EI, VB=False, mode='XSec'):
-    """Function for Integration of Compton Scattering
-       \gamma + e^- -> e^- + \gamma (V)
-
-       Input parameters needed:
-            EI: dictionary containing
-              -- 'E_inc' (incident positron energy)
-              -- 'm_e' (electron mass)
-              -- 'm_V" (dark photon mass -- can be set to zero for SM case)
-              -- 'alpha_FS' (electro-weak fine-structure constant)
-            Egmin: minimum lab-frame energy (GeV) of outgoing photons
-
-        Optional arguments:
-            VB: verbose flag for printing some status updates
-            mode: Options for how to integrate/return information:
-             -- 'XSec': return total integrated cross section (default)
-             -- 'Pickle': return VEGAS integrator object
-             -- 'Sample': return VEGAS sample (including weights)
-             -- 'UnweightedSample' return unweighted sample of events
-    """       
-    Eg=EI['E_inc']
-    mV=EI['m_v']
-    me=EI['m_e']
-    igrange = [[-1.0, 1.0]]
-    integrand = vg.Integrator(igrange)
-
-    if Eg <= mV*(1.0 + mV/(2*me)):#Incoming photon energy is insufficient for producing V
-        if mode == 'Pickle':
-            return None
-        elif mode == 'XSec':
-            return 0.0
-        else:
-            return np.array([0.0, [0.0 for k in range(NPts)]], dtype=object)
-
-    if mode == 'Pickle':
-        integrand(functools.partial(dSCompton_dCT, EI), nitn=5000, nstrat=[300])
-        result = integrand(functools.partial(dSCompton_dCT, EI), nitn=5000, nstrat=[300])
-        return integrand
-    elif mode == 'XSec':
-        resu = integrand(functools.partial(dSCompton_dCT, EI), nitn=100)
-        if VB:
-            print(resu.summary())
-        tr = resu.mean
-    elif mode == 'Sample' or mode == 'UnweightedSample':
-        integrand(functools.partial(dSCompton_dCT, EI), nitn=30)
-        result = integrand(functools.partial(dSCompton_dCT, EI), nitn=30)
-        integral, pts = 0.0, []
-        for x, wgt in integrand.random_batch():
-            integral += wgt.dot(dSCompton_dCT(EI,x))
-        NSamp = 10
-        for kc in range(NSamp):
-            for x, wgt in integrand.random():
-                M0 = wgt*integral*dSCompton_dCT(EI,x)
-                pts.append(np.concatenate([x,[M0]]))
-        if mode == 'Sample':
-            tr = np.array([integral, pts], dtype=object)
-        elif mode == 'UnweightedSample':
-            tr = np.array([integral, GetPts(pts,NPts)], dtype=object)
-
-    return tr
+        return tr
+        
