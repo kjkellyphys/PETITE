@@ -1,0 +1,1 @@
+python generate_integrators.py -A=12 -Z=6 -mT=12 -target_name='carbon' -process='DarkBrem' -mV=0.050 -num_energy_pts=10 -min_energy=0.1 -max_energy=10

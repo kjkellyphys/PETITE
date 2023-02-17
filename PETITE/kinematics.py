@@ -1,6 +1,5 @@
 import numpy as np
-
-me = 0.000511
+from physical_constants import *
 
 def eegFourVecs(ep, me, w, ct, ctp, ph):
     """Reconstruct electron and photon four vectors from 

@@ -2,6 +2,7 @@ import numpy as np
 import vegas as vg
 import functools
 import random as rnd
+from physical_constants import *
 
 #--------------------------------------------------------------------------
 #Functions for atomic form factors for incident photons/electrons/positrons
@@ -73,9 +74,7 @@ def dSBrem_dP_T(EvtInfo, varthTildeV):
             al (electro-weak fine-structure constant)
     """
     ep=EvtInfo['E_inc']
-    me=EvtInfo['m_e']
     Z =EvtInfo['Z_T']
-    al=EvtInfo['alpha_FS']
     mV=0
 
     if len(np.shape(varthTildeV)) == 1:
@@ -86,8 +85,8 @@ def dSBrem_dP_T(EvtInfo, varthTildeV):
 
         epp = ep - w
 
-        qsqT = me**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + me**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
-        PF = 8.0/np.pi*Z**2*al*(al/me)**2*(epp*me**4)/(w*ep*qsqT**2)*d*dp
+        qsqT = m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
+        PF = 8.0/np.pi*Z**2*alpha_em*(alpha_em/m_electron)**2*(epp*m_electron**4)/(w*ep*qsqT**2)*d*dp
 
         T1 = d**2/(1 + d**2)**2
         T2 = dp**2/(1 + dp**2)**2
@@ -117,9 +116,7 @@ def dSDBrem_dP_T(EvtInfo, varthV):
             al (electro-weak fine-structure constant)
     """
     ep=EvtInfo['E_inc']
-    me=EvtInfo['m_e']
     Z =EvtInfo['Z_T']
-    al=EvtInfo['alpha_FS']
     mV=EvtInfo['m_V']
 
     if len(np.shape(varthV)) == 1:
@@ -131,7 +128,7 @@ def dSDBrem_dP_T(EvtInfo, varthV):
         epp = ep - w
 
         xsq = (d**2 + dp**2 - 2.0*d*dp*np.cos(ph)) + mV**2/(4.0*ep*epp)*(1 + 0.5*(d**2 + dp**2))**2
-        PF = 4.0*al**3*Z**2/(np.pi*mV**2)*w**3/ep**3*1/(xsq**2*epp)*(d*dp)/((1+d**2)*(1+dp**2))
+        PF = 4.0*alpha_em**3*Z**2/(np.pi*mV**2)*w**3/ep**3*1/(xsq**2*epp)*(d*dp)/((1+d**2)*(1+dp**2))
         T1 = (ep**2+epp**2)/w**2*xsq
         T2 = -(d**2 - dp**2)**2/((1+d**2)*(1+dp**2))
         T3 = -mV**2/(4.0*w**2)*(ep/epp*(1+dp**2) + epp/ep*(1+d**2))
@@ -155,8 +152,6 @@ def dAnn_dCT(EvtInfo, varthV):
             al (electro-weak fine-structure constant)
     """
     Ee=EvtInfo['E_inc']
-    me=EvtInfo['m_e']
-    al=EvtInfo['alpha_FS']
     mV=EvtInfo['m_V']
 
     if len(np.shape(varthV)) == 1:
@@ -165,12 +160,12 @@ def dAnn_dCT(EvtInfo, varthV):
     for varth in varthV:
         ct = varth[0]
 
-        if Ee < (mV**2-2*me**2)/(2*me):
+        if Ee < (mV**2-2*m_electron**2)/(2*m_electron):
             return 0.0
 
-        s = 2.0*me*(Ee + me)
-        b = np.sqrt(1.0 - 4.0*me**2/s)
-        dSigs.append(4.0*np.pi*al**2/(s*(1 - b**2*ct**2))*((s-mV**2)/(2*s)*(1+ct**2) + 2.0*mV**2/(s-mV**2)))
+        s = 2.0*m_electron*(Ee + m_electron)
+        b = np.sqrt(1.0 - 4.0*m_electron**2/s)
+        dSigs.append(4.0*np.pi*alpha_em**2/(s*(1 - b**2*ct**2))*((s-mV**2)/(2*s)*(1+ct**2) + 2.0*mV**2/(s-mV**2)))
     if len(dSigs) == 1:
         return dSigs[0]
     else:
@@ -188,9 +183,7 @@ def dSPairProd_dP_T(EvtInfo, varthTildeV):
             al (electro-weak fine-structure constant)
     """
     w=EvtInfo['E_inc']
-    me=EvtInfo['m_e']
     Z =EvtInfo['Z_T']
-    al=EvtInfo['alpha_FS']
     mV=0
     
     if len(np.shape(varthTildeV)) == 1:
@@ -201,8 +194,8 @@ def dSPairProd_dP_T(EvtInfo, varthTildeV):
 
         epm = w - epp
 
-        qsqT = (dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + me**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2
-        PF = 8.0/np.pi*Z**2*al*(al/me)**2*epp*epm/(w**3*qsqT**2)*dp*dm
+        qsqT = (dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + m_electron**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2
+        PF = 8.0/np.pi*Z**2*alpha_em*(alpha_em/m_electron)**2*epp*epm/(w**3*qsqT**2)*dp*dm
         
         T1 = -1.0*dp**2/(1.0 + dp**2)**2
         T2 = -1.0*dm**2/(1.0 + dm**2)**2
@@ -230,9 +223,7 @@ def dSCompton_dCT(EvtInfo, varthV):
             al (electro-weak fine-structure constant)
     """
     Eg=EvtInfo['E_inc']
-    me=EvtInfo['m_e']
     Z =EvtInfo['Z_T']
-    al=EvtInfo['alpha_FS']
     mV=EvtInfo['m_V']
 
     if len(np.shape(varthV)) == 1:
@@ -241,19 +232,19 @@ def dSCompton_dCT(EvtInfo, varthV):
     for varth in varthV:
         ct = varth[0]
 
-        s = me**2 + 2*Eg*me
-        JacFac = 0.5*(s**2-me**4)/s
-        t = -1/2*(me**4 + s*(-mV**2 + s + ct*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s))) - me**2*(mV**2 + 2*s + ct*np.sqrt(me**4 + (mV**2 - s)**2 - 2*me**2*(mV**2 + s))))/s
-        PF = 2.0*np.pi*al**2/(s-me**2)**2
+        s = m_electron**2 + 2*Eg*m_electron
+        JacFac = 0.5*(s**2-m_electron**4)/s
+        t = -1/2*(m_electron**4 + s*(-mV**2 + s + ct*np.sqrt(m_electron**4 + (mV**2 - s)**2 - 2*m_electron**2*(mV**2 + s))) - m_electron**2*(mV**2 + 2*s + ct*np.sqrt(m_electron**4 + (mV**2 - s)**2 - 2*m_electron**2*(mV**2 + s))))/s
+        PF = 2.0*np.pi*alpha_em**2/(s-m_electron**2)**2
 
         if mV == 0.:
-            T1 = (6.0*me**2*s + 3.0*me**4 - s**2)/((me**2-s)*(-me**2+s+t))
-            T2 = 4*me**4/(s+t-me**2)**2
-            T3 = (t*(s-me**2) + (s+me**2)**2)/(s-me**2)**2
+            T1 = (6.0*m_electron**2*s + 3.0*m_electron**4 - s**2)/((m_electron**2-s)*(-m_electron**2+s+t))
+            T2 = 4*m_electron**4/(s+t-m_electron**2)**2
+            T3 = (t*(s-m_electron**2) + (s+m_electron**2)**2)/(s-m_electron**2)**2
         else:
-            T1 = (2.0*me**2*(mV**2-3*s)-3*me**4-2*mV**2*s+2*mV**4+s**2)/((me**2-s)*(me**2+mV**2-s-t))
-            T2 = (2*me**2*(2*me**2+mV**2))/(me**2+mV**2-s-t)**2
-            T3 = ((me**2+s)*(me**2+mV**2+s)+t*(s-me**2))/(me**2-s)**2
+            T1 = (2.0*m_electron**2*(mV**2-3*s)-3*m_electron**4-2*mV**2*s+2*mV**4+s**2)/((m_electron**2-s)*(m_electron**2+mV**2-s-t))
+            T2 = (2*m_electron**2*(2*m_electron**2+mV**2))/(m_electron**2+mV**2-s-t)**2
+            T3 = ((m_electron**2+s)*(m_electron**2+mV**2+s)+t*(s-m_electron**2))/(m_electron**2-s)**2
 
         dSig0 = PF*JacFac*(T1+T2+T3)
         if np.isnan(dSig0):
@@ -302,24 +293,23 @@ FourD = {"PairProd", "Brem", "DarkBrem"}
 TwoD = {"Comp", "Ann"}
 def IGRange(EI, Process):
     EInc=EI['E_inc']
-    me=EI['m_e']
     Egmin=EI['Eg_min']
     mV=EI['m_V']
     if Process in FourD:
         if Process == "PairProd":
             minE = Egmin
-            maxdel = np.sqrt(EInc/me)
+            maxdel = np.sqrt(EInc/m_electron)
         else:
             minE = np.max([Egmin,mV])
-            maxdel = np.sqrt(EInc/np.max([me,mV]))
-        return [[minE, EInc-me], [0., maxdel], [0., maxdel], [0., 2*np.pi]]
+            maxdel = np.sqrt(EInc/np.max([m_electron,mV]))
+        return [[minE, EInc-m_electron], [0., maxdel], [0., maxdel], [0., 2*np.pi]]
     elif Process in TwoD:
         if Process == "Comp":
             return [[-1., 1.0]]
         elif Process == "Ann":
             EVMin = Egmin + mV
-            ctmaxV = np.sqrt(2.0)*(2.0*me*(EInc-EVMin)*(EInc+me)+EInc*mV**2)/(np.sqrt((EInc-me)*(2.0*EInc+me))*(2*me*(EInc+me)-mV**2))
-            ctMaxmV = np.sqrt(2.0)*(EInc*mV**2 - 2.0*me*(EInc - Egmin)*(EInc+me))/(np.sqrt((EInc-me)*(2*EInc+me))*(2*me*(EInc+me)-mV**2))
+            ctmaxV = np.sqrt(2.0)*(2.0*m_electron*(EInc-EVMin)*(EInc+m_electron)+EInc*mV**2)/(np.sqrt((EInc-m_electron)*(2.0*EInc+m_electron))*(2*m_electron*(EInc+m_electron)-mV**2))
+            ctMaxmV = np.sqrt(2.0)*(EInc*mV**2 - 2.0*m_electron*(EInc - Egmin)*(EInc+m_electron))/(np.sqrt((EInc-m_electron)*(2*EInc+m_electron))*(2*m_electron*(EInc+m_electron)-mV**2))
             if ctmaxV < 0.0 or ctMaxmV > 0.0:
                 ctMax = 0.0
             else:

@@ -3,6 +3,7 @@ from scipy import integrate, special, optimize
 import random
 
 import sys
+from physical_constants import *
 
 
 # Below we need to be careful to distinguish between "space" and "plane"/projected angles (https://pdg.lbl.gov/2019/reviews/rpp2018-rev-passage-particles-matter.pdf)
@@ -14,7 +15,7 @@ import sys
 # (in the "space" formulation there is also an azimuthal angle phi which is assumed to be uniformly distributed).
 # The Bethe-moliere distributions are all for "space" angles
 # The PDG "theta0" parameter gives the standard deviation for the "plane" angle
-# The Lynch and Dahl paper also deals with the projected/"plane" angles
+# The Lynch and Dahl pap    m_electron = 511. * 1e-6er also deals with the projected/"plane" angles
 # We will stick to the "space" formulation.
 
 def moliere_f0(x):
@@ -139,13 +140,12 @@ def get_chic_squared(t, beta, A, Z, z):
     Z - charge of target nucleus
     z - charge of beam particle
     """
-    alpha_EM = 1./137. # = e^2 in Gaussian units
-    N0 = 6.0221409e+23
     
-    
-    me_in_inv_cm = 2.58961e+10 # 511 keV in 1/cm
+    me_in_inv_cm = 2.58961e+10 # 511 keV in 1/cm #FIXME
+#    me_in_inv_cm = m_electron/hbarc # 511 keV in 1/cm #FIXME - this is 3 orders of magnitude off from the upper line!
+
     p = me_in_inv_cm * beta / np.sqrt(1. - beta**2)
-    return 4.*np.pi*N0 * alpha_EM**2 * t * Z * (Z+1.) * z**2 / (A * p**2 * beta**2)
+    return 4.*np.pi*n_avogadro * alpha_em**2 * t * Z * (Z+1.) * z**2 / (A * p**2 * beta**2)
 
 def get_chic_squared_alt(t, beta, A, Z, z):
     """
@@ -156,7 +156,8 @@ def get_chic_squared_alt(t, beta, A, Z, z):
     Z - nuclear charge number
     z - particle charge (+/- 1 for electrons/positrons)
     """
-    me_in_MeV = 0.511
+#    me_in_MeV = 0.511
+    me_in_MeV = m_electron/MeV # FIXME - check - why MeV?
     #print(beta**2, "\t", 1. - beta**2)
     p = me_in_MeV * beta / np.sqrt(1. - beta**2)
     return 0.157 * Z * (Z+1)*(t/A)*np.power(z/(p*beta),2.)
@@ -169,10 +170,10 @@ def get_chia_squared_alt(beta, A, Z, z):
     Z - nuclear charge number
     z - particle charge (+/- 1 for electrons/positrons)
     """
-    me_in_MeV = 0.511
+    # me_in_MeV = 0.511
+    me_in_MeV = m_electron/MeV # FIXME - check - why MeV?
     p = me_in_MeV * beta / np.sqrt(1. - beta**2)
-    alpha_EM = 1./137
-    return 2.007e-5 * np.power(Z,2./3.) * (1. + 3.34*np.power(Z*z*alpha_EM/beta,2.))/p**2
+    return 2.007e-5 * np.power(Z,2./3.) * (1. + 3.34*np.power(Z*z*alpha_em/beta,2.))/p**2
 
 def generate_moliere_angle(t, beta, A, Z, z):
     """
@@ -202,8 +203,7 @@ def generate_moliere_angle_simplified(t_over_X0, beta, z):
     https://pdg.lbl.gov/2005/reviews/passagerpp.pdf
     t_over_X0 is the target thickness in radiation lengths
     """
-    me = 511. * 1e-6
-    p = me * beta / np.sqrt(1.-beta**2)
+    p = m_electron * beta / np.sqrt(1.-beta**2)
     theta0 = (13.6 * 1e-3) * np.fabs(z) * np.sqrt(t_over_X0)*(1. + 0.038*np.log(t_over_X0)) / (beta * p)
     #return random.gauss(0.,theta0)
     # theta0 is the standard deviation for the plane angle, but we want to generate the space angle
@@ -227,7 +227,6 @@ def generate_moliere_angle_simplified_alt(t, beta, A, Z, z):
     chia2 = get_chia_squared_alt(beta, A, Z, z)
     omega = chic2/chia2 
     v = 0.5*omega/(1.-F)
-    me = 511. * 1e-6
     theta0 = np.sqrt(chic2 * ((1.+v)*np.log(1.+v)/v -1)/(1.+F**2))
     #print("Lynch and Dah theta0 = ", theta0)
     # theta0 is the standard deviation for the plane angle, but we want to generate the space angle

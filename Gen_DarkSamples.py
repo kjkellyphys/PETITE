@@ -147,8 +147,6 @@ TargetMaterials = ['graphite']
 Z = {'graphite':6.0}
 PickDir0 = Dir0 + "/NBP/"
 
-meT, alT = 0.000511, 1.0/137.0
-
 for dvm in DarkVMasses:
     BremSamp0 = np.load(PickDir+"/ElectronPositron_BremPickles_"+dvm+".npy", allow_pickle=True)
     CompSamp0 = np.load(PickDir+"/ComptonPickles_"+dvm+".npy", allow_pickle=True)
@@ -169,8 +167,8 @@ for dvm in DarkVMasses:
 
             xs0 = 0.0
             for x, wgt in integrand.random():
-                MM0 = wgt*dSDBrem_dP_T([Ee, meT, MVT, ZT, alT], x)
-                FF = G2el(ZT, meT, DarkBremQsq(x[0], x[1], x[2], x[3], meT, MVT, Ee))/ZT**2
+                MM0 = wgt*dSDBrem_dP_T([Ee, m_electron, MVT, ZT, alpha_em], x)
+                FF = G2el(ZT, m_electron, DarkBremQsq(x[0], x[1], x[2], x[3], m_electron, MVT, Ee))/ZT**2
                 xs0 += MM0*FF
                 pts.append(np.concatenate([x, [MM0, MM0*FF]]))
             
@@ -193,7 +191,7 @@ for dvm in DarkVMasses:
         xs0 = 0.0
         pts = []
         for x, wgt in integrand.random():
-            MM0 = wgt*dSCompton_dCT([Eg, meT, MVT, alT], x)
+            MM0 = wgt*dSCompton_dCT([Eg, m_electron, MVT, alpha_em], x)
             xs0 += MM0
             pts.append(np.concatenate([x, [MM0]]))
         
@@ -212,7 +210,7 @@ for dvm in DarkVMasses:
         xs0 = 0.0
         pts = []
         for x, wgt in integrand.random():
-            MM0 = wgt*dAnn_dCT([Ee, meT, alT, MVT], x)
+            MM0 = wgt*dAnn_dCT([Ee, m_electron, alpha_em, MVT], x)
             xs0 += MM0
             pts.append(np.concatenate([x, [MM0]]))
         

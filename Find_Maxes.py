@@ -49,7 +49,6 @@ FF_dict =      {"PairProd" : G2el,
 
 QSq_functions={"PairProd" : PPQSq, "Brem"     : BremQSq, "Comp": dummy, "Ann": dummy }
 
-meT, alT = 0.000511, 1.0/137.0
 
 UnWS, XSecPP = [], []
 NPts = 30000
@@ -94,7 +93,7 @@ for process_key in Process_Files.keys():
 
             Z_H=1
              
-            EvtInfo={'E_inc': E_inc, 'm_e': meT, 'Z_T': Z_H, 'alpha_FS': alT, 'm_V': 0}
+            EvtInfo={'E_inc': E_inc, 'm_e': m_electron, 'Z_T': Z_H, 'alpha_FS': alpha_em, 'm_V': 0}
             MM_H_0 = wgt*diff_xsec(EvtInfo, x)
             #EvtInfo['E_inc'] = E_inc*1.2
             #MM_H_higher = wgt*diff_xsec(EvtInfo, x)
@@ -115,7 +114,7 @@ for process_key in Process_Files.keys():
                 ZT = Z[tm]
                 FF_func = FF_dict[process_key]
 
-                FF= FF_func(ZT, meT, QSq(x, meT, E_inc) )
+                FF= FF_func(ZT, m_electron, QSq(x, m_electron, E_inc) )
                 xSec[tm] += MM_H_0*FF
 
 

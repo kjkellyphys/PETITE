@@ -24,3 +24,4 @@ NBP/electrons/DarkV/ComptonXSec_100MeV.npy
 NBP/graphite/DarkV/DarkBremEvts_100MeV.npy
 NBP/graphite/DarkV/DarkBremXSec_100MeV.npy
 examples/.ipynb_checkpoints/PETITEShower-checkpoint.ipynb
+.vscode/settings.json
