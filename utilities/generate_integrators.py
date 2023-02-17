@@ -54,7 +54,7 @@ def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_ind
         print("Already generated integrator for this point\n")
     else:
         print('Starting VEGAS for energy index ',energy_index)
-        VEGAS_integrator = VEGASIntegration(params, process, VB=verbosity_mode, mode='Pickle') # FIXED
+        VEGAS_integrator = vegas_integration(params, process, verbose=verbosity_mode, mode='Pickle') # FIXED
         print('Done VEGAS for energy index ',energy_index)
         pickle.dump(VEGAS_integrator, open(strsaveB, "wb"))
         print('File created: '+strsaveB)

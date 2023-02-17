@@ -110,7 +110,7 @@ def aa(Z, me):
 
 
 
-def G2el(Z, me, t):
+def g2_elastic(Z, me, t):
     '''
     Computes atomic screening form factor 
     See Tsai Rev. Mod. Phys. 46, 815 (1974)
@@ -132,7 +132,7 @@ def G2el(Z, me, t):
     a0 = aa(Z, me)
     return Z**2*a0**4*t**2/(1 + a0**2*t)**2
 
-def GetPts(Dist, npts, WgtIndex=4, LenRet=4):
+def get_points(Dist, npts, WgtIndex=4, LenRet=4):
     """If weights are too cumbersome, this function returns a properly-weighted sample from Dist"""
     ret = []
     tochoosefrom = [pis for pis in range(len(Dist))]
@@ -160,19 +160,19 @@ for dvm in DarkVMasses:
         ZT = Z[tm]
 
         UnWS_Brem, XSecBrem = [], []
-        NPts = 30000
+        n_points = 30000
         for ki in range(len(BremSamp0)):
             Ee, integrand = BremSamp0[ki]
             pts = []
 
             xs0 = 0.0
             for x, wgt in integrand.random():
-                MM0 = wgt*dSDBrem_dP_T([Ee, m_electron, MVT, ZT, alpha_em], x)
-                FF = G2el(ZT, m_electron, DarkBremQsq(x[0], x[1], x[2], x[3], m_electron, MVT, Ee))/ZT**2
+                MM0 = wgt*dsigma_darkbrem_dP_T([Ee, m_electron, MVT, ZT, alpha_em], x)
+                FF = g2_elastic(ZT, m_electron, DarkBremQsq(x[0], x[1], x[2], x[3], m_electron, MVT, Ee))/ZT**2
                 xs0 += MM0*FF
                 pts.append(np.concatenate([x, [MM0, MM0*FF]]))
             
-            UnWeightedScreening = GetPts(pts, NPts, WgtIndex=5, LenRet=4)
+            UnWeightedScreening = get_points(pts, n_points, WgtIndex=5, LenRet=4)
             UnWS_Brem.append(UnWeightedScreening)
             XSecBrem.append([Ee, xs0])
             print(Ee, len(pts), len(UnWS_Brem[ki]), xs0)
@@ -184,7 +184,7 @@ for dvm in DarkVMasses:
         os.system("mkdir " + SvDirE)
 
     UnWComp, XSecComp = [], []
-    NPts = 30000
+    n_points = 30000
     for ki in range(len(CompSamp0)):
         Eg, integrand = CompSamp0[ki]
 
@@ -195,7 +195,7 @@ for dvm in DarkVMasses:
             xs0 += MM0
             pts.append(np.concatenate([x, [MM0]]))
         
-        UnWeightedNoScreening = GetPts(pts, NPts, WgtIndex=1, LenRet=1)
+        UnWeightedNoScreening = get_points(pts, n_points, WgtIndex=1, LenRet=1)
         UnWComp.append(UnWeightedNoScreening)
         XSecComp.append([Eg, xs0])
         print(Eg, len(pts), len(UnWComp[ki]), xs0)
@@ -203,18 +203,18 @@ for dvm in DarkVMasses:
     np.save(SvDirE+"ComptonEvts_"+dvm, UnWComp)
 
     UnWAnn, XSecAnn = [], []
-    NPts = 30000
+    n_points = 30000
     for ki in range(len(AnnSamp0)):
         Ee, integrand = AnnSamp0[ki]
 
         xs0 = 0.0
         pts = []
         for x, wgt in integrand.random():
-            MM0 = wgt*dAnn_dCT([Ee, m_electron, alpha_em, MVT], x)
+            MM0 = wgt*dsigma_annihilation_dCT([Ee, m_electron, alpha_em, MVT], x)
             xs0 += MM0
             pts.append(np.concatenate([x, [MM0]]))
         
-        UnWeightedNoScreening = GetPts(pts, NPts, WgtIndex=1, LenRet=1)
+        UnWeightedNoScreening = get_points(pts, n_points, WgtIndex=1, LenRet=1)
         UnWAnn.append(UnWeightedNoScreening)
         XSecAnn.append([Ee, xs0])
 

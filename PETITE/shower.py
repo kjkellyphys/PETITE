@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d
 
 from .moliere import get_scattered_momentum 
 from .particle import Particle
-from .kinematics import eegFourVecs, eeVFourVecs, gepemFourVecs, Compton_FVs, Ann_FVs
+from .kinematics import e_to_egamma_fourvecs, e_to_eV_fourvecs, gamma_to_epem_fourvecs, compton_fourvecs, annihilation_fourvecs
 from .AllProcesses import *
 from datetime import datetime
 
@@ -32,90 +32,90 @@ class Shower:
     """ Representation of a shower
 
     """
-    def __init__(self, DictDir, TargetMaterial, MinEnergy, maxF_fudge_global=1,neval=300):
+    def __init__(self, dict_dir, target_material, min_energy, maxF_fudge_global=1,neval=300):
         """Initializes the shower object.
         Args:
-            DictDir: directory containing the pre-computed VEGAS integrators and auxillary info.
-            TargetMaterial: string label of the homogeneous material through which 
+            dict_dir: directory containing the pre-computed VEGAS integrators and auxillary info.
+            target_material: string label of the homogeneous material through which 
             particles propagate (available materials are the dict keys of 
             Z, A, rho, etc)
-            MinEnergy: minimum particle energy in GeV at which the particle 
+            min_Energy: minimum particle energy in GeV at which the particle 
             finishes its propagation through the target
         """
 
         
         ## Need to swap this out for integrator objects
-        self.set_DictDir(DictDir)
-        self.set_TargetMaterial(TargetMaterial)
-        self.MinEnergy = MinEnergy
+        self.set_dict_dir(dict_dir)
+        self.set_target_material(target_material)
+        self.min_energy = min_energy
 
-        self.set_MaterialProps()
-        self.set_nTargets()
-        self.set_CrossSections()
+        self.set_material_properties()
+        self.set_n_targets()
+        self.set_cross_sections()
         self.set_NSigmas()
         self.set_samples()
 
         self._maxF_fudge_global=maxF_fudge_global
 
-        self._neval_VEGAS=neval
+        self._neval_vegas=neval
 
                 
         
-    def load_Samp(self, DictDir, Process, TargetMaterial):
-        samp_file=open(DictDir + "samp_Dicts.pkl", 'rb')
-        samp_Dict=pickle.load(samp_file)
-        samp_file.close()
+    def load_sample(self, dict_dir, process, target_material): # FIXME: we are not using target_material
+        sample_file=open(dict_dir + "samp_Dicts.pkl", 'rb')
+        sample_dict=pickle.load(sample_file)
+        sample_file.close()
 
-        if Process in samp_Dict.keys():
-            return(samp_Dict[Process])
+        if process in sample_dict.keys():
+            return(sample_dict[process])
         else:
-            print(Process)
+            print(process)
             raise Exception("Process String does not match library")
     
 
-    def load_xSec(self, DictDir, Process, TargetMaterial):
-        xSec_file=open( DictDir + "xSec_Dicts.pkl", 'rb')
-        xSec_Dict=pickle.load(xSec_file)
-        xSec_file.close()
+    def load_cross_section(self, dict_dir, process, target_material):
+        cross_section_file=open( dict_dir + "xSec_Dicts.pkl", 'rb')
+        cross_section_dict=pickle.load(cross_section_file)
+        cross_section_file.close()
 
-        if Process not in xSec_Dict:
+        if process not in cross_section_dict:
             raise Exception("Process String does not match library")
         
-        if TargetMaterial in xSec_Dict[Process]:
-            return(xSec_Dict[Process][TargetMaterial])
+        if target_material in cross_section_dict[process]:
+            return(cross_section_dict[process][target_material])
         else:
             raise Exception("Target Material is not in library")
 
 
 
         
-    def set_DictDir(self, value):
+    def set_dict_dir(self, value):
         """Set the top level directory containing pre-computed MC pickles to value"""
-        self._DictDir = value
-    def get_DictDir(self):
+        self._dict_dir = value
+    def get_dict_dir(self):
         """Get the top level directory containing pre-computed MC pickles""" 
-        return self._DictDir
-    def set_TargetMaterial(self, value):
+        return self._dict_dir
+    def set_target_material(self, value):
         """Set the string representing the target material to value"""
-        self._TargetMaterial = value
-    def get_TargetMaterial(self):
+        self._target_material = value
+    def get_target_material(self):
         """Get the string representing the target material"""
-        return self._TargetMaterial
-    def set_MaterialProps(self):
+        return self._target_material
+    def set_material_properties(self):
         """Defines material properties (Z, A, rho, etc) based on the target 
         material label
         """
-        self._ZTarget, self._ATarget, self._rhoTarget, self._dEdx = Z[self.get_TargetMaterial()], A[self.get_TargetMaterial()], rho[self.get_TargetMaterial()], dEdx[self.get_TargetMaterial()]
+        self._ZTarget, self._ATarget, self._rhoTarget, self._dEdx = Z[self.get_target_material()], A[self.get_target_material()], rho[self.get_target_material()], dEdx[self.get_target_material()]
 
-    def get_MaterialProps(self):
+    def get_material_properties(self):
         """Returns target material properties: Z, A, rho, dE/dx"""
         return self._ZTarget, self._ATarget, self._rhoTarget, self._dEdx
 
-    def set_nTargets(self):
+    def set_n_targets(self):
         """Determines nuclear and electron target densities for the 
            target material
         """
-        ZT, AT, rhoT, dEdxT = self.get_MaterialProps()
+        ZT, AT, rhoT, dEdxT = self.get_material_properties()
         self._nTarget = rhoT/mp0/AT
         self._nElecs = self._nTarget*ZT
 
@@ -123,31 +123,31 @@ class Shower:
         self._loaded_samples={}
         for Process in process_code.keys():
             self._loaded_samples[Process]= \
-                self.load_Samp(self._DictDir, Process, self._TargetMaterial)
+                self.load_sample(self._dict_dir, Process, self._target_material)
 
         
-    def get_nTargets(self):
+    def get_n_targets(self):
         """Returns nuclear and electron target densities for the 
            target material in 1/cm^3
         """
 
         return self._nTarget, self._nElecs
 
-    def set_CrossSections(self):
+    def set_cross_sections(self):
         """Loads the pre-computed cross-sections for various shower processes 
         and extracts the minimum/maximum values of initial energies
         """
 
         # These contain only the cross sections for the chosen target material
-        self._BremXSec = self.load_xSec(self._DictDir, 'Brem', self._TargetMaterial)
-        self._PPXSec   = self.load_xSec(self._DictDir, 'PairProd', self._TargetMaterial)
-        self._AnnXSec  = self.load_xSec(self._DictDir, 'Ann', self._TargetMaterial) 
-        self._CompXSec = self.load_xSec(self._DictDir, 'Comp', self._TargetMaterial) 
+        self._brem_cross_section = self.load_cross_section(self._dict_dir, 'Brem', self._target_material)
+        self._pair_production_cross_section   = self.load_cross_section(self._dict_dir, 'PairProd', self._target_material)
+        self._annihilation_cross_section  = self.load_cross_section(self._dict_dir, 'Ann', self._target_material) 
+        self._compton_cross_section = self.load_cross_section(self._dict_dir, 'Comp', self._target_material) 
 
-        self._EeVecBrem = np.transpose(self._BremXSec)[0]
-        self._EgVecPP = np.transpose(self._PPXSec)[0]
-        self._EeVecAnn = np.transpose(self._AnnXSec)[0]
-        self._EgVecComp = np.transpose(self._CompXSec)[0]
+        self._EeVecBrem = np.transpose(self._brem_cross_section)[0] #FIXME: not sure what these are
+        self._EgVecPP = np.transpose(self._pair_production_cross_section)[0]
+        self._EeVecAnn = np.transpose(self._annihilation_cross_section)[0]
+        self._EgVecComp = np.transpose(self._compton_cross_section)[0]
 
         # log10s of minimum energes, energy spacing for the cross-section tables  
         self._logEeMinBrem, self._logEeSSBrem = np.log10(self._EeVecBrem[0]), np.log10(self._EeVecBrem[1]) - np.log10(self._EeVecBrem[0])
@@ -155,31 +155,31 @@ class Shower:
         self._logEgMinPP, self._logEgSSPP = np.log10(self._EgVecPP[0]), np.log10(self._EgVecPP[1]) - np.log10(self._EgVecPP[0])
         self._logEgMinComp, self._logEgSSComp= np.log10(self._EgVecComp[0]), np.log10(self._EgVecComp[1]) - np.log10(self._EgVecComp[0])
 
-    def get_BremXSec(self):
+    def get_brem_cross_section(self):
         """ Returns array of [energy,cross-section] values for brem """ 
-        return self._BremXSec
-    def get_PPXSec(self):
+        return self._brem_cross_section
+    def get_pairprod_cross_section(self):
         """ Returns array of [energy,cross-section] values for pair production """ 
-        return self._PPXSec
-    def get_AnnXSec(self):
+        return self._pair_production_cross_section
+    def get_annihilation_cross_section(self):
         """ Returns array of [energy,cross-section] values for e+e- annihilation """ 
-        return self._AnnXSec
-    def get_CompXSec(self):
+        return self._annihilation_cross_section
+    def get_compton_cross_section(self):
         """ Returns array of [energy,cross-section] values for Compton """ 
-        return self._CompXSec
+        return self._compton_cross_section
 
     def set_NSigmas(self):
         """Constructs interpolations of n_T sigma (in 1/cm) as a functon of 
         incoming particle energy for each process
         """
-        BS, PPS, AnnS, CS = self.get_BremXSec(), self.get_PPXSec(), self.get_AnnXSec(), self.get_CompXSec()
-        nZ, ne = self.get_nTargets()
+        BS, PPS, AnnS, CS = self.get_brem_cross_section(), self.get_pairprod_cross_section(), self.get_annihilation_cross_section(), self.get_compton_cross_section()
+        nZ, ne = self.get_n_targets()
         self._NSigmaBrem = interp1d(np.transpose(BS)[0], nZ*GeVsqcm2*np.transpose(BS)[1])
         self._NSigmaPP = interp1d(np.transpose(PPS)[0], nZ*GeVsqcm2*np.transpose(PPS)[1])
         self._NSigmaAnn = interp1d(np.transpose(AnnS)[0], ne*GeVsqcm2*np.transpose(AnnS)[1])
         self._NSigmaComp = interp1d(np.transpose(CS)[0], ne*GeVsqcm2*np.transpose(CS)[1])
 
-    def GetMFP(self, PID, Energy):
+    def get_mfp(self, PID, Energy):
         """Returns particle mean free path in meters for PID=22 (photons), 
         11 (electrons) or -11 (positrons) as a function of energy in GeV"""
         if PID == 22:
@@ -189,11 +189,11 @@ class Shower:
         elif PID == -11:
             return cmtom*(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy))**-1
         
-    def BF_Positron_Brem(self, Energy):
+    def BF_positron_brem(self, Energy):
         """Branching fraction for a positron to undergo brem vs annihilation"""
         b0, b1 = self._NSigmaBrem(Energy), self._NSigmaAnn(Energy)
         return b0/(b0+b1)
-    def BF_Photon_PP(self, Energy):
+    def BF_photon_pairprod(self, Energy):
         """Branching fraction for a photon to undergo pair production vs compton"""
         b0, b1 = self._NSigmaPP(Energy), self._NSigmaComp(Energy)
         return b0/(b0+b1)
@@ -201,47 +201,47 @@ class Shower:
 
 
 
-    def Draw_Sample(self,Einc,LU_Key,Process,VB=False):
+    def draw_sample(self,Einc,LU_Key,process,VB=False):
 
         sample_list=self._loaded_samples 
 
         # this grabs the dictionary part rather than the energy. 
-        sample_dict=sample_list[Process][LU_Key][1]
+        sample_dict=sample_list[process][LU_Key][1]
 
         integrand = sample_dict["integrator"]
         max_F      = sample_dict["max_F"]*self._maxF_fudge_global
         max_X      = sample_dict["max_X"]
         max_wgt    = sample_dict["max_wgt"]
 
-        EvtInfo={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'alpha_FS': alpha_em, 'm_V': 0}
-        diff_xsection_options={"PairProd" : dSPairProd_dP_T,
+        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'alpha_FS': alpha_em, 'm_V': 0}
+        diff_xsection_options={"PairProd" : dsigma_pairprod_dP_T,
                                "Comp"     : dSCompton_dCT,
-                               "Brem"     : dSBrem_dP_T,
-                               "Ann"      : dAnn_dCT }
+                               "Brem"     : dsigma_brem_dP_T,
+                               "Ann"      : dsigma_annihilation_dCT }
         
-        FF_dict              ={"PairProd" : G2el,
-                               "Comp"     : Unity,
-                               "Brem"     : G2el,
-                               "Ann"      : Unity }
+        FF_dict              ={"PairProd" : g2_elastic,
+                               "Comp"     : unity,
+                               "Brem"     : g2_elastic,
+                               "Ann"      : unity }
 
-        QSq_dict             ={"PairProd" : PPQSq, "Brem"     : BremQSq, "Comp": dummy, "Ann": dummy }
+        QSq_dict             ={"PairProd" : pair_production_q_sq, "Brem"     : brem_q_sq, "Comp": dummy, "Ann": dummy }
 
         
-        if Process in diff_xsection_options:
-            diff_xsec_func = diff_xsection_options[Process]
-            FF_func        = FF_dict[Process]
-            QSq_func       = QSq_dict[Process]
+        if process in diff_xsection_options:
+            diff_xsec_func = diff_xsection_options[process]
+            FF_func        = FF_dict[process]
+            QSq_func       = QSq_dict[process]
         else:
             raise Exception("Your process is not in the list")
 
-        integrand.set(max_nhcube=1, neval=self._neval_VEGAS)
+        integrand.set(max_nhcube=1, neval=self._neval_vegas)
         if VB:
             sampcount = 0
         for x,wgt in integrand.random():
-            FF_eval=FF_func(EvtInfo['Z_T'], m_electron, QSq_func(x, m_electron, EvtInfo['E_inc'] ) )
+            FF_eval=FF_func(event_info['Z_T'], m_electron, QSq_func(x, m_electron, event_info['E_inc'] ) )
             if VB:
                 sampcount += 1  
-            if  max_F*draw_U()<wgt*diff_xsec_func(EvtInfo,x)*FF_eval:
+            if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x)*FF_eval:
                 break
         if VB:
             return np.concatenate([list(x), [sampcount]])
@@ -250,7 +250,7 @@ class Shower:
 
 
 
-    def ElecBremSample(self, Elec0, VB=False):
+    def electron_brem_sample(self, Elec0, VB=False):
         """Generate a brem event from an initial electron/positron
             Args:
                 Elec0: incoming electron/positron (instance of) Particle 
@@ -275,11 +275,11 @@ class Shower:
         LUKey = int((np.log10(Ee0) - self._logEeMinBrem)/self._logEeSSBrem)
         LUKey = LUKey + 1
         
-        SampEvt = self.Draw_Sample(Ee0, LUKey, 'Brem', VB=VB)
+        sample_event = self.draw_sample(Ee0, LUKey, 'Brem', VB=VB)
 
                 
         # reconstruct final electron and photon 4-momenta from the MC-sampled variables
-        NFVs = eegFourVecs(Ee0, m_electron, SampEvt[0], np.cos(m_electron/Ee0*SampEvt[1]), np.cos(m_electron/(Ee0-SampEvt[0])*SampEvt[2]), SampEvt[3])
+        NFVs = e_to_egamma_fourvecs(Ee0, m_electron, sample_event[0], np.cos(m_electron/Ee0*sample_event[1]), np.cos(m_electron/(Ee0-sample_event[0])*sample_event[2]), sample_event[3])
 
         Eef, pexfZF, peyfZF, pezfZF = NFVs[1]
         Egf, pgxfZF, pgyfZF, pgzfZF = NFVs[2]
@@ -295,7 +295,7 @@ class Shower:
         init_IDs = Elec0.get_IDs()
 
         if VB:
-            newparticlewgt = SampEvt[-1]
+            newparticlewgt = sample_event[-1]
         else:
             newparticlewgt = 1.0
         NewE = Particle(init_IDs[0], Eef, pe3LF[0], pe3LF[1], pe3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1,process_code['Brem'], newparticlewgt)
@@ -325,10 +325,10 @@ class Shower:
         LUKey = int((np.log10(Ee0) - self._logEeMinAnn)/self._logEeSSAnn)
         LUKey = LUKey + 1
         
-        SampEvt = self.Draw_Sample(Ee0, LUKey, 'Ann', VB=VB)
+        SampEvt = self.draw_sample(Ee0, LUKey, 'Ann', VB=VB)
 
         # reconstruct final photon 4-momenta from the MC-sampled variables
-        NFVs = Ann_FVs(Ee0, m_electron, 0.0, SampEvt[0])
+        NFVs = annihilation_fourvecs(Ee0, m_electron, 0.0, SampEvt[0])
 
         Eg1f, pg1xfZF, pg1yfZF, pg1zfZF = NFVs[0]
         Eg2f, pg2xfZF, pg2yfZF, pg2zfZF = NFVs[1]
@@ -373,11 +373,11 @@ class Shower:
         LUKey = int((np.log10(Eg0) - self._logEgMinPP)/self._logEgSSPP)
         LUKey = LUKey + 1
         
-        SampEvt = self.Draw_Sample(Eg0, LUKey, 'PairProd', VB=VB)
+        SampEvt = self.draw_sample(Eg0, LUKey, 'PairProd', VB=VB)
 
         
         # reconstruct final electron and positron 4-momenta from the MC-sampled variables
-        NFVs = gepemFourVecs(Eg0, m_electron, SampEvt[0], np.cos(m_electron/Eg0*SampEvt[1]), np.cos(m_electron/Eg0*SampEvt[2]), SampEvt[3])
+        NFVs = gamma_to_epem_fourvecs(Eg0, m_electron, SampEvt[0], np.cos(m_electron/Eg0*SampEvt[1]), np.cos(m_electron/Eg0*SampEvt[2]), SampEvt[3])
         Eepf, pepxfZF, pepyfZF, pepzfZF = NFVs[1]
         Eemf, pemxfZF, pemyfZF, pemzfZF = NFVs[2]
 
@@ -422,11 +422,11 @@ class Shower:
         LUKey = int((np.log10(Eg0) - self._logEgMinComp)/self._logEgSSComp)        
         LUKey = LUKey + 1
         
-        SampEvt = self.Draw_Sample(Eg0, LUKey, 'Comp', VB=VB)
+        SampEvt = self.draw_sample(Eg0, LUKey, 'Comp', VB=VB)
 
         
         # reconstruct final electron and photon 4-momenta from the MC-sampled variables
-        NFVs = Compton_FVs(Eg0, m_electron, 0.0, SampEvt[0])
+        NFVs = compton_fourvecs(Eg0, m_electron, 0.0, SampEvt[0])
 
         Eef, pexfZF, peyfZF, pezfZF = NFVs[0]
         Egf, pgxfZF, pgyfZF, pgzfZF = NFVs[1]
@@ -463,7 +463,7 @@ class Shower:
             Part0.set_rf(Part0.get_rf())
             return Part0
         else:
-            mfp = self.GetMFP(Part0.get_IDs()[0], Part0.get_p0()[0])
+            mfp = self.get_mfp(Part0.get_IDs()[0], Part0.get_p0()[0])
             distC = np.random.uniform(0.0, 1.0)
             dist = mfp*np.log(1.0/(1.0-distC))
             if np.abs(Part0.get_IDs()[0]) == 11:
@@ -473,7 +473,7 @@ class Shower:
 
             E0, px0, py0, pz0 = Part0.get_p0()
             if MS:
-                ZT, AT, rhoT, dEdxT = self.get_MaterialProps()
+                ZT, AT, rhoT, dEdxT = self.get_material_properties()
                 EF0, PxF0, PyF0, PzF0 = get_scattered_momentum(Part0.get_p0(), rhoT*(dist/cmtom), AT, ZT)
                 PHatDenom = np.sqrt((PxF0 + px0)**2 + (PyF0 + py0)**2 + (PzF0 + pz0)**2)
                 PHat = [(PxF0 + px0)/PHatDenom, (PyF0 + py0)/PHatDenom, (PzF0 + pz0)/PHatDenom]
@@ -493,7 +493,7 @@ class Shower:
                     Part0.set_pf(Part0.get_p0())
             else:
                 Ef = E0 - Losses*dist
-                if Ef <= M0 or Ef < self.MinEnergy:
+                if Ef <= M0 or Ef < self.min_energy:
                     #print("Particle lost too much energy along path of propagation!")
                     Part0.set_Ended(True)
                     return Part0
@@ -517,7 +517,7 @@ class Shower:
         p0 = Particle(PID0, p40[0], p40[1], p40[2], p40[3], 0.0, 0.0, 0.0, 1, 0, ParPID, 0, -1, 1.0)
         if VB:
             print("Starting shower, initial particle with ID Info")
-            print(p0.get_IDs())
+            print(p0.get_ids())
             print("Initial four-momenta:")
             print(p0.get_p0())
 
@@ -530,49 +530,49 @@ class Shower:
             MS_e=False
             MS_g=False
 
-        if p0.get_p0()[0] < self.MinEnergy:
-            p0.set_Ended(True)
+        if p0.get_p0()[0] < self.min_energy:
+            p0.set_ended(True)
             return AllParticles
 
-        while all([ap.get_Ended() == True for ap in AllParticles]) is False:
+        while all([ap.get_ended() == True for ap in AllParticles]) is False:
             for apI, ap in enumerate(AllParticles):
-                if ap.get_Ended() is True:
+                if ap.get_ended() is True:
                     continue
                 else:
                     # Propagate particle until next hard interaction
-                    if ap.get_IDs()[0] == 22:
+                    if ap.get_ids()[0] == 22:
                         ap = self.PropagateParticle(ap,MS=MS_g)
-                    elif np.abs(ap.get_IDs()[0]) == 11:
-                        dEdxT = self.get_MaterialProps()[3]*(0.1) #Converting MeV/cm to GeV/m
+                    elif np.abs(ap.get_ids()[0]) == 11:
+                        dEdxT = self.get_material_properties()[3]*(0.1) #Converting MeV/cm to GeV/m
                         ap = self.PropagateParticle(ap, MS=MS_e, Losses=dEdxT)
 
                     AllParticles[apI] = ap
                     
-                    if (all([ap.get_Ended() == True for ap in AllParticles]) is True and ap.get_pf()[0] < self.MinEnergy):
+                    if (all([ap.get_ended() == True for ap in AllParticles]) is True and ap.get_pf()[0] < self.min_energy):
                         break
 
                     # Generate secondaries for the hard interaction
                     # Note: secondaries include the scattered parent particle 
                     # (i.e. the original the parent is not modified)
-                    if ap.get_IDs()[0] == 11:
-                        npart = self.ElecBremSample(ap, VB=VB)
-                    elif ap.get_IDs()[0] == -11:
-                        BFEpBrem = self.BF_Positron_Brem(ap.get_pf()[0])
+                    if ap.get_ids()[0] == 11:
+                        npart = self.electron_brem_sample(ap, VB=VB)
+                    elif ap.get_ids()[0] == -11:
+                        BFEpBrem = self.BF_positron_brem(ap.get_pf()[0])
                         ch = np.random.uniform(low=0., high=1.0)
                         if ch < BFEpBrem:
-                            npart = self.ElecBremSample(ap, VB=VB)
+                            npart = self.electron_brem_sample(ap, VB=VB)
                         else:
                             npart = self.AnnihilationSample(ap, VB=VB)
-                    elif ap.get_IDs()[0] == 22:
-                        BFPhPP = self.BF_Photon_PP(ap.get_pf()[0])
+                    elif ap.get_ids()[0] == 22:
+                        BFPhPP = self.BF_photon_pairprod(ap.get_pf()[0])
                         ch = np.random.uniform(low=0., high=1.)
                         if ch < BFPhPP:
                             npart = self.PairProdSample(ap, VB=VB)
                         else:
                             npart = self.ComptonSample(ap, VB=VB)
-                    if (npart[0]).get_p0()[0] > self.MinEnergy:
+                    if (npart[0]).get_p0()[0] > self.min_energy:
                         AllParticles.append(npart[0])
-                    if (npart[1]).get_p0()[0] > self.MinEnergy:
+                    if (npart[1]).get_p0()[0] > self.min_energy:
                         AllParticles.append(npart[1])
 
         return AllParticles

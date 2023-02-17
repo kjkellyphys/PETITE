@@ -37,21 +37,21 @@ Process_Files={"PairProd" : PPSamp0,
                "Brem" : BremSamp0,
                "Ann": AnnSamp0}
 
-diff_xsections={"PairProd" : dSPairProd_dP_T,
+diff_xsections={"PairProd" : dsigma_pairprod_dP_T,
                 "Comp"     : dSCompton_dCT,    
-                "Brem"     : dSBrem_dP_T,
-                "Ann"      : dAnn_dCT }
+                "Brem"     : dsigma_brem_dP_T,
+                "Ann"      : dsigma_annihilation_dCT }
 
-FF_dict =      {"PairProd" : G2el,
-                "Comp"     : Unity,
-                "Brem"     : G2el,
-                "Ann"      : Unity }
+FF_dict =      {"PairProd" : g2_elastic,
+                "Comp"     : unity,
+                "Brem"     : g2_elastic,
+                "Ann"      : unity }
 
-QSq_functions={"PairProd" : PPQSq, "Brem"     : BremQSq, "Comp": dummy, "Ann": dummy }
+QSq_functions={"PairProd" : pair_production_q_sq, "Brem"     : brem_q_sq, "Comp": dummy, "Ann": dummy }
 
 
 UnWS, XSecPP = [], []
-NPts = 30000
+n_points = 30000
 
 xSec_dict={}
 samp_dict ={}

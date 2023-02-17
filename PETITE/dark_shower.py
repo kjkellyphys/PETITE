@@ -4,7 +4,7 @@ from scipy.interpolate import interp1d
 
 from .moliere import get_scattered_momentum 
 from .particle import Particle
-from .kinematics import eegFourVecs, eeVFourVecs, gepemFourVecs, Compton_FVs, Ann_FVs
+from .kinematics import e_to_egamma_fourvecs, e_to_eV_fourvecs, gamma_to_epem_fourvecs, compton_fourvecs, annihilation_fourvecs
 from .shower import Shower
 
 import sys
@@ -15,9 +15,9 @@ from physical_constants import *
 Z = {'graphite':6.0, 'lead':82.0} #atomic number of different targets
 A = {'graphite':12.0, 'lead':207.2} #atomic mass of different targets
 
-GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm^2
+GeVsqcm2 = hbarc**2 #Conversion between cross sections in GeV^{-2} to cm^2
 cmtom = 0.01
-mp0 = 1.673e-24 #g
+mp0 = m_proton_grams
 
 MVLib = {'10MeV':0.010,'100MeV':0.100}
 
@@ -43,7 +43,7 @@ class DarkShower(Shower):
 
 
         self.set_MV(MVStr)
-        self.set_DarkPickDir(PickDir)
+        self.set_dark_pickles_dir(PickDir)
         self.set_DarkSampDir(PickDir + TargetMaterial + "/DarkV/")
         self.set_DarkSampDirE(PickDir + "electrons/DarkV/")
 
@@ -51,12 +51,12 @@ class DarkShower(Shower):
         self.set_DarkCrossSections()
         self.set_DarkNSigmas()
 
-    def set_DarkPickDir(self, value):
+    def set_dark_pickles_dir(self, value):
         """Set the top level directory containing pre-computed dark photon MC 
         pickles to value
         """
         self._DarkPickDir = value
-    def get_DarkPickDir(self):
+    def get_dark_pickles_dir(self):
         """Get the top level directory containing pre-computed MC pickles""" 
         return self._DarkPickDir
     def set_DarkSampDir(self, value):
@@ -128,7 +128,7 @@ class DarkShower(Shower):
         incoming particle energy for each process
         """
         DBS, DAnnS, DCS = self.get_DarkBremXSec(), self.get_DarkAnnXSec(), self.get_DarkCompXSec()
-        nZ, ne = self.get_nTargets()
+        nZ, ne = self.get_n_targets()
         self._NSigmaDarkBrem = interp1d(np.transpose(DBS)[0], nZ*GeVsqcm2*np.transpose(DBS)[1])
         self._NSigmaDarkAnn = interp1d(np.transpose(DAnnS)[0], ne*GeVsqcm2*np.transpose(DAnnS)[1])
         self._NSigmaDarkComp = interp1d(np.transpose(DCS)[0], ne*GeVsqcm2*np.transpose(DCS)[1])
@@ -196,7 +196,7 @@ class DarkShower(Shower):
 
         ct = np.cos(self.get_MV()/(SampEvt[0]*Ee0/EeMod)*np.sqrt((EeMod-SampEvt[0])/EeMod)*SampEvt[1])
         ctp =np.cos(self.get_MV()/(SampEvt[0]*Ee0/EeMod)*np.sqrt(EeMod/(EeMod-SampEvt[0]))*SampEvt[2])
-        NFVs = eeVFourVecs(Ee0, m_electron, SampEvt[0]*Ee0/EeMod, self.get_MV(), ct, ctp, SampEvt[3])
+        NFVs = e_to_eV_fourvecs(Ee0, m_electron, SampEvt[0]*Ee0/EeMod, self.get_MV(), ct, ctp, SampEvt[3])
 
         EVf, pVxfZF, pVyfZF, pVzfZF = NFVs[2]
         pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
@@ -241,7 +241,7 @@ class DarkShower(Shower):
         ts = self.get_DarkAnnSamples(LUKey)
         SampEvt = ts[np.random.randint(0, len(ts))]
         #NFVs = Ann_FVs(EeMod, meT, MVT, SampEvt[0])[1]
-        NFVs = Ann_FVs(Ee0, m_electron, self.get_MV(), SampEvt[0])[1]
+        NFVs = annihilation_fourvecs(Ee0, m_electron, self.get_MV(), SampEvt[0])[1]
         GenType = process_code['anni']
 
         EVf, pVxfZF, pVyfZF, pVzfZF = NFVs
@@ -284,7 +284,7 @@ class DarkShower(Shower):
         ts = self.get_DarkCompSamples(LUKey)
         SampEvt = ts[np.random.randint(0, len(ts))]
         #NFVs = Compton_FVs(EgMod, meT, MVT, SampEvt[0])[1]
-        NFVs = Compton_FVs(Eg0, m_electron, self.get_MV(), SampEvt[0])[1]
+        NFVs = compton_fourvecs(Eg0, m_electron, self.get_MV(), SampEvt[0])[1]
 
         EVf, pVxfZF, pVyfZF, pVzfZF = NFVs
         pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
@@ -332,11 +332,11 @@ class DarkShower(Shower):
         
         NewShower = []
         for ap in ShowerToSamp:
-            if ap.get_IDs()[0] == 11:
+            if ap.get_ids()[0] == 11:
                 if np.log10(ap.get_pf()[0]) < self._logEeMinDarkBrem:
                     continue
                 npart = self.DarkElecBremSample(ap)
-            elif ap.get_IDs()[0] == -11:
+            elif ap.get_ids()[0] == -11:
                 if np.log10(ap.get_pf()[0]) < self._logEeMinDarkBrem:
                     continue
                 DarkBFEpBrem = self.GetPositronDarkBF(ap.get_pf()[0])
@@ -345,7 +345,7 @@ class DarkShower(Shower):
                     npart = self.DarkElecBremSample(ap)
                 else:
                     npart = self.DarkAnnihilationSample(ap)
-            elif ap.get_IDs()[0] == 22:
+            elif ap.get_ids()[0] == 22:
                 if np.log10(ap.get_pf()[0]) < self._logEgMinDarkComp:
                     continue
                 npart = self.DarkComptonSample(ap)

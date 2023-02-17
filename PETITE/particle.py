@@ -16,19 +16,19 @@ class Particle:
             GenProcess: id of the process that produced the particle
             Weight: probability weight for the process that generated this particle
         """
-        self.set_IDs(np.array([PID, ID, ParPID, ParID, GenID, GenProcess, Weight]))
+        self.set_ids(np.array([PID, ID, ParPID, ParID, GenID, GenProcess, Weight]))
 
         self.set_p0(np.array([E0, px0, py0, pz0]))
         self.set_r0(np.array([x0, y0, z0]))
 
-        self.set_Ended(False)
+        self.set_ended(False)
 
         self.set_pf(np.array([E0,px0,py0,pz0]))
         self.set_rf(np.array([x0, y0, z0]))
 
-    def set_IDs(self, value):
+    def set_ids(self, value):
         self._IDs = value
-    def get_IDs(self):
+    def get_ids(self):
         return self._IDs
 
     def set_p0(self, value):
@@ -49,10 +49,10 @@ class Particle:
     def get_rf(self):
         return self._rf
 
-    def set_Ended(self, value):    
+    def set_ended(self, value):    
         if value != True and value != False:
             raise ValueError("Ended property must be a boolean.")
         self._Ended = value
-    def get_Ended(self):
+    def get_ended(self):
         return self._Ended
 

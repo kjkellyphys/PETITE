@@ -1,7 +1,7 @@
 import numpy as np
 from physical_constants import *
 
-def eegFourVecs(ep, me, w, ct, ctp, ph):
+def e_to_egamma_fourvecs(ep, me, w, ct, ctp, ph):
     """Reconstruct electron and photon four vectors from 
     mc-sampled kinematic variables for electron/positron 
     SM brem e N -> e N gamma
@@ -30,7 +30,7 @@ def eegFourVecs(ep, me, w, ct, ctp, ph):
 
     return [Em4v, Ep4v, g4v]
 
-def eeVFourVecs(ep, me, w, MV, ct, ctp, ph):
+def e_to_eV_fourvecs(ep, me, w, MV, ct, ctp, ph):
     """Reconstruct electron and photon four vectors from 
     mc-sampled kinematic variables for electron/positron 
     dark sector brem e N -> e N V
@@ -55,7 +55,7 @@ def eeVFourVecs(ep, me, w, MV, ct, ctp, ph):
 
     return [Em4v, Ep4v, V4v]
 
-def gepemFourVecs(w, me, epp, ctp, ctm, ph):
+def gamma_to_epem_fourvecs(w, me, epp, ctp, ctm, ph):
     """Reconstruct photon, electron and positron four vectors from 
     mc-sampled kinematic variables for pair production 
     gamma Z -> e- e+ Z
@@ -81,7 +81,7 @@ def gepemFourVecs(w, me, epp, ctp, ctm, ph):
 
     return [Eg4v, pp4v, pm4v]
     
-def Compton_FVs(Eg, me, mV, ct):
+def compton_fourvecs(Eg, me, mV, ct):
     """Reconstruct final electron and photon four vectors from 
     mc-sampled kinematic variables for SM Compton  gamma e > gamma e 
     or dark Compoton gamma e > V e
@@ -106,7 +106,7 @@ def Compton_FVs(Eg, me, mV, ct):
 
     return [pe4v, pV4v]
 
-def Ann_FVs(Ee, me, mV, ct):
+def annihilation_fourvecs(Ee, me, mV, ct):
     """Reconstruct final SM/dark photon four vectors from 
     mc-sampled kinematic variables for SM annihilation e+e- > gamma gamma
     or dark annihilation e+e- > gamma V

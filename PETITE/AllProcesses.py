@@ -7,13 +7,13 @@ from physical_constants import *
 #--------------------------------------------------------------------------
 #Functions for atomic form factors for incident photons/electrons/positrons
 #--------------------------------------------------------------------------
-def Unity(Z, me, t):
+def unity(Z, me, t):
     return(1.0)
 
 def dummy(x,y,z):
     return(0)
 
-def PPQSq(xx, me, w):
+def pair_production_q_sq(xx, me, w):
     """Computes momentum transfer squared for photon-scattering pair production
     Args:
         xx: tuple consisting of kinematic rescaled kinematic variables 
@@ -27,7 +27,7 @@ def PPQSq(xx, me, w):
     epm = w - epp
     return me**2*((dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + me**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2) 
 
-def BremQSq(xx, me, ep):
+def brem_q_sq(xx, me, ep):
     """Momentum Transfer Squared for electron/positron bremsstrahlung
     Args:
         w: frequency of radiated photon 
@@ -50,11 +50,11 @@ def aa(Z, me):
 def aap(Z, me):
     return 1194*(2.718)**-0.5*Z**(-2./3.)/me
 
-def G2el(Z, me, t):
+def g2_elastic(Z, me, t):
     a0 = aa(Z, me)
     return Z**2*a0**4*t**2/(1 + a0**2*t)**2
 
-def G2inel(Z, me, t):
+def g2_inelastic(Z, me, t):
     ap0 = aap(Z, me)
     return Z*ap0**4*t**2/(1 + ap0**2*t)**2
 
@@ -62,16 +62,14 @@ def G2inel(Z, me, t):
 #Differential Cross Sections for Incident Electrons/Positrons/Photons
 #--------------------------------------------------------------------
 
-def dSBrem_dP_T(EvtInfo, varthTildeV):
+def dsigma_brem_dP_T(EvtInfo, varthTildeV):
     """Standard Model Bremsstrahlung in the Small-Angle Approximation
        e (ep) + Z -> e (epp) + gamma (w) + Z
        Outgoing kinematics given by w, d (delta), dp (delta'), and ph (phi)
 
        Input parameters needed:
             ep (incident electron energy)
-            me (electron mass)
             Z (Target Atomic Number)
-            al (electro-weak fine-structure constant)
     """
     ep=EvtInfo['E_inc']
     Z =EvtInfo['Z_T']
@@ -103,7 +101,7 @@ def dSBrem_dP_T(EvtInfo, varthTildeV):
     else:
         return dSigs
 
-def dSDBrem_dP_T(EvtInfo, varthV):
+def dsigma_darkbrem_dP_T(EvtInfo, varthV):
     """Dark Vector Bremsstrahlung in the Small-Angle Approximation
        e (ep) + Z -> e (epp) + V (w) + Z
        Outgoing kinematics given by w, d (delta), dp (delta'), and ph (phi)
@@ -141,7 +139,7 @@ def dSDBrem_dP_T(EvtInfo, varthV):
     else:
         return dSigs
 
-def dAnn_dCT(EvtInfo, varthV):
+def dsigma_annihilation_dCT(EvtInfo, varthV):
     """Annihilation of a Positron and Electron into a Photon and a (Dark) Photon
        e+ (Ee) + e- (me) -> gamma + gamma/V
 
@@ -171,19 +169,17 @@ def dAnn_dCT(EvtInfo, varthV):
     else:
         return dSigs
 
-def dSPairProd_dP_T(EvtInfo, varthTildeV):
+def dsigma_pairprod_dP_T(event_info, varthTildeV):
     """Standard Model Pair Production in the Small-Angle Approximation
        gamma (w) + Z -> e+ (epp) + e- (epm) + Z
        Outgoing kinematics given by epp, dp (delta+), dm (delta-), and ph (phi)
 
        Input parameters needed:
             w (incident photon energy)
-            me (electron mass)
             Z (Target Atomic Number)
-            al (electro-weak fine-structure constant)
     """
-    w=EvtInfo['E_inc']
-    Z =EvtInfo['Z_T']
+    w=event_info['E_inc']
+    Z =event_info['Z_T']
     mV=0
     
     if len(np.shape(varthTildeV)) == 1:
@@ -212,19 +208,17 @@ def dSPairProd_dP_T(EvtInfo, varthTildeV):
     else:
         return dSigs
 
-def dSCompton_dCT(EvtInfo, varthV):
+def dSCompton_dCT(event_info, varthV):
     """Compton Scattering of a Photon off an at-rest Electron, producing either a photon or a Dark Vector
         gamma (Eg) + e- (me) -> e- + gamma/V
 
        Input parameters needed:
             Eg (incident photon energy)
-            me (electron mass)
             MV (Dark Vector Mass -- can be set to zero for SM Case)
-            al (electro-weak fine-structure constant)
     """
-    Eg=EvtInfo['E_inc']
-    Z =EvtInfo['Z_T']
-    mV=EvtInfo['m_V']
+    Eg=event_info['E_inc']
+    Z =event_info['Z_T']
+    mV=event_info['m_V']
 
     if len(np.shape(varthV)) == 1:
         varthV = np.array([varthV])
@@ -257,27 +251,27 @@ def dSCompton_dCT(EvtInfo, varthV):
         return dSigs
 
 #Function for drawing unweighted events from a weighted distribution
-def GetPts(Dist, npts):
+def get_points(distribution, npts):
     """If weights are too cumbersome, this function returns a properly-weighted sample from Dist"""
     ret = []
-    MW = np.max(np.transpose(Dist)[-1])
+    MW = np.max(np.transpose(distribution)[-1])
 
-    tochoosefrom = [pis for pis in range(len(Dist))]
-    choicesgetter = rnd.choices(tochoosefrom, np.transpose(Dist)[-1], k=npts)
+    tochoosefrom = [pis for pis in range(len(distribution))]
+    choicesgetter = rnd.choices(tochoosefrom, np.transpose(distribution)[-1], k=npts)
     for cg in choicesgetter:
-        ret.append(Dist[cg][0:-1])
+        ret.append(distribution[cg][0:-1])
 
     return ret
 
 #------------------------------------------------------------------------------
 #Total Cross Sections and Sample Draws for Incident Electrons/Positrons/Photons
 #------------------------------------------------------------------------------
-NPts = 10000 #Default number of points to draw for unweighted samples
+n_points = 10000 #Default number of points to draw for unweighted samples
 
-diff_xsection_options={"PairProd" : dSPairProd_dP_T,
+diff_xsection_options={"PairProd" : dsigma_pairprod_dP_T,
                        "Comp"     : dSCompton_dCT,
-                       "Brem"     : dSBrem_dP_T,
-                       "Ann"      : dAnn_dCT }
+                       "Brem"     : dsigma_brem_dP_T,
+                       "Ann"      : dsigma_annihilation_dCT }
 nitn_options={"PairProd":500,
               "Brem":500,
               "DarkBrem":500,
@@ -289,24 +283,25 @@ nstrat_options={"PairProd":[15, 25, 25, 15],
                 "Comp":[300],
                 "Ann":[300]}
 
-FourD = {"PairProd", "Brem", "DarkBrem"}
-TwoD = {"Comp", "Ann"}
-def IGRange(EI, Process):
-    EInc=EI['E_inc']
-    Egmin=EI['Eg_min']
-    mV=EI['m_V']
-    if Process in FourD:
-        if Process == "PairProd":
+four_dim = {"PairProd", "Brem", "DarkBrem"}
+two_dim = {"Comp", "Ann"}
+
+def integration_range(event_info, process):
+    EInc=event_info['E_inc']
+    Egmin=event_info['Eg_min']
+    mV=event_info['m_V']
+    if process in four_dim:
+        if process == "PairProd":
             minE = Egmin
             maxdel = np.sqrt(EInc/m_electron)
         else:
             minE = np.max([Egmin,mV])
             maxdel = np.sqrt(EInc/np.max([m_electron,mV]))
         return [[minE, EInc-m_electron], [0., maxdel], [0., maxdel], [0., 2*np.pi]]
-    elif Process in TwoD:
-        if Process == "Comp":
+    elif process in two_dim:
+        if process == "Comp":
             return [[-1., 1.0]]
-        elif Process == "Ann":
+        elif process == "Ann":
             EVMin = Egmin + mV
             ctmaxV = np.sqrt(2.0)*(2.0*m_electron*(EInc-EVMin)*(EInc+m_electron)+EInc*mV**2)/(np.sqrt((EInc-m_electron)*(2.0*EInc+m_electron))*(2*m_electron*(EInc+m_electron)-mV**2))
             ctMaxmV = np.sqrt(2.0)*(EInc*mV**2 - 2.0*m_electron*(EInc - Egmin)*(EInc+m_electron))/(np.sqrt((EInc-m_electron)*(2*EInc+m_electron))*(2*m_electron*(EInc+m_electron)-mV**2))
@@ -318,7 +313,7 @@ def IGRange(EI, Process):
     else:
         raise Exception("Your process is not in the list")
 
-def VEGASIntegration(EI, Process, VB=False, mode='XSec'):
+def vegas_integration(event_info, process, verbose=False, mode='XSec'):
     """Function for Integration of Various SM/BSM Differential
        Cross Sections.
 
@@ -349,46 +344,46 @@ def VEGASIntegration(EI, Process, VB=False, mode='XSec'):
              -- 'Sample': return VEGAS sample (including weights)
              -- 'UnweightedSample' return unweighted sample of events
     """
-    if Process in diff_xsection_options:
-        if ('m_V' in EI.keys()) == False:
-            EI['m_V'] = 0.0
-        if ('Eg_min' in EI.keys()) == False:
-            EI['Eg_min'] = 0.0
-        igrange = IGRange(EI, Process)
-        diff_xsec_func = diff_xsection_options[Process] 
+    if process in diff_xsection_options:
+        if ('m_V' in event_info.keys()) == False:
+            event_info['m_V'] = 0.0
+        if ('Eg_min' in event_info.keys()) == False:
+            event_info['Eg_min'] = 0.0
+        igrange = integration_range(event_info, process)
+        diff_xsec_func = diff_xsection_options[process] 
     else:
         raise Exception("You process is not in the list")
     integrand = vg.Integrator(igrange)
     if mode == 'Pickle' or mode == 'XSec':
-        if VB:
-            print("Integrator set up", Process, EI)
-        integrand(functools.partial(diff_xsec_func, EI), nitn=nitn_options[Process], nstrat=nstrat_options[Process])
-        if VB:
-            print("Burn-in complete", EI)
-        result = integrand(functools.partial(diff_xsec_func, EI), nitn=nitn_options[Process], nstrat=nstrat_options[Process])
-        if VB:
-            print("Fully Integrated", EI, result.mean)
+        if verbose:
+            print("Integrator set up", process, event_info)
+        integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
+        if verbose:
+            print("Burn-in complete", event_info)
+        result = integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
+        if verbose:
+            print("Fully Integrated", event_info, result.mean)
         if mode == 'Pickle':
             return integrand
         else:
             return result.mean
     elif mode == 'Sample' or mode == 'UnweightedSample':
-        integrand(functools.partial(diff_xsec_func, EI), nitn=nitn_options[Process], nstrat=nstrat_options[Process])
-        result = integrand(functools.partial(diff_xsec_func, EI), nitn=nitn_options[Process], nstrat=nstrat_options[Process])
+        integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
+        result = integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
 
         integral, pts = 0.0, []
         for x, wgt in integrand.random_batch():
-            integral += wgt.dot(diff_xsec_func(EI, x))
-        if VB:
+            integral += wgt.dot(diff_xsec_func(event_info, x))
+        if verbose:
             print(integral)
         NSamp = 1
         for kc in range(NSamp):
             for x, wgt in integrand.random():
-                M0 = wgt*diff_xsec_func(EI, x)
+                M0 = wgt*diff_xsec_func(event_info, x)
                 pts.append(np.concatenate([list(x), [M0]]))
         if mode == 'Sample':
             tr = np.array([integral, pts], dtype=object)
         elif mode == 'UnweightedSample':
-            tr = np.array([integral, GetPts(pts, NPts)], dtype=object)
+            tr = np.array([integral, get_points(pts, n_points)], dtype=object)
         return tr
         
