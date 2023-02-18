@@ -32,15 +32,19 @@ def generate_vector_mass_string(mV):
     return str(int(np.floor(mV*1000.)))+"MeV"
 
 # put more details in readme eg Z, A etc
-def make_read_me(params, process, file_info):
+def make_readme(params, process, file_info):
     [save_dir, save_dir_temp] = file_info
-    read_me_file = open(save_dir_temp + "readme.txt", 'w')
-    read_me_file.write("Integrators for " + process)
-    read_me_file.write("\n\nEnergy/GeV |  Filename\n\n")
+    readme_file = open(save_dir_temp + "readme.txt", 'w')
+    readme_file.write("Integrators for " + process)
+    if process == 'DarkBrem':
+        line = "\nTarget has (Z, A, mass) = ({atomic_Z}, {atomic_A}, {atomic_mass})\n".\
+            format(atomic_Z=params['Z'], atomic_A=params['A'], atomic_mass=params['mT'])
+        readme_file.write(line)
+    readme_file.write("\n\nEnergy/GeV |  Filename\n\n")
     for index, energy in enumerate(params['initial_energy_list']):
         line = "{en:9.3f}  |  {indx:3d}.p\n".format(en = energy, indx = index)
-        read_me_file.write(line)
-    read_me_file.close()
+        readme_file.write(line)
+    readme_file.close()
     return()
 
 
@@ -106,7 +110,7 @@ def make_integrators(params, process, verbosity_mode):
     res = pool.map(partial(run_vegas_in_parallel, params, process, verbosity_mode, file_info), energy_index_list)
     print('make_integrators - done')
     
-    make_read_me(params, process, file_info)#make the human readable file contining info on params of run and put in directory 
+    make_readme(params, process, file_info)#make the human readable file contining info on params of run and put in directory 
     
     
 
