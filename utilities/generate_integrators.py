@@ -12,9 +12,6 @@
 """
 
 import numpy as np
-# import sys
-#sys.path.insert(0,'../PETITE/')
-# sys.path.insert(0,'/Users/pmachado/Dropbox/Projects/main/dark showers/feb/PETITE-main/PETITE')
 import sys, os
 path = os.getcwd()
 path = os.path.join(path,"../PETITE")
@@ -22,39 +19,43 @@ sys.path.insert(0,path)
 from AllProcesses import *
 from physical_constants import *
 
-import os
+
 from copy import deepcopy
-import random as rnd
-import itertools
 from multiprocessing import Pool
 import pickle
 from functools import partial
 import argparse
 
-def create_param_dict(mV, A, Z, mT):
-    """
-    Creates a parameter dictionary
-    """
-    params = {'me' : 511e-6, 'alphaEM': 1./137}
-    params.update({'A': A, 'Z': Z, 'mT': mT})
-    params.update({'mV':mV})
-    return params
 
-
+# helper function to turn float to string
 def generate_vector_mass_string(mV):
     return str(int(np.floor(mV*1000.)))+"MeV"
-    
 
-#file management for SM processes
+
+def make_read_me(params, process, file_info):
+    [save_dir, save_dir_temp] = file_info
+    read_me_file = open(save_dir_temp + "readme.txt", 'w')
+    read_me_file.write("Integrators for " + process)
+    read_me_file.write("\n\nEnergy/GeV |  Filename\n\n")
+    for index, energy in enumerate(params['initial_energy_list']):
+        line = "{en:9.3f}  |  {indx:3d}.p\n".format(en = energy, indx = index)
+        read_me_file.write(line)
+    read_me_file.close()
+    return()
+
+
+#Run VEGAS in parallel and save outputs, deals with file management
+### FIX files names etc
 def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_index):
     params['E_inc'] = params['initial_energy_list'][energy_index]
-    [brem_pickle_dir, brem_pickle_temp_dir] = file_info
-    strsaveB = brem_pickle_dir + str(energy_index) + ".p" # FIXED
+    [save_dir, save_dir_temp] = file_info
+    strsaveB = save_dir_temp + str(energy_index) + ".p"
     if os.path.exists(strsaveB):
         print("Already generated integrator for this point\n")
     else:
         print('Starting VEGAS for energy index ',energy_index)
-        VEGAS_integrator = vegas_integration(params, process, verbose=verbosity_mode, mode='Pickle') # FIXED
+        #VEGAS_integrator = vegas_integration(params, process, verbose=verbosity_mode, mode='Pickle') 
+        VEGAS_integrator = 0
         print('Done VEGAS for energy index ',energy_index)
         pickle.dump(VEGAS_integrator, open(strsaveB, "wb"))
         print('File created: '+strsaveB)
@@ -71,14 +72,13 @@ def make_integrators(params, process, verbosity_mode):
         mT : target mass in GeV
     """
     mV = params['mV']
-    A = params['A']
-    Z = params['Z']
+    atomic_A = params['A']
+    atomic_Z = params['Z']
     mT = params['mT'] 
-    params['m_e'] = m_electron#511E-6 #electron mass in GeV PJF--FIX THIS ??
-    params['alpha_FS'] = alpha_em#1.0/137 #PJF--FIX THIS ??
+    params['m_e'] = m_electron
+    params['alpha_FS'] = alpha_em
 
     initial_energy_list = params['initial_energy_list']
-    target_name = params['target_name']
     
     vec_mass_string = generate_vector_mass_string(mV)
     energy_index_list = range(len(initial_energy_list))
@@ -90,20 +90,23 @@ def make_integrators(params, process, verbosity_mode):
     # energy_index_list = range(len(initial_energy_list))
     # vec_mass_string = generate_vector_mass_string(params['mV'])
 
-    brem_pickle_dir = '../NBP/'+params['target_name']+'/DarkV/'
-    brem_pickle_temp_dir = brem_pickle_dir + "DarkBremPickes_TMP/"
-
-    file_info = [brem_pickle_dir, brem_pickle_temp_dir]
-
-    if os.path.exists(brem_pickle_temp_dir) == False:
-        os.system("mkdir -p " + brem_pickle_temp_dir)
-    # PJF -- make check if file already exists...to save time!!
-    brem_file_prefix = brem_pickle_temp_dir + "BremPickles_" + vec_mass_string + "_"
+    save_dir = '../' + params['save_location'] + "/"
+    if process == 'DarkBrem':
+        target_specific_label = "Z_" + str(atomic_Z) + "_A_" + str(atomic_A) + "_mT_" + str(mT)
+        save_dir_temp = save_dir + process + target_specific_label + "_TMP/" 
+    else:
+        save_dir_temp = save_dir + process + "_TMP/"
+    
+    file_info = [save_dir, save_dir_temp]
+    print(file_info)
+    if os.path.exists(save_dir_temp) == False:
+        os.system("mkdir -p " + save_dir_temp)
+    # pool parallelizes the generation of integrators    
     pool = Pool()
     res = pool.map(partial(run_vegas_in_parallel, params, process, verbosity_mode, file_info), energy_index_list)
     print('make_integrators - done')
-
-
+    
+    make_read_me(params, process, file_info)
 
     return()
 
@@ -115,10 +118,10 @@ if __name__ == '__main__':
     parser.add_argument('-A', type=float, help='atomic mass number', required=True)
     parser.add_argument('-Z', type=float, help='atomic number', required=True)
     parser.add_argument('-mT', type=float, help='nuclear target mass in GeV', required=True)
-    parser.add_argument('-target_name', type=str, help='name of the target', required=True)
 
     # optional parameters
-    parser.add_argument('-process', nargs='+', type=str, default='DarkBrem', help='list of processes to be run "all" does whole list, if mV non-zero only DarkBrem \
+    parser.add_argument('-save_location', type=str, default='raw_integrators', help='directory to save integrators in (path relative to main PETITE directory)')
+    parser.add_argument('-process', nargs='+', type=str, default=['DarkBrem'], help='list of processes to be run "all" does whole list, if mV non-zero only DarkBrem \
         (choose from "PairProd", "Brem", "DarkBrem", "Comp", "Ann")')
     parser.add_argument('-mV', nargs='+', type=float, default=[0.05], help='dark vector mass in GeV (can be a space-separated list)')
     parser.add_argument('-num_energy_pts', type=int, default=100, help='number of initial energy values to evaluate')
@@ -129,9 +132,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
 
-    params = {'A': args.A, 'Z': args.Z, 'mT': args.mT, 'target_name': args.target_name}
+    params = {'A': args.A, 'Z': args.Z, 'mT': args.mT, 'save_location': args.save_location}
     verbosity_mode = args.verbosity
-    if (args.mV == 0):# doing SM processes
+    if (args.mV == 0 or not(args.process == ['DarkBrem']) ):# doing SM processes
         if  "all" in args.process:
             process_list_to_do = ['Brem','PairProd','Comp','Ann']
         else:#make sure DarkBrem not accidentally in list
