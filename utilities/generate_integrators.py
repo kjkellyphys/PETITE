@@ -133,7 +133,8 @@ if __name__ == '__main__':
     parser.add_argument('-num_energy_pts', type=int, default=100, help='number of initial energy values to evaluate')
     parser.add_argument('-min_energy', type=float, default=0.01, help='minimum initial energy to evaluate (must be larger than mV)')
     parser.add_argument('-max_energy', type=float, default=100., help='maximum initial energy to evaluate')
-    parser.add_argument('-verbosity', type=bool, default=False, help='verbosity mode True/False')
+    parser.add_argument('-run_find_maxes', type=bool, default=True,  help='run Find_Maxes.py after done (True/False)')
+    parser.add_argument('-verbosity', type=bool, default=False, help='verbosity mode (True/False)')
 
     args = parser.parse_args()
 
@@ -163,7 +164,10 @@ if __name__ == '__main__':
             params.update({'initial_energy_list': initial_energy_list})
             make_integrators(params, process, verbosity_mode)
 
-
+if (args.run_find_maxes):
+    print("Now running Find_Maxes....please wait")
+else:
+    print("Goodbye!")
 
 
     
