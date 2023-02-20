@@ -163,11 +163,11 @@ if __name__ == '__main__':
             params.update({'mV' : mV})
             params.update({'initial_energy_list': initial_energy_list})
             make_integrators(params, process, verbosity_mode)
-
-if (args.run_find_maxes):
-    print("Now running Find_Maxes....please wait")
-else:
-    print("Goodbye!")
+    
+    if (args.run_find_maxes):
+        print("Now running Find_Maxes....please wait")
+    else:
+        print("Goodbye!")
 
 
     
