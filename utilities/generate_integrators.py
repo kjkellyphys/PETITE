@@ -167,7 +167,7 @@ if __name__ == '__main__':
     if (args.run_find_maxes):
         print("Now running Find_Maxes....please wait")
     else:
-        print("Goodbye!")
+        print("Goodbye! No no no, I win!!!")
 
 
     
