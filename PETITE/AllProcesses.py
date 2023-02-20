@@ -62,7 +62,7 @@ def g2_inelastic(Z, me, t):
 #Differential Cross Sections for Incident Electrons/Positrons/Photons
 #--------------------------------------------------------------------
 
-def dsigma_brem_dP_T(EvtInfo, varthTildeV):
+def dsigma_brem_dP_T(event_info, varthTildeV):
     """Standard Model Bremsstrahlung in the Small-Angle Approximation
        e (ep) + Z -> e (epp) + gamma (w) + Z
        Outgoing kinematics given by w, d (delta), dp (delta'), and ph (phi)
@@ -71,8 +71,8 @@ def dsigma_brem_dP_T(EvtInfo, varthTildeV):
             ep (incident electron energy)
             Z (Target Atomic Number)
     """
-    ep=EvtInfo['E_inc']
-    Z =EvtInfo['Z_T']
+    ep=event_info['E_inc']
+    Z =event_info['Z']
     mV=0
 
     if len(np.shape(varthTildeV)) == 1:
@@ -101,7 +101,7 @@ def dsigma_brem_dP_T(EvtInfo, varthTildeV):
     else:
         return dSigs
 
-def dsigma_darkbrem_dP_T(EvtInfo, varthV):
+def dsigma_darkbrem_dP_T(event_info, varthV):
     """Dark Vector Bremsstrahlung in the Small-Angle Approximation
        e (ep) + Z -> e (epp) + V (w) + Z
        Outgoing kinematics given by w, d (delta), dp (delta'), and ph (phi)
@@ -113,9 +113,9 @@ def dsigma_darkbrem_dP_T(EvtInfo, varthV):
             Z (Target Atomic Number)
             al (electro-weak fine-structure constant)
     """
-    ep=EvtInfo['E_inc']
-    Z =EvtInfo['Z_T']
-    mV=EvtInfo['m_V']
+    ep=event_info['E_inc']
+    Z =event_info['Z']
+    mV=event_info['m_V']
 
     if len(np.shape(varthV)) == 1:
         varthV = np.array([varthV])
@@ -126,7 +126,7 @@ def dsigma_darkbrem_dP_T(EvtInfo, varthV):
         epp = ep - w
 
         xsq = (d**2 + dp**2 - 2.0*d*dp*np.cos(ph)) + mV**2/(4.0*ep*epp)*(1 + 0.5*(d**2 + dp**2))**2
-        PF = 4.0*alpha_em**3*Z**2/(np.pi*mV**2)*w**3/ep**3*1/(xsq**2*epp)*(d*dp)/((1+d**2)*(1+dp**2))
+        PF = 1#+4.0*alpha_em**3*Z**2/(np.pi*mV**2)*w**3/ep**3*1/(xsq**2*epp)*(d*dp)/((1+d**2)*(1+dp**2)) #FIXME
         T1 = (ep**2+epp**2)/w**2*xsq
         T2 = -(d**2 - dp**2)**2/((1+d**2)*(1+dp**2))
         T3 = -mV**2/(4.0*w**2)*(ep/epp*(1+dp**2) + epp/ep*(1+d**2))
@@ -139,7 +139,7 @@ def dsigma_darkbrem_dP_T(EvtInfo, varthV):
     else:
         return dSigs
 
-def dsigma_annihilation_dCT(EvtInfo, varthV):
+def dsigma_annihilation_dCT(event_info, varthV):
     """Annihilation of a Positron and Electron into a Photon and a (Dark) Photon
        e+ (Ee) + e- (me) -> gamma + gamma/V
 
@@ -149,8 +149,8 @@ def dsigma_annihilation_dCT(EvtInfo, varthV):
             mV (Dark Vector Mass -- can be set to zero for SM Case)
             al (electro-weak fine-structure constant)
     """
-    Ee=EvtInfo['E_inc']
-    mV=EvtInfo['m_V']
+    Ee=event_info['E_inc']
+    mV=event_info['m_V']
 
     if len(np.shape(varthV)) == 1:
         varthV = np.array([varthV])
@@ -179,7 +179,7 @@ def dsigma_pairprod_dP_T(event_info, varthTildeV):
             Z (Target Atomic Number)
     """
     w=event_info['E_inc']
-    Z =event_info['Z_T']
+    Z =event_info['Z']
     mV=0
     
     if len(np.shape(varthTildeV)) == 1:
@@ -208,7 +208,7 @@ def dsigma_pairprod_dP_T(event_info, varthTildeV):
     else:
         return dSigs
 
-def dSCompton_dCT(event_info, varthV):
+def dsigma_compton_dCT(event_info, varthV):
     """Compton Scattering of a Photon off an at-rest Electron, producing either a photon or a Dark Vector
         gamma (Eg) + e- (me) -> e- + gamma/V
 
@@ -217,7 +217,7 @@ def dSCompton_dCT(event_info, varthV):
             MV (Dark Vector Mass -- can be set to zero for SM Case)
     """
     Eg=event_info['E_inc']
-    Z =event_info['Z_T']
+    Z =event_info['Z']
     mV=event_info['m_V']
 
     if len(np.shape(varthV)) == 1:
@@ -269,9 +269,10 @@ def get_points(distribution, npts):
 n_points = 10000 #Default number of points to draw for unweighted samples
 
 diff_xsection_options={"PairProd" : dsigma_pairprod_dP_T,
-                       "Comp"     : dSCompton_dCT,
+                       "Comp"     : dsigma_compton_dCT,
                        "Brem"     : dsigma_brem_dP_T,
-                       "Ann"      : dsigma_annihilation_dCT }
+                       "Ann"      : dsigma_annihilation_dCT, 
+                       "DarkBrem" : dsigma_darkbrem_dP_T }
 nitn_options={"PairProd":500,
               "Brem":500,
               "DarkBrem":500,
@@ -331,7 +332,7 @@ def vegas_integration(event_info, process, verbose=False, mode='XSec'):
             EI: dictionary containing
               -- 'E_inc' (incident electron/positron energy)
               -- 'm_e' (electron mass)
-              -- 'Z_T' (Target Atomic Number)
+              -- 'Z (Target Atomic Number)
               -- 'alpha_FS' (electro-weak fine-structure constant)
               -- 'm_V' (Dark vector mass, assumed to be zero if absent)
               -- 'Eg_min': minimum lab-frame energy (GeV) of outgoing photons

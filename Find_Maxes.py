@@ -38,7 +38,7 @@ Process_Files={"PairProd" : PPSamp0,
                "Ann": AnnSamp0}
 
 diff_xsections={"PairProd" : dsigma_pairprod_dP_T,
-                "Comp"     : dSCompton_dCT,    
+                "Comp"     : dsigma_compton_dCT,    
                 "Brem"     : dsigma_brem_dP_T,
                 "Ann"      : dsigma_annihilation_dCT }
 

@@ -191,7 +191,7 @@ for dvm in DarkVMasses:
         xs0 = 0.0
         pts = []
         for x, wgt in integrand.random():
-            MM0 = wgt*dSCompton_dCT([Eg, m_electron, MVT, alpha_em], x)
+            MM0 = wgt*dsigma_compton_dCT([Eg, m_electron, MVT, alpha_em], x)
             xs0 += MM0
             pts.append(np.concatenate([x, [MM0]]))
         

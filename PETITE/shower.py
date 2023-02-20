@@ -215,7 +215,7 @@ class Shower:
 
         event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'alpha_FS': alpha_em, 'm_V': 0}
         diff_xsection_options={"PairProd" : dsigma_pairprod_dP_T,
-                               "Comp"     : dSCompton_dCT,
+                               "Comp"     : dsigma_compton_dCT,
                                "Brem"     : dsigma_brem_dP_T,
                                "Ann"      : dsigma_annihilation_dCT }
         
