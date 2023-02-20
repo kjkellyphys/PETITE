@@ -179,7 +179,7 @@ class Shower:
         self._NSigmaAnn = interp1d(np.transpose(AnnS)[0], ne*GeVsqcm2*np.transpose(AnnS)[1])
         self._NSigmaComp = interp1d(np.transpose(CS)[0], ne*GeVsqcm2*np.transpose(CS)[1])
 
-    def get_mfp(self, PID, Energy):
+    def get_mfp(self, PIeventD, Energy): #FIXME: variable PID is not defined
         """Returns particle mean free path in meters for PID=22 (photons), 
         11 (electrons) or -11 (positrons) as a function of energy in GeV"""
         if PID == 22:
@@ -219,7 +219,7 @@ class Shower:
                                "Brem"     : dsigma_brem_dP_T,
                                "Ann"      : dsigma_annihilation_dCT }
         
-        FF_dict              ={"PairProd" : g2_elastic,
+        formfactor_dict              ={"PairProd" : g2_elastic,
                                "Comp"     : unity,
                                "Brem"     : g2_elastic,
                                "Ann"      : unity }
@@ -229,7 +229,7 @@ class Shower:
         
         if process in diff_xsection_options:
             diff_xsec_func = diff_xsection_options[process]
-            FF_func        = FF_dict[process]
+            FF_func        = formfactor_dict[process]
             QSq_func       = QSq_dict[process]
         else:
             raise Exception("Your process is not in the list")
@@ -352,7 +352,7 @@ class Shower:
 
         return [NewG1, NewG2]
 
-    def PairProdSample(self, Phot0, VB=False):
+    def pairprod_sample(self, Phot0, VB=False):
         """Generate a photon splitting event from an initial photon
             Args:
                 Phot0: incoming positron (instance of) Particle in lab frame
@@ -400,7 +400,7 @@ class Shower:
 
         return [NewEp, NewEm]
 
-    def ComptonSample(self, Phot0, VB=False):
+    def compton_sample(self, Phot0, VB=False):
         """Generate a Compton event from an initial photon
             Args:
                 Phot0: incoming photon (instance of) Particle in lab frame
@@ -448,7 +448,7 @@ class Shower:
 
         return [NewE, NewG]
 
-    def PropagateParticle(self, Part0, Losses=False, MS=False):
+    def propagate_particle(self, Part0, Losses=False, MS=False):
         """Propagates a particle through material between hard scattering events, 
         possibly including multiple scattering and dE/dx losses
             Args:
@@ -502,7 +502,7 @@ class Shower:
             Part0.set_Ended(True)
             return Part0
 
-    def GenShower(self, PID0, p40, ParPID, VB=False, GlobalMS=True):
+    def generate_shower(self, PID0, p40, ParPID, VB=False, GlobalMS=True):
         """
         Generates particle shower from an initial particle
         Args:
@@ -521,7 +521,7 @@ class Shower:
             print("Initial four-momenta:")
             print(p0.get_p0())
 
-        AllParticles = [p0]
+        all_particles = [p0]
 
         if GlobalMS==True:
             MS_e=True
@@ -532,23 +532,23 @@ class Shower:
 
         if p0.get_p0()[0] < self.min_energy:
             p0.set_ended(True)
-            return AllParticles
+            return all_particles
 
-        while all([ap.get_ended() == True for ap in AllParticles]) is False:
-            for apI, ap in enumerate(AllParticles):
+        while all([ap.get_ended() == True for ap in all_particles]) is False:
+            for apI, ap in enumerate(all_particles):
                 if ap.get_ended() is True:
                     continue
                 else:
                     # Propagate particle until next hard interaction
                     if ap.get_ids()[0] == 22:
-                        ap = self.PropagateParticle(ap,MS=MS_g)
+                        ap = self.propagate_particle(ap,MS=MS_g)
                     elif np.abs(ap.get_ids()[0]) == 11:
                         dEdxT = self.get_material_properties()[3]*(0.1) #Converting MeV/cm to GeV/m
-                        ap = self.PropagateParticle(ap, MS=MS_e, Losses=dEdxT)
+                        ap = self.propagate_particle(ap, MS=MS_e, Losses=dEdxT)
 
-                    AllParticles[apI] = ap
+                    all_particles[apI] = ap
                     
-                    if (all([ap.get_ended() == True for ap in AllParticles]) is True and ap.get_pf()[0] < self.min_energy):
+                    if (all([ap.get_ended() == True for ap in all_particles]) is True and ap.get_pf()[0] < self.min_energy):
                         break
 
                     # Generate secondaries for the hard interaction
@@ -567,12 +567,12 @@ class Shower:
                         BFPhPP = self.BF_photon_pairprod(ap.get_pf()[0])
                         ch = np.random.uniform(low=0., high=1.)
                         if ch < BFPhPP:
-                            npart = self.PairProdSample(ap, VB=VB)
+                            npart = self.pairprod_sample(ap, VB=VB)
                         else:
-                            npart = self.ComptonSample(ap, VB=VB)
+                            npart = self.compton_sample(ap, VB=VB)
                     if (npart[0]).get_p0()[0] > self.min_energy:
-                        AllParticles.append(npart[0])
+                        all_particles.append(npart[0])
                     if (npart[1]).get_p0()[0] > self.min_energy:
-                        AllParticles.append(npart[1])
+                        all_particles.append(npart[1])
 
-        return AllParticles
+        return all_particles

@@ -328,7 +328,7 @@ class DarkShower(Shower):
             ShowerToSamp = ExDir
         else:
             PID0, p40, ParPID = SParams
-            ShowerToSamp = self.GenShower(PID0, p40, ParPID)
+            ShowerToSamp = self.generate_shower(PID0, p40, ParPID)
         
         NewShower = []
         for ap in ShowerToSamp:

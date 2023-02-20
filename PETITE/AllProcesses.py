@@ -62,7 +62,7 @@ def g2_inelastic(Z, me, t):
 #Differential Cross Sections for Incident Electrons/Positrons/Photons
 #--------------------------------------------------------------------
 
-def dsigma_brem_dP_T(event_info, varthTildeV):
+def dsigma_brem_dP_T(event_info, phase_space_par_list):
     """Standard Model Bremsstrahlung in the Small-Angle Approximation
        e (ep) + Z -> e (epp) + gamma (w) + Z
        Outgoing kinematics given by w, d (delta), dp (delta'), and ph (phi)
@@ -75,11 +75,11 @@ def dsigma_brem_dP_T(event_info, varthTildeV):
     Z =event_info['Z']
     mV=0
 
-    if len(np.shape(varthTildeV)) == 1:
-        varthTildeV = np.array([varthTildeV])
+    if len(np.shape(phase_space_par_list)) == 1:
+        phase_space_par_list = np.array([phase_space_par_list])
     dSigs = []
-    for varthTilde in varthTildeV:
-        w, d, dp, ph = varthTilde
+    for variables in phase_space_par_list:
+        w, d, dp, ph = variables
 
         epp = ep - w
 
@@ -101,7 +101,7 @@ def dsigma_brem_dP_T(event_info, varthTildeV):
     else:
         return dSigs
 
-def dsigma_darkbrem_dP_T(event_info, varthV):
+def dsigma_darkbrem_dP_T(event_info, phase_space_par_list):
     """Dark Vector Bremsstrahlung in the Small-Angle Approximation
        e (ep) + Z -> e (epp) + V (w) + Z
        Outgoing kinematics given by w, d (delta), dp (delta'), and ph (phi)
@@ -117,10 +117,10 @@ def dsigma_darkbrem_dP_T(event_info, varthV):
     Z =event_info['Z']
     mV=event_info['m_V']
 
-    if len(np.shape(varthV)) == 1:
-        varthV = np.array([varthV])
+    if len(np.shape(phase_space_par_list)) == 1:
+        phase_space_par_list = np.array([phase_space_par_list])
     dSigs = []
-    for varth in varthV:
+    for varth in phase_space_par_list:
         w, d, dp, ph = varth
 
         epp = ep - w
@@ -139,7 +139,7 @@ def dsigma_darkbrem_dP_T(event_info, varthV):
     else:
         return dSigs
 
-def dsigma_annihilation_dCT(event_info, varthV):
+def dsigma_annihilation_dCT(event_info, phase_space_par_list):
     """Annihilation of a Positron and Electron into a Photon and a (Dark) Photon
        e+ (Ee) + e- (me) -> gamma + gamma/V
 
@@ -152,10 +152,10 @@ def dsigma_annihilation_dCT(event_info, varthV):
     Ee=event_info['E_inc']
     mV=event_info['m_V']
 
-    if len(np.shape(varthV)) == 1:
-        varthV = np.array([varthV])
+    if len(np.shape(phase_space_par_list)) == 1:
+        phase_space_par_list = np.array([phase_space_par_list])
     dSigs = []
-    for varth in varthV:
+    for varth in phase_space_par_list:
         ct = varth[0]
 
         if Ee < (mV**2-2*m_electron**2)/(2*m_electron):
@@ -169,7 +169,7 @@ def dsigma_annihilation_dCT(event_info, varthV):
     else:
         return dSigs
 
-def dsigma_pairprod_dP_T(event_info, varthTildeV):
+def dsigma_pairprod_dP_T(event_info, phase_space_par_list):
     """Standard Model Pair Production in the Small-Angle Approximation
        gamma (w) + Z -> e+ (epp) + e- (epm) + Z
        Outgoing kinematics given by epp, dp (delta+), dm (delta-), and ph (phi)
@@ -182,11 +182,11 @@ def dsigma_pairprod_dP_T(event_info, varthTildeV):
     Z =event_info['Z']
     mV=0
     
-    if len(np.shape(varthTildeV)) == 1:
-        varthTildeV = np.array([varthTildeV])
+    if len(np.shape(phase_space_par_list)) == 1:
+        phase_space_par_list = np.array([phase_space_par_list])
     dSigs = []
-    for varthTilde in varthTildeV:
-        epp, dp, dm, ph = varthTilde
+    for variables in phase_space_par_list:
+        epp, dp, dm, ph = variables
 
         epm = w - epp
 
@@ -208,7 +208,7 @@ def dsigma_pairprod_dP_T(event_info, varthTildeV):
     else:
         return dSigs
 
-def dsigma_compton_dCT(event_info, varthV):
+def dsigma_compton_dCT(event_info, phase_space_par_list):
     """Compton Scattering of a Photon off an at-rest Electron, producing either a photon or a Dark Vector
         gamma (Eg) + e- (me) -> e- + gamma/V
 
@@ -220,14 +220,14 @@ def dsigma_compton_dCT(event_info, varthV):
     Z =event_info['Z']
     mV=event_info['m_V']
 
-    if len(np.shape(varthV)) == 1:
-        varthV = np.array([varthV])
+    if len(np.shape(phase_space_par_list)) == 1:
+        phase_space_par_list = np.array([phase_space_par_list])
     dSigs = []
-    for varth in varthV:
+    for varth in phase_space_par_list:
         ct = varth[0]
 
         s = m_electron**2 + 2*Eg*m_electron
-        JacFac = 0.5*(s**2-m_electron**4)/s
+        jacobian = 0.5*(s**2-m_electron**4)/s
         t = -1/2*(m_electron**4 + s*(-mV**2 + s + ct*np.sqrt(m_electron**4 + (mV**2 - s)**2 - 2*m_electron**2*(mV**2 + s))) - m_electron**2*(mV**2 + 2*s + ct*np.sqrt(m_electron**4 + (mV**2 - s)**2 - 2*m_electron**2*(mV**2 + s))))/s
         PF = 2.0*np.pi*alpha_em**2/(s-m_electron**2)**2
 
@@ -240,9 +240,9 @@ def dsigma_compton_dCT(event_info, varthV):
             T2 = (2*m_electron**2*(2*m_electron**2+mV**2))/(m_electron**2+mV**2-s-t)**2
             T3 = ((m_electron**2+s)*(m_electron**2+mV**2+s)+t*(s-m_electron**2))/(m_electron**2-s)**2
 
-        dSig0 = PF*JacFac*(T1+T2+T3)
+        dSig0 = PF*jacobian*(T1+T2+T3)
         if np.isnan(dSig0):
-            print(dSig0, PF, JacFac, T1, T2, T3, ct, s, t, varth)
+            print(dSig0, PF, jacobian, T1, T2, T3, ct, s, t, varth)
         dSigs.append(dSig0)
 
     if len(dSigs) == 1:
