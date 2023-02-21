@@ -58,8 +58,8 @@ def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_ind
         print("Already generated integrator for this point\n")
     else:
         print('Starting VEGAS for energy index ',energy_index)
-        #VEGAS_integrator = vegas_integration(params, process, verbose=verbosity_mode, mode='Pickle') 
-        VEGAS_integrator = 0
+        VEGAS_integrator = vegas_integration(params, process, verbose=verbosity_mode, mode='Pickle') 
+        #VEGAS_integrator = 0
         print('Done VEGAS for energy index ',energy_index)
         pickle.dump(VEGAS_integrator, open(strsaveB, "wb"))
         print('File created: '+strsaveB)
@@ -133,9 +133,9 @@ if __name__ == '__main__':
     parser.add_argument('-process', nargs='+', type=str, default=['DarkBrem'], help='list of processes to be run "all" does whole list, if mV non-zero only DarkBrem \
         (choose from "PairProd", "Brem", "DarkBrem", "Comp", "Ann")')
     parser.add_argument('-mV', nargs='+', type=float, default=[0.05], help='dark vector mass in GeV (can be a space-separated list)')
-    parser.add_argument('-num_energy_pts', type=int, default=100, help='number of initial energy values to evaluate')
     parser.add_argument('-min_energy', type=float, default=0.01, help='minimum initial energy (in GeV) to evaluate (must be larger than mV)')
     parser.add_argument('-max_energy', type=float, default=100., help='maximum initial energy (in GeV) to evaluate')
+    parser.add_argument('-num_energy_pts', type=int, default=100, help='number of initial energy values to evaluate, scan is done in log space')
     parser.add_argument('-run_find_maxes', type=bool, default=True,  help='run Find_Maxes.py after done')
     parser.add_argument('-verbosity', type=bool, default=False, help='verbosity mode')
 

@@ -24,7 +24,7 @@ Dir0 = os.getcwd()
 PickDir = Dir0 + "/NBP/"
 SvDir  = Dir0 + "/RyanDicts/"
 PPSamp0 = np.load(PickDir+"Photon_PairProdPickles.npy", allow_pickle=True)
-CompSamp0 = np.load(PickDir+"ComptonPickles.npy", allow_pickle=True)
+CompSamp0 = np.load(PickDir+"ComptonPickles_Old.npy", allow_pickle=True)
 BremSamp0 = np.load(PickDir+"ElectronPositron_BremPickles.npy", allow_pickle=True)
 AnnSamp0 = np.load(PickDir+"AnnihilationPickles.npy", allow_pickle=True)
 
@@ -47,11 +47,11 @@ FF_dict =      {"PairProd" : g2_elastic,
                 "Brem"     : g2_elastic,
                 "Ann"      : unity }
 
-QSq_functions={"PairProd" : pair_production_q_sq, "Brem"     : brem_q_sq, "Comp": dummy, "Ann": dummy }
+QSq_functions={"PairProd" : pair_production_q_sq, "Brem"  : brem_q_sq, "Comp": dummy, "Ann": dummy }
 
 
 UnWS, XSecPP = [], []
-n_points = 30000
+#n_points = 30000
 
 xSec_dict={}
 samp_dict ={}
@@ -70,12 +70,12 @@ for process_key in Process_Files.keys():
     counter=0
     for ki in range(len(process_file)):
 
-        ## This is just to speed up the code (for debugging)
-        ## by not doing all the energies
-        #if counter>2:
-        #    break
-        #print(counter)
-        #counter=counter+1
+        # This is just to speed up the code (for debugging)
+        # by not doing all the energies
+        if counter>1:
+           break
+        print(counter)
+        counter=counter+1
         
         E_inc, integrand = process_file[ki]
         save_copy_integrand=copy.deepcopy(integrand)
