@@ -125,7 +125,7 @@ for process_key in Process_Files.keys():
             xSec_dict[process_key][tm].append([E_inc, xSec[tm] ] ) 
             
     xSec_dict[process_key][tm]= np.asarray(xSec_dict[process_key][tm] ) 
-    samp_dict[process_key]    = samp_dict[process_key]
+  #  samp_dict[process_key]    = samp_dict[process_key]
 
 f_xSecs = open(SvDir + "Feb13_xSec_Dicts.pkl","wb")
 f_samps = open(SvDir + "Feb13_samp_Dicts.pkl","wb")

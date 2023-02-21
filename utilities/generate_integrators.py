@@ -62,7 +62,7 @@ def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_ind
         VEGAS_integrator = vegas_integration(params, process, verbose=verbosity_mode, mode='Pickle') 
         #VEGAS_integrator = 0
         print('Done VEGAS for energy index ',energy_index)
-        pickle.dump(VEGAS_integrator, open(strsaveB, "wb"))
+        pickle.dump(np.array([params['E_inc'], VEGAS_integrator]), open(strsaveB, "wb"))
         print('File created: '+strsaveB)
     return()
 
@@ -78,7 +78,7 @@ def make_integrators(params, process, verbosity_mode):
     """
     mV = params['mV']
     atomic_A = params['A']
-    atomic_Z = params['Z']
+    atomic_Z = params['Z_T']
     mT = params['mT'] 
     params['m_e'] = m_electron
     params['alpha_FS'] = alpha_em
@@ -117,13 +117,13 @@ def make_integrators(params, process, verbosity_mode):
 
     return()
 
-def make_readme(args): #FIXME: add right path, discuss and implement what exatly goes here.
-    """Writes a short readme file with the details of the pickles generated"""
-    f = open('README.md', 'w')
-    f.write('Parameters used for generating integrators on ', datetime.datetime.now(),' :')
-    f.write(args)
-    f.close()
-    return
+# def make_readme(args): #FIXME: add right path, discuss and implement what exatly goes here.
+#     """Writes a short readme file with the details of the pickles generated"""
+#     f = open('README.md', 'w')
+#     f.write('Parameters used for generating integrators on ', datetime.datetime.now(),' :')
+#     f.write(args)
+#     f.close()
+#     return
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Produce VEGAS integrators for various production processes', formatter_class = argparse.ArgumentDefaultsHelpFormatter)    
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     print('**** Arguments passed to generate_integrators ****')
     print(args)
 
-    params = {'A': args.A, 'Z': args.Z, 'mT': args.mT, 'target_name': args.target_name}
+    params = {'A': args.A, 'Z_T': args.Z, 'mT': args.mT, 'save_location': args.save_location}
     verbosity_mode = args.verbosity
     if (args.mV == 0 or not(args.process == ['DarkBrem']) ):# doing SM processes
         if  "all" in args.process:
@@ -161,8 +161,9 @@ if __name__ == '__main__':
             try:
                 process_list_to_do = args.process.remove('DarkBrem')
             except:
+                process_list_to_do = args.process
                 pass
-        for process in args.process:
+        for process in process_list_to_do:
             initial_energy_list = np.logspace(np.log10(args.min_energy), np.log10(args.max_energy), args.num_energy_pts)
             params.update({'mV' : 0})
             params.update({'initial_energy_list': initial_energy_list})
