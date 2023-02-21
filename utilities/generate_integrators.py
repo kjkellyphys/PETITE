@@ -25,6 +25,7 @@ from multiprocessing import Pool
 import pickle
 from functools import partial
 import argparse
+import datetime
 
 
 # helper function to turn float to string
@@ -116,6 +117,13 @@ def make_integrators(params, process, verbosity_mode):
 
     return()
 
+def make_readme(args): #FIXME: add right path, discuss and implement what exatly goes here.
+    """Writes a short readme file with the details of the pickles generated"""
+    f = open('README.md', 'w')
+    f.write('Parameters used for generating integrators on ', datetime.datetime.now(),' :')
+    f.write(args)
+    f.close()
+    return
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Produce VEGAS integrators for various production processes', formatter_class = argparse.ArgumentDefaultsHelpFormatter)    
@@ -141,8 +149,10 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    print('**** Arguments passed to generate_integrators ****')
+    print(args)
 
-    params = {'A': args.A, 'Z': args.Z, 'mT': args.mT, 'save_location': args.save_location}
+    params = {'A': args.A, 'Z': args.Z, 'mT': args.mT, 'target_name': args.target_name}
     verbosity_mode = args.verbosity
     if (args.mV == 0 or not(args.process == ['DarkBrem']) ):# doing SM processes
         if  "all" in args.process:
