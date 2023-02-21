@@ -179,14 +179,16 @@ class Shower:
         self._NSigmaAnn = interp1d(np.transpose(AnnS)[0], ne*GeVsqcm2*np.transpose(AnnS)[1])
         self._NSigmaComp = interp1d(np.transpose(CS)[0], ne*GeVsqcm2*np.transpose(CS)[1])
 
-    def get_mfp(self, PIeventD, Energy): #FIXME: variable PID is not defined
+    def get_mfp(self, particle):
+        PID = particle.get_ids()[0]
+        Energy = particle.get_p0()[0]
         """Returns particle mean free path in meters for PID=22 (photons), 
         11 (electrons) or -11 (positrons) as a function of energy in GeV"""
-        if PIeventD == 22:
+        if PID == 22:
             return cmtom*(self._NSigmaPP(Energy) + self._NSigmaComp(Energy))**-1
-        elif PIeventD == 11:
+        elif PID == 11:
             return cmtom*(self._NSigmaBrem(Energy))**-1
-        elif PIeventD == -11:
+        elif PID == -11:
             return cmtom*(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy))**-1
         
     def BF_positron_brem(self, Energy):
@@ -463,7 +465,7 @@ class Shower:
             Part0.set_rf(Part0.get_rf())
             return Part0
         else:
-            mfp = self.get_mfp(Part0.get_ids()[0], Part0.get_p0()[0])
+            mfp = self.get_mfp(Part0)
             distC = np.random.uniform(0.0, 1.0)
             dist = mfp*np.log(1.0/(1.0-distC))
             if np.abs(Part0.get_ids()[0]) == 11:
