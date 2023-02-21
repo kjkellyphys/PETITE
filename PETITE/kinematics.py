@@ -1,5 +1,5 @@
 import numpy as np
-from physical_constants import *
+from .physical_constants import *
 
 def e_to_egamma_fourvecs(ep, me, w, ct, ctp, ph):
     """Reconstruct electron and photon four vectors from 

@@ -3,7 +3,7 @@ from scipy import integrate, special, optimize
 import random
 
 import sys
-from physical_constants import *
+from .physical_constants import *
 
 
 # Below we need to be careful to distinguish between "space" and "plane"/projected angles (https://pdg.lbl.gov/2019/reviews/rpp2018-rev-passage-particles-matter.pdf)
