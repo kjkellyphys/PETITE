@@ -118,23 +118,26 @@ def make_integrators(params, process, verbosity_mode):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Produce VEGAS integrators for various production processes')    
+    parser = argparse.ArgumentParser(description='Produce VEGAS integrators for various production processes', formatter_class = argparse.ArgumentDefaultsHelpFormatter)    
     # mandatory parameters
+    #None
     
-    parser.add_argument('-A', type=float, help='atomic mass number', required=True)
-    parser.add_argument('-Z', type=float, help='atomic number', required=True)
-    parser.add_argument('-mT', type=float, help='nuclear target mass in GeV', required=True)
 
     # optional parameters
+    parser.add_argument('-A', type=float, default=12, help='atomic mass number')
+    parser.add_argument('-Z', type=float, default=6, help='atomic number')
+    parser.add_argument('-mT', type=float, default=11.178, help='nuclear target mass in GeV')
+
+
     parser.add_argument('-save_location', type=str, default='raw_integrators', help='directory to save integrators in (path relative to main PETITE directory)')
     parser.add_argument('-process', nargs='+', type=str, default=['DarkBrem'], help='list of processes to be run "all" does whole list, if mV non-zero only DarkBrem \
         (choose from "PairProd", "Brem", "DarkBrem", "Comp", "Ann")')
     parser.add_argument('-mV', nargs='+', type=float, default=[0.05], help='dark vector mass in GeV (can be a space-separated list)')
     parser.add_argument('-num_energy_pts', type=int, default=100, help='number of initial energy values to evaluate')
-    parser.add_argument('-min_energy', type=float, default=0.01, help='minimum initial energy to evaluate (must be larger than mV)')
-    parser.add_argument('-max_energy', type=float, default=100., help='maximum initial energy to evaluate')
-    parser.add_argument('-run_find_maxes', type=bool, default=True,  help='run Find_Maxes.py after done (True/False)')
-    parser.add_argument('-verbosity', type=bool, default=False, help='verbosity mode (True/False)')
+    parser.add_argument('-min_energy', type=float, default=0.01, help='minimum initial energy (in GeV) to evaluate (must be larger than mV)')
+    parser.add_argument('-max_energy', type=float, default=100., help='maximum initial energy (in GeV) to evaluate')
+    parser.add_argument('-run_find_maxes', type=bool, default=True,  help='run Find_Maxes.py after done')
+    parser.add_argument('-verbosity', type=bool, default=False, help='verbosity mode')
 
     args = parser.parse_args()
 
@@ -167,7 +170,7 @@ if __name__ == '__main__':
     if (args.run_find_maxes):
         print("Now running Find_Maxes....please wait")
     else:
-        print("Goodbye!")
+        print("Goodbye! We both did it.")
 
 
     

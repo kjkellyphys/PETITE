@@ -179,7 +179,7 @@ class Shower:
         self._NSigmaAnn = interp1d(np.transpose(AnnS)[0], ne*GeVsqcm2*np.transpose(AnnS)[1])
         self._NSigmaComp = interp1d(np.transpose(CS)[0], ne*GeVsqcm2*np.transpose(CS)[1])
 
-    def get_mfp(self, PIeventD, Energy): #FIXME: variable PID is not defined
+    def get_mfp(self, PID, Energy): #FIXME: variable PID is not defined
         """Returns particle mean free path in meters for PID=22 (photons), 
         11 (electrons) or -11 (positrons) as a function of energy in GeV"""
         if PIeventD == 22:
