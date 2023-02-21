@@ -182,11 +182,11 @@ class Shower:
     def get_mfp(self, PIeventD, Energy): #FIXME: variable PID is not defined
         """Returns particle mean free path in meters for PID=22 (photons), 
         11 (electrons) or -11 (positrons) as a function of energy in GeV"""
-        if PID == 22:
+        if PIeventD == 22:
             return cmtom*(self._NSigmaPP(Energy) + self._NSigmaComp(Energy))**-1
-        elif PID == 11:
+        elif PIeventD == 11:
             return cmtom*(self._NSigmaBrem(Energy))**-1
-        elif PID == -11:
+        elif PIeventD == -11:
             return cmtom*(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy))**-1
         
     def BF_positron_brem(self, Energy):
@@ -292,7 +292,7 @@ class Shower:
         pg3LF = np.dot(RM, pg3ZF)
         
         pos = Elec0.get_rf()
-        init_IDs = Elec0.get_IDs()
+        init_IDs = Elec0.get_ids()
 
         if VB:
             newparticlewgt = sample_event[-1]
@@ -340,7 +340,7 @@ class Shower:
         pg3LF2 = np.dot(RM, pg3ZF2)   
 
         pos = Elec0.get_rf()
-        init_IDs = Elec0.get_IDs()
+        init_IDs = Elec0.get_ids()
 
         if VB:
             newparticlewgt = SampEvt[-1]
@@ -388,7 +388,7 @@ class Shower:
         pem3LF = np.dot(RM, pem3ZF)
 
         pos = Phot0.get_rf()
-        init_IDs = Phot0.get_IDs()
+        init_IDs = Phot0.get_ids()
 
         if VB:
             newparticlewgt = SampEvt[-1]
@@ -436,7 +436,7 @@ class Shower:
         pg3LF = np.dot(RM, [pgxfZF, pgyfZF, pgzfZF])
 
         pos = Phot0.get_rf()
-        init_IDs = Phot0.get_IDs()
+        init_IDs = Phot0.get_ids()
 
         if VB:
             newparticlewgt = SampEvt[-1]
@@ -459,16 +459,16 @@ class Shower:
                 Part0: updated Particle object with new position and 
                 (potentially) energy/momentum
         """
-        if Part0.get_Ended() is True:
+        if Part0.get_ended() is True:
             Part0.set_rf(Part0.get_rf())
             return Part0
         else:
-            mfp = self.get_mfp(Part0.get_IDs()[0], Part0.get_p0()[0])
+            mfp = self.get_mfp(Part0.get_ids()[0], Part0.get_p0()[0])
             distC = np.random.uniform(0.0, 1.0)
             dist = mfp*np.log(1.0/(1.0-distC))
-            if np.abs(Part0.get_IDs()[0]) == 11:
+            if np.abs(Part0.get_ids()[0]) == 11:
                 M0 = m_electron
-            elif Part0.get_IDs()[0] == 22:
+            elif Part0.get_ids()[0] == 22:
                 M0 = 0.0
 
             E0, px0, py0, pz0 = Part0.get_p0()
@@ -495,11 +495,11 @@ class Shower:
                 Ef = E0 - Losses*dist
                 if Ef <= M0 or Ef < self.min_energy:
                     #print("Particle lost too much energy along path of propagation!")
-                    Part0.set_Ended(True)
+                    Part0.set_ended(True)
                     return Part0
                 Part0.set_pf(np.array([Ef, px0/p30*np.sqrt(Ef**2-M0**2), py0/p30*np.sqrt(Ef**2-M0**2), pz0/p30*np.sqrt(Ef**2-M0**2)]))
 
-            Part0.set_Ended(True)
+            Part0.set_ended(True)
             return Part0
 
     def generate_shower(self, PID0, p40, ParPID, VB=False, GlobalMS=True):
