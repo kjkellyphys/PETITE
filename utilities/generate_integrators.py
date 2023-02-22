@@ -63,7 +63,7 @@ def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_ind
         #VEGAS_integrator = 0
         print('Done VEGAS for energy index ',energy_index)
         pickle.dump(np.array([params['E_inc'], VEGAS_integrator]), open(strsaveB, "wb"))
-        print('File created: '+strsaveB)
+        print('File created: ' + strsaveB)
     return()
 
 
@@ -98,9 +98,9 @@ def make_integrators(params, process, verbosity_mode):
     save_dir = '../' + params['save_location'] + "/"
     if process == 'DarkBrem':
         target_specific_label = "Z_" + str(atomic_Z) + "_A_" + str(atomic_A) + "_mT_" + str(mT)
-        save_dir_temp = save_dir + process + target_specific_label + "_TMP/" 
+        save_dir_temp = save_dir + process + target_specific_label 
     else:
-        save_dir_temp = save_dir + process + "_TMP/"
+        save_dir_temp = save_dir + process
     
     file_info = [save_dir, save_dir_temp]
     print(file_info)

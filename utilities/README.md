@@ -9,4 +9,7 @@ e.g.
 python generate_integrators.py -A=12 -Z=6 -mT=12 -process='DarkBrem' -mV=0.050 -num_energy_pts=10 -min_energy=0.1 -max_energy=100
 
 # Find_Maxes.py
-This processes the previously generated integrators into a format that is most useful for PETITE, it is automatically called by generate_integrators unless 
+This processes the previously generated integrators into a format that is most useful for PETITE, it is automatically called by generate_integrators unless generate_integrators is called with flag "-run_find_maxes=False".
+
+It can also be run independently as e.g.
+python find_maxes.py -A=12 -Z=6 -mT=12 -process='Comp' -import_file='raw_integrators/Comp/0.p'
