@@ -49,52 +49,47 @@ process_file = np.load("../" + args.import_file, allow_pickle=True)
 diff_xsec    = process_info[args.process]['diff_xsection']
 FF_func      = process_info[args.process]['form_factor']
 QSq_func     = process_info[args.process]['QSq_func']
-xSec_dict = {}
+xSec_dict = []
 samp_dict = []
 UnWS, XSecPP = [], []
-print(process_file[0])
-# run over the energies, integrators in imported file
-counter=0
-for ki in range(len(process_file)):
-    # This is just to speed up the code (for debugging)
-    # by not doing all the energies
-    if counter>1:
-        break
-    print(counter)
-    counter=counter+1
+print(process_file, len(process_file))
+# Right now imported file is for one energy so no looping needed
+# Can imagine making this a function and then looping over all energies
+# Still need to figure out how to put all this in to dictionary
     
-    E_inc, integrand = process_file[ki]
-    save_copy_integrand=copy.deepcopy(integrand)
-    
-    pts = []
-    max_wgtTimesF = 0
-    xSec = {}
+E_inc, integrand = process_file
+save_copy_integrand=copy.deepcopy(integrand)
 
-    for x, wgt in integrand.random(): #scan over integrand
+pts = []
+max_wgtTimesF = 0
+xSec = 0
 
-        # with a proton as target
-        Z_H=1
+for x, wgt in integrand.random(): #scan over integrand
+
+    # with a proton as target
+    Z_H=1
+        
+    EvtInfo={'E_inc': E_inc, 'm_e': m_electron, 'Z_T': Z_H, 'alpha_FS': alpha_em, 'm_V': 0}
+    MM_H_0 = wgt*diff_xsec(EvtInfo, x)
+    MM_H= MM_H_0   #max(MM_H_0, MM_H_higher, MM_H_lower)
+    if MM_H > max_wgtTimesF:
+        max_F=MM_H
+        max_x = np.asarray(x)
+        max_wgt= wgt 
+
+    # with nucleus as target
+    form_factor = FF_func(args.Z, m_electron, QSq_func(x, m_electron, E_inc))
+    xSec += MM_H_0*form_factor
+
+
+samp_dict.append([E_inc, {"max_F": max_F, "max_X": max_x, "max_wgt": max_wgt, "integrator": save_copy_integrand}])
+xSec_dict.append([E_inc, xSec]) 
             
-        EvtInfo={'E_inc': E_inc, 'm_e': m_electron, 'Z_T': Z_H, 'alpha_FS': alpha_em, 'm_V': 0}
-        MM_H_0 = wgt*diff_xsec(EvtInfo, x)
-        MM_H= MM_H_0   #max(MM_H_0, MM_H_higher, MM_H_lower)
-        if MM_H > max_wgtTimesF:
-            max_F=MM_H
-            max_x = np.asarray(x)
-            max_wgt= wgt 
-
-        # with nucleus as target
-        form_factor = FF_func(args.Z, m_electron, QSq_func(x, m_electron, E_inc))
-        xSec += MM_H_0*form_factor
-
-
-    samp_dict.append([E_inc, {"max_F": max_F, "max_X": max_x, "max_wgt": max_wgt, "integrator": save_copy_integrand}])
-    xSec_dict.append([E_inc, xSec]) 
-            
-    
-
-f_xSecs = open(args.save_location + args.process + "/xSec_Dicts.pkl","wb")
-f_samps = open(args.save_location + args.process + "/samp_Dicts.pkl","wb")
+save_path = "../" + args.save_location + "/" + args.process    
+if os.path.exists(save_path) == False:
+        os.system("mkdir -p " + save_path)
+f_xSecs = open(save_path + "/xSec_Dicts.pkl","wb")
+f_samps = open(save_path + "/samp_Dicts.pkl","wb")
 
 pickle.dump(xSec_dict,f_xSecs)
 pickle.dump(samp_dict,f_samps)

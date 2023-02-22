@@ -34,12 +34,12 @@ def generate_vector_mass_string(mV):
 
 # put more details in readme eg Z, A etc
 def make_readme(params, process, file_info):
-    [save_dir, save_dir_temp] = file_info
-    readme_file = open(save_dir_temp + "readme.txt", 'w')
+    save_dir = file_info + "/"
+    readme_file = open(save_dir + "readme.txt", 'w')
     readme_file.write("Integrators for " + process)
     if process == 'DarkBrem':
         line = "\nTarget has (Z, A, mass) = ({atomic_Z}, {atomic_A}, {atomic_mass})\n".\
-            format(atomic_Z=params['Z'], atomic_A=params['A'], atomic_mass=params['mT'])
+            format(atomic_Z=params['Z_T'], atomic_A=params['A'], atomic_mass=params['mT'])
         readme_file.write(line)
     readme_file.write("\n\nEnergy/GeV |  Filename\n\n")
     for index, energy in enumerate(params['initial_energy_list']):
@@ -53,8 +53,8 @@ def make_readme(params, process, file_info):
 ### FIX files names etc
 def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_index):
     params['E_inc'] = params['initial_energy_list'][energy_index]
-    [save_dir, save_dir_temp] = file_info
-    strsaveB = save_dir_temp + str(energy_index) + ".p"
+    save_dir = file_info + "/"
+    strsaveB = save_dir + str(energy_index) + ".p"
     if os.path.exists(strsaveB):
         print("Already generated integrator for this point\n")
     else:
@@ -62,7 +62,9 @@ def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_ind
         VEGAS_integrator = vegas_integration(params, process, verbose=verbosity_mode, mode='Pickle') 
         #VEGAS_integrator = 0
         print('Done VEGAS for energy index ',energy_index)
-        pickle.dump(np.array([params['E_inc'], VEGAS_integrator]), open(strsaveB, "wb"))
+        object_to_save = [params['E_inc'], VEGAS_integrator]
+        print(object_to_save)
+        pickle.dump(object_to_save, open(strsaveB, "wb"))
         print('File created: ' + strsaveB)
     return()
 
@@ -97,21 +99,20 @@ def make_integrators(params, process, verbosity_mode):
 
     save_dir = '../' + params['save_location'] + "/"
     if process == 'DarkBrem':
-        target_specific_label = "Z_" + str(atomic_Z) + "_A_" + str(atomic_A) + "_mT_" + str(mT)
-        save_dir_temp = save_dir + process + target_specific_label 
+        target_specific_label = "_Z_" + str(atomic_Z) + "_A_" + str(atomic_A) + "_mT_" + str(mT)
+        save_dir = save_dir + process + target_specific_label 
     else:
-        save_dir_temp = save_dir + process
+        save_dir = save_dir + process
     
-    file_info = [save_dir, save_dir_temp]
-    print(file_info)
-    if os.path.exists(save_dir_temp) == False:
-        os.system("mkdir -p " + save_dir_temp)
+    #print("Saving files in ", save_dir)
+    if os.path.exists(save_dir) == False:
+        os.system("mkdir -p " + save_dir)
     # pool parallelizes the generation of integrators    
     pool = Pool()
-    res = pool.map(partial(run_vegas_in_parallel, params, process, verbosity_mode, file_info), energy_index_list)
+    res = pool.map(partial(run_vegas_in_parallel, params, process, verbosity_mode, save_dir), energy_index_list)
     print('make_integrators - done')
     
-    make_readme(params, process, file_info)#make the human readable file contining info on params of run and put in directory 
+    make_readme(params, process, save_dir)#make the human readable file contining info on params of run and put in directory 
     
     
 
