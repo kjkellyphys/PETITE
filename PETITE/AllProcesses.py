@@ -72,7 +72,7 @@ def dsigma_brem_dP_T(event_info, phase_space_par_list):
             Z (Target Atomic Number)
     """
     ep=event_info['E_inc']
-    Z =event_info['Z']
+    Z =event_info['Z_T']
     mV=0
 
     if len(np.shape(phase_space_par_list)) == 1:
@@ -114,7 +114,7 @@ def dsigma_darkbrem_dP_T(event_info, phase_space_par_list):
             al (electro-weak fine-structure constant)
     """
     ep=event_info['E_inc']
-    Z =event_info['Z']
+    Z =event_info['Z_T']
     mV=event_info['m_V']
 
     if len(np.shape(phase_space_par_list)) == 1:
@@ -179,7 +179,7 @@ def dsigma_pairprod_dP_T(event_info, phase_space_par_list):
             Z (Target Atomic Number)
     """
     w=event_info['E_inc']
-    Z =event_info['Z']
+    Z =event_info['Z_T']
     mV=0
     
     if len(np.shape(phase_space_par_list)) == 1:
@@ -217,7 +217,7 @@ def dsigma_compton_dCT(event_info, phase_space_par_list):
             MV (Dark Vector Mass -- can be set to zero for SM Case)
     """
     Eg=event_info['E_inc']
-    Z =event_info['Z']
+    Z =event_info['Z_T']
     mV=event_info['m_V']
 
     if len(np.shape(phase_space_par_list)) == 1:
