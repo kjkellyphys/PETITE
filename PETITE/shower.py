@@ -61,7 +61,7 @@ class Shower:
 
                 
         
-    def load_sample(self, dict_dir, process, target_material): # FIXME: we are not using target_material
+    def load_sample(self, dict_dir, process): 
         sample_file=open(dict_dir + "samp_Dicts.pkl", 'rb')
         sample_dict=pickle.load(sample_file)
         sample_file.close()
@@ -121,9 +121,9 @@ class Shower:
 
     def set_samples(self):
         self._loaded_samples={}
-        for Process in process_code.keys():
-            self._loaded_samples[Process]= \
-                self.load_sample(self._dict_dir, Process, self._target_material)
+        for process in process_code.keys():
+            self._loaded_samples[process]= \
+                self.load_sample(self._dict_dir, process, self._target_material)
 
         
     def get_n_targets(self):
@@ -179,9 +179,7 @@ class Shower:
         self._NSigmaAnn = interp1d(np.transpose(AnnS)[0], ne*GeVsqcm2*np.transpose(AnnS)[1])
         self._NSigmaComp = interp1d(np.transpose(CS)[0], ne*GeVsqcm2*np.transpose(CS)[1])
 
-    def get_mfp(self, particle):
-        PID = particle.get_ids()[0]
-        Energy = particle.get_p0()[0]
+    def get_mfp(self, PID, Energy): #FIXME: variable PID is not defined
         """Returns particle mean free path in meters for PID=22 (photons), 
         11 (electrons) or -11 (positrons) as a function of energy in GeV"""
         if PID == 22:
@@ -221,7 +219,7 @@ class Shower:
                                "Brem"     : dsigma_brem_dP_T,
                                "Ann"      : dsigma_annihilation_dCT }
         
-        formfactor_dict              ={"PairProd" : g2_elastic,
+        formfactor_dict      ={"PairProd" : g2_elastic,
                                "Comp"     : unity,
                                "Brem"     : g2_elastic,
                                "Ann"      : unity }
@@ -294,7 +292,7 @@ class Shower:
         pg3LF = np.dot(RM, pg3ZF)
         
         pos = Elec0.get_rf()
-        init_IDs = Elec0.get_ids()
+        init_IDs = Elec0.get_IDs()
 
         if VB:
             newparticlewgt = sample_event[-1]
@@ -342,7 +340,7 @@ class Shower:
         pg3LF2 = np.dot(RM, pg3ZF2)   
 
         pos = Elec0.get_rf()
-        init_IDs = Elec0.get_ids()
+        init_IDs = Elec0.get_IDs()
 
         if VB:
             newparticlewgt = SampEvt[-1]
@@ -390,7 +388,7 @@ class Shower:
         pem3LF = np.dot(RM, pem3ZF)
 
         pos = Phot0.get_rf()
-        init_IDs = Phot0.get_ids()
+        init_IDs = Phot0.get_IDs()
 
         if VB:
             newparticlewgt = SampEvt[-1]
@@ -438,7 +436,7 @@ class Shower:
         pg3LF = np.dot(RM, [pgxfZF, pgyfZF, pgzfZF])
 
         pos = Phot0.get_rf()
-        init_IDs = Phot0.get_ids()
+        init_IDs = Phot0.get_IDs()
 
         if VB:
             newparticlewgt = SampEvt[-1]
@@ -461,16 +459,16 @@ class Shower:
                 Part0: updated Particle object with new position and 
                 (potentially) energy/momentum
         """
-        if Part0.get_ended() is True:
+        if Part0.get_Ended() is True:
             Part0.set_rf(Part0.get_rf())
             return Part0
         else:
-            mfp = self.get_mfp(Part0)
+            mfp = self.get_mfp(Part0.get_IDs()[0], Part0.get_p0()[0])
             distC = np.random.uniform(0.0, 1.0)
             dist = mfp*np.log(1.0/(1.0-distC))
-            if np.abs(Part0.get_ids()[0]) == 11:
+            if np.abs(Part0.get_IDs()[0]) == 11:
                 M0 = m_electron
-            elif Part0.get_ids()[0] == 22:
+            elif Part0.get_IDs()[0] == 22:
                 M0 = 0.0
 
             E0, px0, py0, pz0 = Part0.get_p0()
@@ -497,11 +495,11 @@ class Shower:
                 Ef = E0 - Losses*dist
                 if Ef <= M0 or Ef < self.min_energy:
                     #print("Particle lost too much energy along path of propagation!")
-                    Part0.set_ended(True)
+                    Part0.set_Ended(True)
                     return Part0
                 Part0.set_pf(np.array([Ef, px0/p30*np.sqrt(Ef**2-M0**2), py0/p30*np.sqrt(Ef**2-M0**2), pz0/p30*np.sqrt(Ef**2-M0**2)]))
 
-            Part0.set_ended(True)
+            Part0.set_Ended(True)
             return Part0
 
     def generate_shower(self, PID0, p40, ParPID, VB=False, GlobalMS=True):

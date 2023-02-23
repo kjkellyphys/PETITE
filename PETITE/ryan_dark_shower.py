@@ -20,7 +20,7 @@ GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm
 cmtom = 0.01
 mp0 = 1.673e-24 #g
 
-process_code = {'brem':0, 'anni': 2, 'compt': 3} ## FIX ME these are inconsistent with naming conventions in SM
+process_code = {'dark_Brem':0, 'dark_Ann': 1, 'dark_Comp': 3}
 
 class DarkShower(Shower):
     """ A class to reprocess an existing EM shower to generate dark photons
@@ -233,15 +233,15 @@ class DarkShower(Shower):
         max_wgt    = sample_dict["max_wgt"]
 
         event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'alpha_FS': alpha_em, 'm_V': self._mV}
-        diff_xsection_options={"PairProd" : dsigma_pairprod_dP_T,
-                               "Comp"     : dsigma_compton_dCT,
-                               "Brem"     : dsigma_brem_dP_T,
-                               "Ann"      : dsigma_annihilation_dCT }
+
+        #### FIX ME THESE ARE SM FUNCTIONS
+        diff_xsection_options={"dark_Comp"     : dsigma_compton_dCT,
+                               "dark_Brem"     : dsigma_brem_dP_T,
+                               "dark_Ann"      : dsigma_annihilation_dCT }
         
-        formfactor_dict      ={"PairProd" : g2_elastic,
-                               "Comp"     : unity,
-                               "Brem"     : g2_elastic,
-                               "Ann"      : unity }
+        formfactor_dict      ={"dark_Comp"     : unity,
+                               "dark_Brem"     : g2_elastic,
+                               "dark_Ann"      : unity }
 
         QSq_dict             ={"PairProd" : pair_production_q_sq, "Brem"     : brem_q_sq, "Comp": dummy, "Ann": dummy }
 
@@ -297,7 +297,7 @@ class DarkShower(Shower):
         LUKey = LUKey + 1
         
         ## FIX ME Need right key name
-        SampEvt = self.draw_sample(Ee0, LUKey, 'Brem', VB=VB)
+        SampEvt = self.draw_sample(Ee0, LUKey, 'dark_Brem', VB=VB)
 
 
         ct = np.cos(self.get_mV()/(SampEvt[0])*np.sqrt((Ee0-SampEvt[0])/Ee0)*SampEvt[1])
@@ -320,7 +320,7 @@ class DarkShower(Shower):
 
         wg = self.GetBSMWeights(11, Ee0)
 
-        GenType = process_code['brem']
+        GenType = process_code['dark_Brem']
 
         NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_IDs()[1])+1, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, GenType, wg)
         return NewV
@@ -345,11 +345,11 @@ class DarkShower(Shower):
         LUKey = int((np.log10(Ee0) - self._logEeMinDarkAnn)/self._logEeSSDarkAnn)
         LUKey = LUKey + 1
         
-        ## FIX ME Need right key name
-        sample_event = self.draw_sample(Ee0, LUKey, 'Brem', VB=VB)
+       
+        sample_event = self.draw_sample(Ee0, LUKey, 'dark_Ann', VB=VB)
         #NFVs = Ann_FVs(EeMod, meT, MVT, SampEvt[0])[1]
         NFVs = Ann_FVs(Ee0, me, self.get_mV(), SampEvt[0])[1]
-        GenType = process_code['anni']
+        GenType = process_code['dark_Ann']
 
         EVf, pVxfZF, pVyfZF, pVzfZF = NFVs
         pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
@@ -390,10 +390,10 @@ class DarkShower(Shower):
         LUKey = LUKey + 1
         
         ## FIX ME Need right key name
-        sample_event = self.draw_sample(Ee0, LUKey, 'Brem', VB=VB)
+        sample_event = self.draw_sample(Ee0, LUKey, 'dark_Comp', VB=VB)
 
 
-        #NFVs = Compton_FVs(EgMod, meT, MVT, SampEvt[0])[1]
+        #NFVs = Compton_FVs(EgMod, meanniT, MVT, SampEvt[0])[1]
         NFVs = Compton_FVs(Eg0, me, self.get_mV(), SampEvt[0])[1]
 
         EVf, pVxfZF, pVyfZF, pVzfZF = NFVs
@@ -401,7 +401,7 @@ class DarkShower(Shower):
         pV3LF = np.dot(RM, pV3ZF)
 
         wg = self.GetBSMWeights(22, Eg0)
-        GenType = process_code['compt']
+        GenType = process_code['dark_Comp']
         if EVf > Eg0:
             print("---------------------------------------------")
             print("High Energy V Found from Photon Samples:")
