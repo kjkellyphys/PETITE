@@ -45,6 +45,7 @@ def make_readme(params, process, file_info):
     for index, energy in enumerate(params['initial_energy_list']):
         line = "{en:9.3f}  |  {indx:3d}.p\n".format(en = energy, indx = index)
         readme_file.write(line)
+    readme_file.write("Integrators made on ", datetime.datetime.now())
     readme_file.close()
     return()
 
@@ -63,14 +64,14 @@ def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_ind
         #VEGAS_integrator = 0
         print('Done VEGAS for energy index ',energy_index)
         object_to_save = [params['E_inc'], VEGAS_integrator]
-        print(object_to_save)
+        #print(object_to_save)
         pickle.dump(object_to_save, open(strsaveB, "wb"))
         print('File created: ' + strsaveB)
     return()
 
 
 
-def make_integrators(params, process, verbosity_mode):
+def make_integrators(params, process):
     """
     Generate vegas integrator pickles for the following parameters:
         mV : dark vector mass in GeV
@@ -82,6 +83,7 @@ def make_integrators(params, process, verbosity_mode):
     atomic_A = params['A']
     atomic_Z = params['Z_T']
     mT = params['mT'] 
+    verbosity_mode = params['verbosity']
     params['m_e'] = m_electron
     params['alpha_FS'] = alpha_em
 
@@ -114,9 +116,25 @@ def make_integrators(params, process, verbosity_mode):
     
     make_readme(params, process, save_dir)#make the human readable file contining info on params of run and put in directory 
     
-    
-
     return()
+
+# Set up parameters for and then run find_maxes
+def call_find_maxes(params, process):
+    import find_maxes
+    if (args.run_find_maxes):
+        print("Now running Find_Maxes....please wait")
+        find_maxes_params = params
+        find_maxes_params['process'] = process
+        find_maxes_params['import_directory'] = params['save_location'] + "/" + process
+        find_maxes_params['save_location'] = params['find_maxes_save_location']
+        print(find_maxes_params)
+        find_maxes.main(find_maxes_params)
+    
+    return()
+
+
+
+
 
 # def make_readme(args): #FIXME: add right path, discuss and implement what exatly goes here.
 #     """Writes a short readme file with the details of the pickles generated"""
@@ -139,6 +157,7 @@ if __name__ == '__main__':
 
 
     parser.add_argument('-save_location', type=str, default='raw_integrators', help='directory to save integrators in (path relative to main PETITE directory)')
+    parser.add_argument('-find_maxes_save_location', type=str, default='cooked_integrators', help='directory to save find_maxes results (path relative to main PETITE directory)')
     parser.add_argument('-process', nargs='+', type=str, default=['DarkBrem'], help='list of processes to be run "all" does whole list, if mV non-zero only DarkBrem \
         (choose from "PairProd", "Brem", "DarkBrem", "Comp", "Ann")')
     parser.add_argument('-mV', nargs='+', type=float, default=[0.05], help='dark vector mass in GeV (can be a space-separated list)')
@@ -153,8 +172,9 @@ if __name__ == '__main__':
     print('**** Arguments passed to generate_integrators ****')
     print(args)
 
-    params = {'A': args.A, 'Z_T': args.Z, 'mT': args.mT, 'save_location': args.save_location}
-    verbosity_mode = args.verbosity
+    params = {'A': args.A, 'Z_T': args.Z, 'mT': args.mT, 'save_location': args.save_location, 
+              'find_maxes_save_location': args.find_maxes_save_location, 'verbosity': args.verbosity}
+
     if (args.mV == 0 or not(args.process == ['DarkBrem']) ):# doing SM processes
         if  "all" in args.process:
             process_list_to_do = ['Brem','PairProd','Comp','Ann']
@@ -168,7 +188,8 @@ if __name__ == '__main__':
             initial_energy_list = np.logspace(np.log10(args.min_energy), np.log10(args.max_energy), args.num_energy_pts)
             params.update({'mV' : 0})
             params.update({'initial_energy_list': initial_energy_list})
-            make_integrators(params, process, verbosity_mode)
+            #make_integrators(params, process)
+            call_find_maxes(params, process)
     else:# doing DarkBrem
         for mV in args.mV:
             process = 'DarkBrem'
@@ -177,12 +198,10 @@ if __name__ == '__main__':
             initial_energy_list = np.logspace(np.log10(min_energy), np.log10(args.max_energy), args.num_energy_pts)
             params.update({'mV' : mV})
             params.update({'initial_energy_list': initial_energy_list})
-            make_integrators(params, process, verbosity_mode)
+            #make_integrators(params, process)
+            call_find_maxes(params, process)
     
-    if (args.run_find_maxes):
-        print("Now running Find_Maxes....please wait")
-    else:
-        print("Goodbye! We both did it.")
+    print("Goodbye!")
 
 
     

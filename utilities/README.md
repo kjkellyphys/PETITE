@@ -12,4 +12,4 @@ python generate_integrators.py -A=12 -Z=6 -mT=12 -process='DarkBrem' -mV=0.050 -
 This processes the previously generated integrators into a format that is most useful for PETITE, it is automatically called by generate_integrators unless generate_integrators is called with flag "-run_find_maxes=False".
 
 It can also be run independently as e.g.
-python find_maxes.py -A=12 -Z=6 -mT=12 -process='Comp' -import_file='raw_integrators/Comp/0.p'
+python find_maxes.py -A=12 -Z=6 -mT=12 -process='Comp' -import_directory='raw_integrators/Comp'
