@@ -82,19 +82,21 @@ def dsigma_brem_dP_T(event_info, phase_space_par_list):
         w, d, dp, ph = variables
 
         epp = ep - w
+        if epp < m_electron:
+            dSigs.append(0.0)
+        else:
+            qsqT = m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
+            PF = 8.0/np.pi*Z**2*alpha_em*(alpha_em/m_electron)**2*(epp*m_electron**4)/(w*ep*qsqT**2)*d*dp
 
-        qsqT = m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
-        PF = 8.0/np.pi*Z**2*alpha_em*(alpha_em/m_electron)**2*(epp*m_electron**4)/(w*ep*qsqT**2)*d*dp
+            T1 = d**2/(1 + d**2)**2
+            T2 = dp**2/(1 + dp**2)**2
+            T3 = w**2/(2*ep*epp)*(d**2 + dp**2)/((1 + d**2)*(1 + dp**2))
+            T4 = -(epp/ep + ep/epp)*(d*dp*np.cos(ph))/((1 + d**2)*(1 + dp**2))
+            dSig0 = PF*(T1+T2+T3+T4)
 
-        T1 = d**2/(1 + d**2)**2
-        T2 = dp**2/(1 + dp**2)**2
-        T3 = w**2/(2*ep*epp)*(d**2 + dp**2)/((1 + d**2)*(1 + dp**2))
-        T4 = -(epp/ep + ep/epp)*(d*dp*np.cos(ph))/((1 + d**2)*(1 + dp**2))
-        dSig0 = PF*(T1+T2+T3+T4)
-
-        if dSig0 < 0.0 or np.isnan(dSig0):
-            print([dSig0, PF, T1, T2, T3, T4, qsqT])
-        dSigs.append(dSig0)
+            if dSig0 < 0.0 or np.isnan(dSig0):
+                print([dSig0, PF, T1, T2, T3, T4, qsqT])
+            dSigs.append(dSig0)
 
     if len(dSigs) == 1:
         return dSigs[0]
@@ -189,20 +191,22 @@ def dsigma_pairprod_dP_T(event_info, phase_space_par_list):
         epp, dp, dm, ph = variables
 
         epm = w - epp
+        if epm < m_electron or epp < m_electron:
+            dSigs.append(0.0)
+        else:
+            qsqT = (dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + m_electron**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2
+            PF = 8.0/np.pi*Z**2*alpha_em*(alpha_em/m_electron)**2*epp*epm/(w**3*qsqT**2)*dp*dm
+            
+            T1 = -1.0*dp**2/(1.0 + dp**2)**2
+            T2 = -1.0*dm**2/(1.0 + dm**2)**2
+            T3 = w**2/(2.0*epp*epm)*(dp**2 + dm**2)/((1.0 + dp**2)*(1.0 + dm**2))
+            T4 = (epp/epm + epm/epp)*(dp*dm*np.cos(ph))/((1.0 + dp**2)*(1.0+dm**2))
 
-        qsqT = (dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + m_electron**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2
-        PF = 8.0/np.pi*Z**2*alpha_em*(alpha_em/m_electron)**2*epp*epm/(w**3*qsqT**2)*dp*dm
-        
-        T1 = -1.0*dp**2/(1.0 + dp**2)**2
-        T2 = -1.0*dm**2/(1.0 + dm**2)**2
-        T3 = w**2/(2.0*epp*epm)*(dp**2 + dm**2)/((1.0 + dp**2)*(1.0 + dm**2))
-        T4 = (epp/epm + epm/epp)*(dp*dm*np.cos(ph))/((1.0 + dp**2)*(1.0+dm**2))
+            dSig0 = PF*(T1+T2+T3+T4)
 
-        dSig0 = PF*(T1+T2+T3+T4)
-
-        if dSig0 < 0.0 or np.isnan(dSig0):
-            print([dSig0, PF, T1, T2, T3, T4, qsqT])
-        dSigs.append(dSig0)
+            if dSig0 < 0.0 or np.isnan(dSig0):
+                print([dSig0, PF, T1, T2, T3, T4, qsqT])
+            dSigs.append(dSig0)
     if len(dSigs) == 1:
         return dSigs[0]
     else:
