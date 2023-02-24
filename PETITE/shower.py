@@ -32,7 +32,7 @@ class Shower:
     """ Representation of a shower
 
     """
-    def __init__(self, dict_dir, target_material, min_energy, maxF_fudge_global=1,neval=300):
+    def __init__(self, dict_dir, target_material, min_energy, maxF_fudge_global=1.0,neval=300):
         """Initializes the shower object.
         Args:
             dict_dir: directory containing the pre-computed VEGAS integrators and auxillary info.
@@ -123,7 +123,7 @@ class Shower:
         self._loaded_samples={}
         for process in process_code.keys():
             self._loaded_samples[process]= \
-                self.load_sample(self._dict_dir, process, self._target_material)
+                self.load_sample(self._dict_dir, process)
 
         
     def get_n_targets(self):
@@ -388,7 +388,7 @@ class Shower:
         pem3LF = np.dot(RM, pem3ZF)
 
         pos = Phot0.get_rf()
-        init_IDs = Phot0.get_IDs()
+        init_IDs = Phot0.get_ids()
 
         if VB:
             newparticlewgt = SampEvt[-1]
@@ -436,7 +436,7 @@ class Shower:
         pg3LF = np.dot(RM, [pgxfZF, pgyfZF, pgzfZF])
 
         pos = Phot0.get_rf()
-        init_IDs = Phot0.get_IDs()
+        init_IDs = Phot0.get_ids()
 
         if VB:
             newparticlewgt = SampEvt[-1]
@@ -463,12 +463,12 @@ class Shower:
             Part0.set_rf(Part0.get_rf())
             return Part0
         else:
-            mfp = self.get_mfp(Part0.get_IDs()[0], Part0.get_p0()[0])
+            mfp = self.get_mfp(Part0.get_ids()[0], Part0.get_p0()[0])
             distC = np.random.uniform(0.0, 1.0)
             dist = mfp*np.log(1.0/(1.0-distC))
-            if np.abs(Part0.get_IDs()[0]) == 11:
+            if np.abs(Part0.get_ids()[0]) == 11:
                 M0 = m_electron
-            elif Part0.get_IDs()[0] == 22:
+            elif Part0.get_ids()[0] == 22:
                 M0 = 0.0
 
             E0, px0, py0, pz0 = Part0.get_p0()
