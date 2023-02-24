@@ -45,7 +45,7 @@ def make_readme(params, process, file_info):
     for index, energy in enumerate(params['initial_energy_list']):
         line = "{en:9.3f}  |  {indx:3d}.p\n".format(en = energy, indx = index)
         readme_file.write(line)
-    readme_file.write("Integrators made on ", datetime.datetime.now())
+    readme_file.write(f'Integrators made on {datetime.datetime.now()}')
     readme_file.close()
     return()
 
@@ -129,6 +129,8 @@ def call_find_maxes(params, process):
         find_maxes_params['save_location'] = params['find_maxes_save_location']
         print(find_maxes_params)
         find_maxes.main(find_maxes_params)
+    else:
+        print('Not running find_maxes')
     
     return()
 
@@ -188,7 +190,7 @@ if __name__ == '__main__':
             initial_energy_list = np.logspace(np.log10(args.min_energy), np.log10(args.max_energy), args.num_energy_pts)
             params.update({'mV' : 0})
             params.update({'initial_energy_list': initial_energy_list})
-            #make_integrators(params, process)
+            make_integrators(params, process)
             call_find_maxes(params, process)
     else:# doing DarkBrem
         for mV in args.mV:
@@ -198,7 +200,7 @@ if __name__ == '__main__':
             initial_energy_list = np.logspace(np.log10(min_energy), np.log10(args.max_energy), args.num_energy_pts)
             params.update({'mV' : mV})
             params.update({'initial_energy_list': initial_energy_list})
-            #make_integrators(params, process)
+            make_integrators(params, process)
             call_find_maxes(params, process)
     
     print("Goodbye!")

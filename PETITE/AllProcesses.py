@@ -2,7 +2,10 @@ import numpy as np
 import vegas as vg
 import functools
 import random as rnd
-from .physical_constants import *
+try: 
+    from .physical_constants import *
+except: 
+    from physical_constants import *
 
 #--------------------------------------------------------------------------
 #Functions for atomic form factors for incident photons/electrons/positrons
