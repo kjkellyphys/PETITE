@@ -32,7 +32,7 @@ class Shower:
     """ Representation of a shower
 
     """
-    def __init__(self, dict_dir, target_material, min_energy, maxF_fudge_global=1.0,neval=300):
+    def __init__(self, dict_dir, target_material, min_energy, maxF_fudge_global=1.0,neval=30,max_n_integrators=int(1e4)):
         """Initializes the shower object.
         Args:
             dict_dir: directory containing the pre-computed VEGAS integrators and auxillary info.
@@ -58,6 +58,7 @@ class Shower:
         self._maxF_fudge_global=maxF_fudge_global
 
         self._neval_vegas=neval
+        self._max_n_integrators=max_n_integrators
 
                 
         
@@ -237,12 +238,20 @@ class Shower:
         integrand.set(max_nhcube=1, neval=self._neval_vegas)
         if VB:
             sampcount = 0
-        for x,wgt in integrand.random():
-            FF_eval=FF_func(event_info['Z_T'], m_electron, QSq_func(x, m_electron, event_info['E_inc'] ) )
-            if VB:
-                sampcount += 1  
-            if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x)*FF_eval:
-                break
+        sample_found = False
+        n_integrators_used = 0
+        while sample_found is False and n_integrators_used < self._max_n_integrators:
+            n_integrators_used += 1
+            for x,wgt in integrand.random():
+                FF_eval=FF_func(event_info['Z_T'], m_electron, QSq_func(x, m_electron, event_info['E_inc'] ) )/event_info['Z_T']**2
+                if VB:
+                    sampcount += 1  
+                if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x)*FF_eval:
+                    sample_found = True
+                    break
+        if sample_found is False:
+            print("No Sample Found")
+            #FIXME What to do when we end up here?
         if VB:
             return np.concatenate([list(x), [sampcount]])
         else:
