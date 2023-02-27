@@ -186,21 +186,19 @@ def dsigma_pairprod_dP_T(event_info, phase_space_par_list):
         phase_space_par_list = np.array([phase_space_par_list])
     dSigs = []
     for variables in phase_space_par_list:
-        lrp, dp, dm, ph = variables
-        epm = w/(1 + 10**lrp)
-        epp = w - epm
-
-        jacobian = (10**lrp)*w*np.log(10.)/(1 + 10**lrp)**2
+        xp, dp, dm, ph = variables
+        epp = xp*w
+        epm = w - epp
 
         qsqT = (dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + m_electron**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2
-        PF = 8.0/np.pi*Z**2*alpha_em*(alpha_em/m_electron)**2*epp*epm/(w**3*qsqT**2)*dp*dm
+        PF = 8.0/np.pi*Z**2*alpha_em*(alpha_em/m_electron)**2*epp*epm/(w**2*qsqT**2)*dp*dm
         
         T1 = -1.0*dp**2/(1.0 + dp**2)**2
         T2 = -1.0*dm**2/(1.0 + dm**2)**2
         T3 = w**2/(2.0*epp*epm)*(dp**2 + dm**2)/((1.0 + dp**2)*(1.0 + dm**2))
         T4 = (epp/epm + epm/epp)*(dp*dm*np.cos(ph))/((1.0 + dp**2)*(1.0+dm**2))
 
-        dSig0 = PF*jacobian*(T1+T2+T3+T4)
+        dSig0 = PF*(T1+T2+T3+T4)
 
         if dSig0 < 0.0 or np.isnan(dSig0):
             print([dSig0, PF, T1, T2, T3, T4, qsqT])
@@ -295,9 +293,7 @@ def integration_range(event_info, process):
     mV=event_info['m_V']
     if process in four_dim:
         if process == "PairProd":
-            max_log_ratio = np.log10((EInc - m_electron)/m_electron)
-            maxdel = np.sqrt(EInc/m_electron)
-            return [[-max_log_ratio, max_log_ratio], [0., maxdel], [0., maxdel], [0., 2*np.pi]]
+            return [[m_electron/EInc, 1.0 - m_electron/EInc], [0., maxdel], [0., maxdel], [0., 2*np.pi]]
         else:
             minE = np.max([Egmin,mV])
             maxdel = np.sqrt(EInc/np.max([m_electron,mV]))
