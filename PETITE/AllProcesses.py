@@ -194,7 +194,7 @@ def dsigma_pairprod_dP_T(event_info, phase_space_par_list):
         epp, dp, dm, ph = variables
 
         epm = w - epp
-        if epm < m_electron or epp < m_electron:
+        if not((m_electron < epm < w) and (m_electron < epp < w)):
             dSigs.append(0.0)
         else:
             qsqT = (dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + m_electron**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2
@@ -300,7 +300,7 @@ def integration_range(event_info, process):
     mV=event_info['m_V']
     if process in four_dim:
         if process == "PairProd":
-            minE = Egmin
+            minE = m_electron
             maxdel = np.sqrt(EInc/m_electron)
         else:
             minE = np.max([Egmin,mV])
