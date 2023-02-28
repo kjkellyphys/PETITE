@@ -293,6 +293,7 @@ def integration_range(event_info, process):
     mV=event_info['m_V']
     if process in four_dim:
         if process == "PairProd":
+            maxdel = np.sqrt(EInc/m_electron)
             return [[m_electron/EInc, 1.0 - m_electron/EInc], [0., maxdel], [0., maxdel], [0., 2*np.pi]]
         else:
             minE = np.max([Egmin,mV])
