@@ -2,7 +2,10 @@ import numpy as np
 import vegas as vg
 import functools
 import random as rnd
-from .physical_constants import *
+try:
+    from .physical_constants import *
+except:
+    from physical_constants import *
 
 #--------------------------------------------------------------------------
 #Functions for atomic form factors for incident photons/electrons/positrons
@@ -10,10 +13,10 @@ from .physical_constants import *
 def unity(Z, me, t):
     return(1.0)
 
-def dummy(x,y,z):
+def dummy(x,y):
     return(0)
 
-def pair_production_q_sq(xx, me, w):
+def pair_production_q_sq_dimensionless(xx, EI):
     """Computes momentum transfer squared for photon-scattering pair production
     Args:
         xx: tuple consisting of kinematic rescaled kinematic variables 
@@ -23,11 +26,14 @@ def pair_production_q_sq(xx, me, w):
     Returns:
         nuclear momentum transfer squared
     """
-    epp, dp, dm, ph = xx
-    epm = w - epp
-    return me**2*((dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + me**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2) 
+    x1, x2, x3, x4 = xx
+    w = EI['E_inc']
+    epp, dp, dm, ph = m_electron + x1*(w-2*m_electron), w/(2*m_electron)*(x2+x3), w/(2*m_electron)*(x2-x3), x4*2*np.pi
 
-def brem_q_sq(xx, me, ep):
+    epm = w - epp
+    return m_electron**2*((dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + m_electron**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2) 
+
+def brem_q_sq_dimensionless(xx, EI):
     """Momentum Transfer Squared for electron/positron bremsstrahlung
     Args:
         w: frequency of radiated photon 
@@ -41,9 +47,13 @@ def brem_q_sq(xx, me, ep):
     Returns:
         nuclear momentum transfer squared
     """
-    w, d, dp, ph = xx
+    x1, x2, x3, x4 = xx
+    Egamma_min = EI['Eg_min']
+    ep = EI['E_inc']
+    w, d, dp, ph = Egamma_min + x1*(ep - m_electron - Egamma_min), ep/(2*m_electron)*(x2+x3), ep/(2*m_electron)*(x2-x3), x4*2*np.pi
+
     epp = ep - w
-    return me**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + me**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
+    return m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
 
 def aa(Z, me):
     return 184.15*(2.718)**-0.5*Z**(-1./3.)/me
@@ -62,7 +72,7 @@ def g2_inelastic(Z, me, t):
 #Differential Cross Sections for Incident Electrons/Positrons/Photons
 #--------------------------------------------------------------------
 
-def dsigma_brem_dP_T(event_info, phase_space_par_list):
+def dsigma_brem_dimensionless(event_info, phase_space_par_list):
     """Standard Model Bremsstrahlung in the Small-Angle Approximation
        e (ep) + Z -> e (epp) + gamma (w) + Z
        Outgoing kinematics given by w, d (delta), dp (delta'), and ph (phi)
@@ -73,28 +83,37 @@ def dsigma_brem_dP_T(event_info, phase_space_par_list):
     """
     ep=event_info['E_inc']
     Z =event_info['Z_T']
+    Egamma_min = event_info['Eg_min']
     mV=0
 
     if len(np.shape(phase_space_par_list)) == 1:
         phase_space_par_list = np.array([phase_space_par_list])
     dSigs = []
     for variables in phase_space_par_list:
-        w, d, dp, ph = variables
+        x1, x2, x3, x4 = variables
+        w, d, dp, ph = Egamma_min + x1*(ep - m_electron - Egamma_min), ep/(2*m_electron)*(x2+x3), ep/(2*m_electron)*(x2-x3), x4*2*np.pi
 
         epp = ep - w
 
-        qsqT = m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
-        PF = 8.0/np.pi*Z**2*alpha_em*(alpha_em/m_electron)**2*(epp*m_electron**4)/(w*ep*qsqT**2)*d*dp
+        if not((Egamma_min < w < ep - m_electron) and (m_electron < epp < ep) and (d > 0.) and (dp > 0.)):
+            dSigs.append(0.0)
+        else:
+            qsqT = m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
+            PF = 8.0/np.pi*alpha_em*(alpha_em/m_electron)**2*(epp*m_electron**4)/(w*ep*qsqT**2)*d*dp
+            jacobian_factor = np.pi*ep**2*(ep - m_electron - Egamma_min)/m_electron**2
+            FF_hydrogen = g2_elastic(1.0, m_electron, qsqT)
 
-        T1 = d**2/(1 + d**2)**2
-        T2 = dp**2/(1 + dp**2)**2
-        T3 = w**2/(2*ep*epp)*(d**2 + dp**2)/((1 + d**2)*(1 + dp**2))
-        T4 = -(epp/ep + ep/epp)*(d*dp*np.cos(ph))/((1 + d**2)*(1 + dp**2))
-        dSig0 = PF*(T1+T2+T3+T4)
+            T1 = d**2/(1 + d**2)**2
+            T2 = dp**2/(1 + dp**2)**2
+            T3 = w**2/(2*ep*epp)*(d**2 + dp**2)/((1 + d**2)*(1 + dp**2))
+            T4 = -(epp/ep + ep/epp)*(d*dp*np.cos(ph))/((1 + d**2)*(1 + dp**2))
+            dSig0 = PF*(T1+T2+T3+T4)*jacobian_factor*FF_hydrogen
 
-        if dSig0 < 0.0 or np.isnan(dSig0):
-            print([dSig0, PF, T1, T2, T3, T4, qsqT])
-        dSigs.append(dSig0)
+            if dSig0 < 0.0 or np.isnan(dSig0):
+                print([dSig0, PF, T1, T2, T3, T4, qsqT, jacobian_factor, FF_hydrogen])
+                print([x1,x2,x3,x4])
+                print([w,d,dp,ph])
+            dSigs.append(dSig0)
 
     if len(dSigs) == 1:
         return dSigs[0]
@@ -169,7 +188,7 @@ def dsigma_annihilation_dCT(event_info, phase_space_par_list):
     else:
         return dSigs
 
-def dsigma_pairprod_dP_T(event_info, phase_space_par_list):
+def dsigma_pairprod_dimensionless(event_info, phase_space_par_list):
     """Standard Model Pair Production in the Small-Angle Approximation
        gamma (w) + Z -> e+ (epp) + e- (epm) + Z
        Outgoing kinematics given by epp, dp (delta+), dm (delta-), and ph (phi)
@@ -186,23 +205,29 @@ def dsigma_pairprod_dP_T(event_info, phase_space_par_list):
         phase_space_par_list = np.array([phase_space_par_list])
     dSigs = []
     for variables in phase_space_par_list:
-        xp, dp, dm, ph = variables
-        epp = xp*w
+        x1, x2, x3, x4 = variables
+        epp, dp, dm, ph = m_electron + x1*(w-2*m_electron), w/(2*m_electron)*(x2+x3), w/(2*m_electron)*(x2-x3), x4*2*np.pi
+
         epm = w - epp
 
-        qsqT = (dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + m_electron**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2
-        PF = 8.0/np.pi*Z**2*alpha_em*(alpha_em/m_electron)**2*epp*epm/(w**2*qsqT**2)*dp*dm
-        
-        T1 = -1.0*dp**2/(1.0 + dp**2)**2
-        T2 = -1.0*dm**2/(1.0 + dm**2)**2
-        T3 = w**2/(2.0*epp*epm)*(dp**2 + dm**2)/((1.0 + dp**2)*(1.0 + dm**2))
-        T4 = (epp/epm + epm/epp)*(dp*dm*np.cos(ph))/((1.0 + dp**2)*(1.0+dm**2))
+        if not((m_electron < epm < w) and (m_electron < epp < w) and (dm > 0.) and (dp > 0.)):
+            dSigs.append(0.0)
+        else:
+            qsqT = (dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + m_electron**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2
+            PF = 8.0/np.pi*alpha_em*(alpha_em/m_electron)**2*epp*epm/(w**3*qsqT**2)*dp*dm
+            jacobian_factor = np.pi*w**2*(w-2*m_electron)/m_electron**2
+            FF_hydrogen = g2_elastic(1.0, m_electron, qsqT)
 
-        dSig0 = PF*(T1+T2+T3+T4)
+            T1 = -1.0*dp**2/(1.0 + dp**2)**2
+            T2 = -1.0*dm**2/(1.0 + dm**2)**2
+            T3 = w**2/(2.0*epp*epm)*(dp**2 + dm**2)/((1.0 + dp**2)*(1.0 + dm**2))
+            T4 = (epp/epm + epm/epp)*(dp*dm*np.cos(ph))/((1.0 + dp**2)*(1.0+dm**2))
 
-        if dSig0 < 0.0 or np.isnan(dSig0):
-            print([dSig0, PF, T1, T2, T3, T4, qsqT])
-        dSigs.append(dSig0)
+            dSig0 = PF*(T1+T2+T3+T4)*jacobian_factor*FF_hydrogen
+
+            if dSig0 < 0.0 or np.isnan(dSig0):
+                print([dSig0, PF, T1, T2, T3, T4, qsqT, jacobian_factor, FF_hydrogen])
+            dSigs.append(dSig0)
     if len(dSigs) == 1:
         return dSigs[0]
     else:
@@ -268,18 +293,18 @@ def get_points(distribution, npts):
 #------------------------------------------------------------------------------
 n_points = 10000 #Default number of points to draw for unweighted samples
 
-diff_xsection_options={"PairProd" : dsigma_pairprod_dP_T,
+diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                        "Comp"     : dsigma_compton_dCT,
-                       "Brem"     : dsigma_brem_dP_T,
+                       "Brem"     : dsigma_brem_dimensionless,
                        "Ann"      : dsigma_annihilation_dCT, 
                        "DarkBrem" : dsigma_darkbrem_dP_T }
-nitn_options={"PairProd":500,
-              "Brem":500,
-              "DarkBrem":500,
-              "Comp":5000,
-              "Ann":5000}
-nstrat_options={"PairProd":[15, 25, 25, 15],
-                "Brem":[15, 25, 25, 15],
+nitn_options={"PairProd":10,
+              "Brem":10,
+              "DarkBrem":10,
+              "Comp":500,
+              "Ann":500}
+nstrat_options={"PairProd":[40, 40, 40, 40],
+                "Brem":[40, 40, 40, 40],
                 "DarkBrem":[15, 25, 25, 15],
                 "Comp":[300],
                 "Ann":[300]}
@@ -292,9 +317,8 @@ def integration_range(event_info, process):
     Egmin=event_info['Eg_min']
     mV=event_info['m_V']
     if process in four_dim:
-        if process == "PairProd":
-            maxdel = np.sqrt(EInc/m_electron)
-            return [[m_electron/EInc, 1.0 - m_electron/EInc], [0., maxdel], [0., maxdel], [0., 2*np.pi]]
+        if process == "PairProd" or process == 'Brem':
+            return [[0, 1], [0, 2], [-2, 2], [0, 1]]
         else:
             minE = np.max([Egmin,mV])
             maxdel = np.sqrt(EInc/np.max([m_electron,mV]))
@@ -349,7 +373,7 @@ def vegas_integration(event_info, process, verbose=False, mode='XSec'):
         if ('m_V' in event_info.keys()) == False:
             event_info['m_V'] = 0.0
         if ('Eg_min' in event_info.keys()) == False:
-            event_info['Eg_min'] = 0.0
+            event_info['Eg_min'] = 0.001
         igrange = integration_range(event_info, process)
         diff_xsec_func = diff_xsection_options[process] 
     else:
