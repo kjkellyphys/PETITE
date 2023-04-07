@@ -65,6 +65,7 @@ class Shower:
                 
         
     def load_sample(self, dict_dir, process, target_material): # FIXME: we are not using target_material
+        
         sample_file=open(dict_dir + "samp_Dicts_neval.pkl", 'rb')
         sample_dict=pickle.load(sample_file)
         sample_file.close()
