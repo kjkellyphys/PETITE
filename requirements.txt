@@ -1,0 +1,10 @@
+###### Requirements without Version Specifiers ######
+matplotlib
+vegas
+tqdm
+cProfile
+pstats
+pickle
+
+###### Requirements with Version Specifiers ######
+numpy == 1.24               # Minimum version 4.1.1
