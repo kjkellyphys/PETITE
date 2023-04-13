@@ -1,4 +1,5 @@
 import numpy as np
+import pickle 
 
 from scipy.interpolate import interp1d
 
@@ -9,6 +10,7 @@ from .shower import Shower
 from .AllProcesses import *
 
 import sys
+from numpy.random import random as draw_U
 
 me = 0.000511
         
@@ -72,7 +74,7 @@ class DarkShower(Shower):
    
 
     def set_mV_list(self,dict_dir):
-        sample_file=open(dict_dir + "dark_samp_Dicts.pkl", 'rb')
+        sample_file=open(dict_dir + "dark_samp_dicts.pkl", 'rb')
         outer_dict=pickle.load(sample_file)
         sample_file.close()
 
@@ -83,12 +85,12 @@ class DarkShower(Shower):
 
     def closest_lesser_value(self, input_list, input_value):
         arr = np.asarray(input_list)
-        i = (np.abs(arr - input_value)).argmin()
+        index = (np.abs(arr - input_value)).argmin()
 
-        if arr[i]<input_value:
-            return(arr[i])
+        if arr[index]<input_value:
+            return(arr[index])
         else:
-            return(arr[i-1])
+            return(arr[index-1])
 
 
     def set_mV(self, value, mode):
@@ -108,7 +110,7 @@ class DarkShower(Shower):
         return self._mV
     
     def load_sample(self, dict_dir, process): 
-        sample_file=open(dict_dir + "dark_samp_Dicts.pkl", 'rb')
+        sample_file=open(dict_dir + "dark_samp_dicts.pkl", 'rb')
         outer_dict=pickle.load(sample_file)
         sample_file.close()
 
@@ -231,21 +233,28 @@ class DarkShower(Shower):
         max_F      = sample_dict["max_F"]*self._maxF_fudge_global
         max_X      = sample_dict["max_X"]
         max_wgt    = sample_dict["max_wgt"]
+        neval_vegas= sample_dict["neval"]
 
         event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'alpha_FS': alpha_em, 'm_V': self._mV}
 
-        #### FIX ME THESE ARE SM FUNCTIONS
-        diff_xsection_options={"dark_Comp"     : dsigma_compton_dCT,
-                               "dark_Brem"     : dsigma_brem_dP_T,
-                               "dark_Ann"      : dsigma_annihilation_dCT }
+        #### START FIXME
+        # 
+        # THESE ARE dummy FUNCTIONS
+        diff_xsection_options={"dark_Comp"     : XX_dark_comp_func_XX,
+                               "dark_Brem"     : XX_dark_brem_func_XX,
+                               "dark_Ann"      : XX_dark_ann_func_XX }
         
         formfactor_dict      ={"dark_Comp"     : unity,
                                "dark_Brem"     : g2_elastic,
                                "dark_Ann"      : unity }
 
-        QSq_dict             ={"PairProd" : pair_production_q_sq, "Brem"     : brem_q_sq, "Comp": dummy, "Ann": dummy }
+        QSq_dict             ={"dark_Brem"     : XX_dark_brem_q_sq_XX,
+                                "dark_Comp"    : dummy, 
+                                "dark_Ann"     : dummy }
 
-        
+        ###  END FIXME
+
+
         if process in diff_xsection_options:
             diff_xsec_func = diff_xsection_options[process]
             FF_func        = formfactor_dict[process]
@@ -253,19 +262,45 @@ class DarkShower(Shower):
         else:
             raise Exception("Your process is not in the list")
 
-        integrand.set(max_nhcube=1, neval=self._neval_vegas)
+        integrand.set(max_nhcube=1, neval=neval_vegas)
         if VB:
             sampcount = 0
-        for x,wgt in integrand.random():
-            FF_eval=FF_func(event_info['Z_T'], m_electron, QSq_func(x, m_electron, event_info['E_inc'] ) )
-            if VB:
-                sampcount += 1  
-            if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x)*FF_eval:
-                break
+            n_integrators_used = 0
+            sample_found = False
+        while sample_found is False and n_integrators_used < self._max_n_integrators:
+            n_integrators_used += 1
+            for x,wgt in integrand.random():
+                FF_eval=FF_func(event_info['Z_T'], m_electron, QSq_func(x, event_info ) )/event_info['Z_T']**2
+                FF_H = FF_func(1.0, m_electron, QSq_func(x, event_info ) ) 
+                if VB:
+                    sampcount += 1  
+                if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x)*FF_eval/FF_H:
+                    sample_found = True
+                    break
+        if sample_found is False:
+            print("No Sample Found")
+            #FIXME What to do when we end up here?
+            #Coordinate with SM solution
         if VB:
             return np.concatenate([list(x), [sampcount]])
         else:
             return(x)
+
+
+###      OLD CODE  |   CAN EVENTUALLY DELETE 
+#        integrand.set(max_nhcube=1, neval=self._neval_vegas)
+#        if VB:
+#           sampcount = 0
+#        for x,wgt in integrand.random():
+#            FF_eval=FF_func(event_info['Z_T'], m_electron, QSq_func(x, m_electron, event_info['E_inc'] ) )
+#            if VB:
+#                sampcount += 1  
+#            if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x)*FF_eval:
+#                break
+#        if VB:
+#            return np.concatenate([list(x), [sampcount]])
+#        else:
+#           return(x)
 
 
     def GetPositronDarkBF(self, Energy):
@@ -296,7 +331,7 @@ class DarkShower(Shower):
         LUKey = int((np.log10(Ee0) - self._logEeMinDarkBrem)/self._logEeSSDarkBrem)
         LUKey = LUKey + 1
         
-        ## FIX ME Need right key name
+        ## FIXME Need right key name
         SampEvt = self.draw_sample(Ee0, LUKey, 'dark_Brem', VB=VB)
 
 
@@ -345,7 +380,7 @@ class DarkShower(Shower):
         LUKey = int((np.log10(Ee0) - self._logEeMinDarkAnn)/self._logEeSSDarkAnn)
         LUKey = LUKey + 1
         
-       
+        # FIXME  need right key name 
         sample_event = self.draw_sample(Ee0, LUKey, 'dark_Ann', VB=VB)
         #NFVs = Ann_FVs(EeMod, meT, MVT, SampEvt[0])[1]
         NFVs = Ann_FVs(Ee0, me, self.get_mV(), SampEvt[0])[1]
@@ -389,7 +424,7 @@ class DarkShower(Shower):
         LUKey = int((np.log10(Eg0) - self._logEgMinDarkComp)/self._logEgSSDarkComp)
         LUKey = LUKey + 1
         
-        ## FIX ME Need right key name
+        # FIXME Need right key name
         sample_event = self.draw_sample(Ee0, LUKey, 'dark_Comp', VB=VB)
 
 
