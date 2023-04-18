@@ -64,7 +64,7 @@ class Shower:
 
                 
         
-    def load_sample(self, dict_dir, process, target_material): # FIXME: we are not using target_material
+    def load_sample(self, dict_dir, process):
         
         sample_file=open(dict_dir + "samp_Dicts_neval.pkl", 'rb')
         sample_dict=pickle.load(sample_file)
@@ -127,7 +127,7 @@ class Shower:
         self._loaded_samples={}
         for Process in process_code.keys():
             self._loaded_samples[Process]= \
-                self.load_sample(self._dict_dir, Process, self._target_material)
+                self.load_sample(self._dict_dir, Process)
         self._Egamma_min = self._loaded_samples['Brem'][0][1]['Eg_min']
         
     def get_n_targets(self):
@@ -218,7 +218,8 @@ class Shower:
         max_wgt    = sample_dict["max_wgt"]
         neval_vegas= sample_dict["neval"]
 
-        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'alpha_FS': alpha_em, 'm_V': 0, 'Eg_min':self._Egamma_min}
+        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'm_V': 0, 'Eg_min':self._Egamma_min}
+        event_info_H={'E_inc': Einc, 'm_e': m_electron, 'Z_T': 1.0, 'A_T':1.0, 'mT':1.0, 'alpha_FS': alpha_em, 'm_V': 0, 'Eg_min':self._Egamma_min}
         diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                                "Comp"     : dsigma_compton_dCT,
                                "Brem"     : dsigma_brem_dimensionless,
@@ -248,8 +249,8 @@ class Shower:
         while sample_found is False and n_integrators_used < self._max_n_integrators:
             n_integrators_used += 1
             for x,wgt in integrand.random():
-                FF_eval=FF_func(event_info['Z_T'], m_electron, QSq_func(x, event_info ) )/event_info['Z_T']**2
-                FF_H = FF_func(1.0, m_electron, QSq_func(x, event_info ) ) 
+                FF_eval=FF_func(event_info, QSq_func(x, event_info ) )/event_info['Z_T']**2
+                FF_H = FF_func(event_info_H, QSq_func(x, event_info_H) ) 
                 if VB:
                     sampcount += 1  
                 if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x)*FF_eval/FF_H:

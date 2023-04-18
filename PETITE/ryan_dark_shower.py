@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d
 
 from .moliere import get_scattered_momentum 
 from .particle import Particle
-from .kinematics import eegFourVecs, eeVFourVecs, gepemFourVecs, Compton_FVs, Ann_FVs
+from .kinematics import e_to_egamma_fourvecs, e_to_eV_fourvecs, gamma_to_epem_fourvecs, compton_fourvecs, annihilation_fourvecs
 from .shower import Shower
 from .AllProcesses import *
 
@@ -22,7 +22,7 @@ GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm
 cmtom = 0.01
 mp0 = 1.673e-24 #g
 
-process_code = {'dark_Brem':0, 'dark_Ann': 1, 'dark_Comp': 3}
+process_code = {'ExactBrem':0, 'Ann': 1, 'Comp': 3}
 
 class DarkShower(Shower):
     """ A class to reprocess an existing EM shower to generate dark photons
@@ -51,7 +51,7 @@ class DarkShower(Shower):
         self.set_material_properties()
         self.set_n_targets()
         self.set_mV_list(dict_dir)
-        
+        self.set_mV(mV_in_GeV, mode)
         
         self.set_dark_cross_sections()
         self.set_dark_NSigmas()
@@ -81,7 +81,7 @@ class DarkShower(Shower):
         outer_dict=pickle.load(sample_file)
         sample_file.close()
 
-        mass_list=outer_dict.keys()
+        mass_list=list(outer_dict.keys())
 
         self._mV_list=mass_list
 
@@ -94,7 +94,6 @@ class DarkShower(Shower):
             return(arr[index])
         else:
             return(arr[index-1])
-
 
     def set_mV(self, value, mode):
         """Set MVStr to value and extract the corresponding numerical mass of the dark photon"""
@@ -112,7 +111,7 @@ class DarkShower(Shower):
         """Get the numerical value of the dark vector mass"""
         return self._mV
     
-    def load_sample(self, dict_dir, process): 
+    def load_dark_sample(self, dict_dir, process): 
         sample_file=open(dict_dir + "dark_samp_dicts.pkl", 'rb')
         outer_dict=pickle.load(sample_file)
         sample_file.close()
@@ -126,25 +125,25 @@ class DarkShower(Shower):
         
 
     def set_dark_samples(self):
-        self._loaded_samples={}
+        self._loaded_dark_samples={}
         for process in process_code.keys():
-            self._loaded_samples[process]= \
-                self.load_sample(self._dict_dir, process, self._target_material)
+            self._loaded_dark_samples[process]= \
+                self.load_dark_sample(self._dict_dir, process)
             
 
 
-    def load_cross_section(self, dict_dir, process, target_material,mV):
-        cross_section_file=open( dict_dir + "dark_xSec_Dicts.pkl", 'rb')
-        outer_dict=pickle.load(cross_section_file)
-        cross_section_file.close()
+    def load_dark_cross_section(self, dict_dir, process, target_material):
+        dark_cross_section_file=open( dict_dir + "dark_xSec_Dicts.pkl", 'rb')
+        outer_dict=pickle.load(dark_cross_section_file)
+        dark_cross_section_file.close()
 
-        cross_section_dict=outer_dict[self._mV_estimator]
+        dark_cross_section_dict=outer_dict[self._mV_estimator]
 
-        if process not in cross_section_dict:
+        if process not in dark_cross_section_dict:
             raise Exception("Process String does not match library")
         
-        if target_material in cross_section_dict[process]:
-            return(cross_section_dict[process][target_material])
+        if target_material in dark_cross_section_dict[process]:
+            return(dark_cross_section_dict[process][target_material])
         else:
             raise Exception("Target Material is not in library")
 
@@ -155,9 +154,9 @@ class DarkShower(Shower):
         """
 
         # These contain only the cross sections for the chosen target material
-        self._dark_brem_cross_section = self.load_cross_section(self._dict_dir, 'DarkBrem', self._target_material)
-        self._dark_annihilation_cross_section  = self.load_cross_section(self._dict_dir, 'DarkAnn', self._target_material) 
-        self._dark_compton_cross_section = self.load_cross_section(self._dict_dir, 'DarkComp', self._target_material) 
+        self._dark_brem_cross_section = self.load_dark_cross_section(self._dict_dir, 'ExactBrem', self._target_material)
+        self._dark_annihilation_cross_section  = self.load_dark_cross_section(self._dict_dir, 'Ann', self._target_material) 
+        self._dark_compton_cross_section = self.load_dark_cross_section(self._dict_dir, 'Comp', self._target_material) 
 
         self._EeVecBrem = np.transpose(self._brem_cross_section)[0] #FIXME: not sure what these are
         self._EgVecPP = np.transpose(self._pair_production_cross_section)[0]
@@ -187,7 +186,7 @@ class DarkShower(Shower):
         incoming particle energy for each process
         """
         DBS, DAnnS, DCS = self.get_DarkBremXSec(), self.get_DarkAnnXSec(), self.get_DarkCompXSec()
-        nZ, ne = self.get_nTargets()
+        nZ, ne = self.get_n_targets()
         self._NSigmaDarkBrem = interp1d(np.transpose(DBS)[0], nZ*GeVsqcm2*np.transpose(DBS)[1])
         self._NSigmaDarkAnn = interp1d(np.transpose(DAnnS)[0], ne*GeVsqcm2*np.transpose(DAnnS)[1])
         self._NSigmaDarkComp = interp1d(np.transpose(DCS)[0], ne*GeVsqcm2*np.transpose(DCS)[1])
@@ -225,18 +224,18 @@ class DarkShower(Shower):
 
 
 
-    def draw_sample(self,Einc,LU_Key,process,VB=False):
+    def draw_dark_sample(self,Einc,LU_Key,process,VB=False):
 
-        sample_list=self._loaded_samples 
+        dark_sample_list=self._loaded_dark_samples 
 
         # this grabs the dictionary part rather than the energy. 
-        sample_dict=sample_list[process][LU_Key][1]
+        dark_sample_dict=dark_sample_list[process][LU_Key][1]
 
-        integrand = sample_dict["integrator"]
-        max_F      = sample_dict["max_F"]*self._maxF_fudge_global
-        max_X      = sample_dict["max_X"]
-        max_wgt    = sample_dict["max_wgt"]
-        neval_vegas= sample_dict["neval"]
+        integrand = dark_sample_dict["integrator"]
+        max_F      = dark_sample_dict["max_F"]*self._maxF_fudge_global
+        max_X      = dark_sample_dict["max_X"]
+        max_wgt    = dark_sample_dict["max_wgt"]
+        neval_vegas= dark_sample_dict["neval"]
 
         event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'alpha_FS': alpha_em, 'm_V': self._mV}
 
