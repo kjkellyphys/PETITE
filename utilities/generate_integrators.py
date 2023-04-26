@@ -39,7 +39,7 @@ def make_readme(params, process, file_info):
     readme_file.write("Integrators for " + process)
     if process == 'ExactBrem':
         line = "\nTarget has (Z, A, mass) = ({atomic_Z}, {atomic_A}, {atomic_mass})\n".\
-            format(atomic_Z=params['Z_T'], atomic_A=params['A'], atomic_mass=params['mT'])
+            format(atomic_Z=params['Z_T'], atomic_A=params['A_T'], atomic_mass=params['mT'])
         readme_file.write(line)
     readme_file.write("\n\nEnergy/GeV |  Filename\n\n")
     for index, energy in enumerate(params['initial_energy_list']):
@@ -77,7 +77,7 @@ def make_integrators(params, process, verbosity_mode):
         mT : target mass in GeV
     """
     mV = params['mV']
-    atomic_A = params['A']
+    atomic_A = params['A_T']
     atomic_Z = params['Z_T']
     mT = params['mT'] 
     params['m_e'] = m_electron
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     print('**** Arguments passed to generate_integrators ****')
     print(args)
 
-    params = {'A': args.A, 'Z_T': args.Z, 'mT': args.mT, 'save_location': args.save_location}
+    params = {'A_T': args.A, 'Z_T': args.Z, 'mT': args.mT, 'save_location': args.save_location}
     verbosity_mode = args.verbosity
     if (args.mV == 0 or not(args.process == ['ExactBrem']) ):# doing SM processes
         if  "all" in args.process:
@@ -172,7 +172,7 @@ if __name__ == '__main__':
         for mV in args.mV:
             process = 'ExactBrem'
             print("Working on mV = ", mV)
-            min_energy = min(args.min_energy, 1.01 * mV)
+            min_energy = max(args.min_energy, 1.01 * mV)
             initial_energy_list = np.logspace(np.log10(min_energy), np.log10(args.max_energy), args.num_energy_pts)
             params.update({'mV' : mV})
             params.update({'initial_energy_list': initial_energy_list})

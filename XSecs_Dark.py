@@ -1,4 +1,5 @@
-""" Generate samples of Standard Model EM shower events and save them.
+""" Determines cross sections for processes involving dark vector emission.
+    Produces more robust estimates than "Find_Maxes_Dark.py" due to VEGAS settings.
 
     Uses saved VEGAS integrators to generate e+/- pair production and annihilation, 
     bremstrahlung and compton events for a range of initial particle energies 
@@ -33,9 +34,9 @@ vector_masses = [0.003, 0.010, 0.030, 0.100, 0.300, 1.0]
 vector_strs = ['3MeV', '10MeV', '30MeV', '100MeV', '300MeV', '1GeV']
 BremSamp0 = [np.load(PickDir+"/DarkV/DarkBrem_"+vstr+"_HeavyTarget.npy", allow_pickle=True) for vstr in vector_strs]
 
-TargetMaterials = ['graphite','lead']
-Z = {'graphite':6.0, 'lead':82.0}
-A = {'graphite':12.0, 'lead':207.0}
+TargetMaterials = ['graphite', 'lead']
+Z = {'hydrogen':1.0,'graphite':6.0, 'lead':82.0}
+A = {'hydrogen':1.0,'graphite':12.0, 'lead':207.0}
 
 Process_Files={"ExactBrem":BremSamp0,
                "Comp": CompSamp0,
@@ -55,21 +56,14 @@ FF_dict =      {"PairProd" : g2_elastic,
 
 QSq_functions={"PairProd" : pair_production_q_sq_dimensionless, "Brem"  : brem_q_sq_dimensionless, "ExactBrem":exactbrem_qsq, "Comp": dummy, "Ann": dummy }
 
-neval0 = 300
-n_trials = 100
-
 Z_H=1
 A_H=1
 
 xSec_dict = {}
-xSec_dict_0 = {}
-MF_dict_0 = {}
 samp_dict = {}
 for mVi, mV in enumerate(vector_masses):
     print(mV)
     xSec_dict[mV]={}
-    xSec_dict_0[mV]={}
-    MF_dict_0[mV]={}
     samp_dict[mV]={}
 
     for process_key in Process_Files.keys():
@@ -80,15 +74,11 @@ for mVi, mV in enumerate(vector_masses):
         diff_xsec  =diff_xsections[process_key]
         QSq        =QSq_functions[process_key]
         xSec_dict[mV][process_key]={}
-        xSec_dict_0[mV][process_key]={}
-        MF_dict_0[mV][process_key]={}
         samp_dict[mV][process_key]=[]
         FF_func = FF_dict[process_key]
 
         for tm in TargetMaterials:
             xSec_dict[mV][process_key][tm]=[]
-            xSec_dict_0[mV][process_key][tm]=[]
-            MF_dict_0[mV][process_key][tm]=[]
 
         counter=0
         for ki in tqdm(range(len(process_file))):
@@ -96,54 +86,34 @@ for mVi, mV in enumerate(vector_masses):
             
             E_inc, integrand = process_file[ki]
             save_copy_integrand=copy.deepcopy(integrand)
-            EvtInfo={'E_inc': E_inc, 'm_e': m_electron, 'Z_T': Z_H, 'A_T': A_H, 'mT':A_H, 'alpha_FS': alpha_em, 'mV': mV, 'Eg_min':Egamma_min}
+            EvtInfo={'E_inc': E_inc, 'm_e': m_electron, 'Z_T': Z_H, 'A_T': A_H, 'mT':A_H, 'alpha_FS': alpha_em, 'm_V': mV, 'Eg_min':Egamma_min}
             
             max_F=0
             xSec={}
-            max_F_TM={}
             for tm in TargetMaterials:
                 xSec[tm]=0.0
-                max_F_TM[tm] = 0.0
 
-            integrand.set(max_nhcube=1, neval=neval0)
-            for trial_number in range(n_trials):
-                for x, wgt in integrand.random():
-                    MM_H = wgt*diff_xsec(EvtInfo, x)
-                    if MM_H > max_F:
-                        max_F=MM_H
-                        max_x = np.asarray(x)
-                        max_wgt= wgt 
+            for x, wgt in integrand.random():
+                MM_H = wgt*diff_xsec(EvtInfo, x)
+                if MM_H > max_F:
+                    max_F=MM_H
+                    max_x = np.asarray(x)
+                    max_wgt= wgt 
 
-                    FF_H = FF_func(EvtInfo, QSq(x, EvtInfo))
-
-                    for tm in TargetMaterials:
-                        EvtInfoTM={'E_inc': E_inc, 'm_e': m_electron, 'Z_T': Z[tm], 'A_T': A[tm], 'mT':A[tm], 'alpha_FS': alpha_em, 'mV': mV, 'Eg_min':Egamma_min}
-                        FF= FF_func(EvtInfoTM, QSq(x, EvtInfoTM) )
-                        MM_TM = wgt*diff_xsec(EvtInfoTM, x)
-                        xSec[tm] += MM_TM/n_trials
-                        if MM_TM > max_F_TM[tm]:
-                            max_F_TM[tm] = MM_TM
+                for tm in TargetMaterials:
+                    EvtInfoTM={'E_inc': E_inc, 'm_e': m_electron, 'Z_T': Z[tm], 'A_T': A[tm], 'mT':A[tm], 'alpha_FS': alpha_em, 'm_V': mV, 'Eg_min':Egamma_min}
+                    xSec[tm] += wgt*diff_xsec(EvtInfoTM, x)
 
             for tm in TargetMaterials:
-                xSec_dict_0[mV][process_key][tm].append([E_inc, xSec[tm] ] ) 
-                MF_dict_0[mV][process_key][tm].append(max_F_TM[tm])
+                xSec_dict[mV][process_key][tm].append([E_inc, xSec[tm] ] ) 
+                
+        xSec_dict[mV][process_key][tm]= np.asarray(xSec_dict[mV][process_key][tm] ) 
 
-            samp_dict[mV][process_key].append([E_inc, \
-                                        {"neval":neval0, "max_F": {tm:max_F_TM[tm] for tm in TargetMaterials},\
-                                         "Eg_min":Egamma_min,\
-                                         "integrator": save_copy_integrand}])
-
-        for tm in TargetMaterials:        
-            xSec_dict[mV][process_key][tm]= np.asarray(xSec_dict_0[mV][process_key][tm])
-
-f_xSecs = open(SvDir + "dark_xSec_Dicts.pkl","wb")
-f_samps = open(SvDir + "dark_samp_dicts.pkl","wb")
+f_xSecs = open(SvDir + "Apr18_xSec_Dicts_Dark_Long.pkl","wb")
 
 pickle.dump(xSec_dict,f_xSecs)
-pickle.dump(samp_dict,f_samps)
 
 f_xSecs.close()
-f_samps.close()
 
 
 print("Run Time of Script:  ", datetime.now() - startTime)

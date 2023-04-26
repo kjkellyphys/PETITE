@@ -16,10 +16,10 @@ import sys
 from numpy.random import random as draw_U
 
 
-Z = {'graphite':6.0, 'lead':82.0} #atomic number of different targets
-A = {'graphite':12.0, 'lead':207.2} #atomic mass of different targets
-rho = {'graphite':2.210, 'lead':11.35} #g/cm^3
-dEdx = {'graphite':2.0*rho['graphite'], 'lead':2.0*rho['lead']} #MeV per cm
+Z = {'hydrogen':1.0, 'graphite':6.0, 'lead':82.0} #atomic number of different targets
+A = {'hydrogen':1.0, 'graphite':12.0, 'lead':207.2} #atomic mass of different targets
+rho = {'hydrogen':1.0, 'graphite':2.210, 'lead':11.35} #g/cm^3
+dEdx = {'hydrogen':2.0*rho['hydrogen'], 'graphite':2.0*rho['graphite'], 'lead':2.0*rho['lead']} #MeV per cm
 
 # GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm^2
 GeVsqcm2 = hbarc**2 #Conversion between cross sections in GeV^{-2} to cm^2
@@ -218,8 +218,8 @@ class Shower:
         max_wgt    = sample_dict["max_wgt"]
         neval_vegas= sample_dict["neval"]
 
-        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'm_V': 0, 'Eg_min':self._Egamma_min}
-        event_info_H={'E_inc': Einc, 'm_e': m_electron, 'Z_T': 1.0, 'A_T':1.0, 'mT':1.0, 'alpha_FS': alpha_em, 'm_V': 0, 'Eg_min':self._Egamma_min}
+        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min}
+        event_info_H={'E_inc': Einc, 'm_e': m_electron, 'Z_T': 1.0, 'A_T':1.0, 'mT':1.0, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min}
         diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                                "Comp"     : dsigma_compton_dCT,
                                "Brem"     : dsigma_brem_dimensionless,
