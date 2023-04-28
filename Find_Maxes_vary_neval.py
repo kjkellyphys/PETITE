@@ -24,14 +24,14 @@ startTime = datetime.now()
 Dir0 = os.getcwd()
 PickDir = Dir0 + "/NBP/"
 SvDir  = Dir0 + "/RyanDicts/"
-PPSamp0 = np.load("/Users/kjkelly/Dropbox/ResearchProjects/DarkShowers/LOCAL_Dark_Showers/raw_integrators/PairProd_TMP/PairProdIntegrators_Dimensionless.npy", allow_pickle=True)
+
+PPSamp0 = np.load(PickDir+"PairProduction_AdaptiveMaps.npy", allow_pickle=True)
+#PPSamp0 = np.load("/Users/kjkelly/Dropbox/ResearchProjects/DarkShowers/LOCAL_Dark_Showers/raw_integrators/PairProd_TMP/PairProdIntegrators_Dimensionless.npy", allow_pickle=True)
 BremSamp0 = np.load("/Users/kjkelly/Dropbox/ResearchProjects/DarkShowers/LOCAL_Dark_Showers/raw_integrators/Brem_TMP/BremIntegrators_Dimensionless.npy", allow_pickle=True)
+CompSamp0 = np.load(PickDir+"Compton_AdaptiveMaps.npy", allow_pickle=True)
+AnnSamp0 = np.load(PickDir+"Annihilation_AdaptiveMaps.npy", allow_pickle=True)
 #Brem Samples were generated with Egamma_min = 0.001 GeV = 1 MeV
 Egamma_min = 0.001
-
-CompSamp0 = np.load(PickDir+"ComptonPickles.npy", allow_pickle=True)
-AnnSamp0 = np.load(PickDir+"AnnihilationPickles.npy", allow_pickle=True)
-
 
 TargetMaterials = ['graphite','lead']
 Z = {'graphite':6.0, 'lead':82.0}
@@ -76,8 +76,13 @@ for process_key in Process_Files.keys():
     for ki in tqdm(range(len(process_file))):
         counter=counter+1
         
-        E_inc, integrand = process_file[ki]
-        save_copy_integrand=copy.deepcopy(integrand)
+        if process_key == "Brem":
+            E_inc, integrand = process_file[ki]
+            save_copy=copy.deepcopy(integrand.map)
+        else:
+            E_inc, adaptive_map = process_file[ki]
+            integrand = vg.Integrator(map=adaptive_map, nstrat=nstrat_options[process_key])
+            save_copy = copy.deepcopy(adaptive_map)
         
         pts = []
         max_wgtTimesF=0
@@ -94,32 +99,32 @@ for process_key in Process_Files.keys():
 
                 Z_H=1
                 
-                EvtInfo={'E_inc': E_inc, 'm_e': m_electron, 'Z_T': Z_H, 'alpha_FS': alpha_em, 'm_V': 0, 'Eg_min':0.001}
+                EvtInfo={'E_inc': E_inc, 'm_e': m_electron, 'Z_T': Z_H, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':0.001}
                 MM_H = wgt*diff_xsec(EvtInfo, x)
                 if MM_H > max_wgtTimesF:
                     max_F=MM_H
                     max_x = np.asarray(x)
                     max_wgt= wgt 
 
-                FF_H = FF_func(1.0, m_electron, QSq(x, EvtInfo))
+                FF_H = FF_func(EvtInfo, QSq(x, EvtInfo))
 
                 for tm in TargetMaterials:
                     ZT = Z[tm]
-                    FF= FF_func(ZT, m_electron, QSq(x, EvtInfo) )
+                    EvtInfoTM={'E_inc': E_inc, 'm_e': m_electron, 'Z_T': Z[tm], 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':0.001}
+                    FF= FF_func(EvtInfoTM, QSq(x, EvtInfoTM) )
                     xSec[tm] += MM_H*FF/FF_H/n_trials
 
 
         samp_dict[process_key].append([E_inc, \
-                                      {"neval":neval0, "max_F": max_F, "max_X": max_x, "max_wgt": max_wgt, "Eg_min":Egamma_min,\
-                                       "integrator": save_copy_integrand}])
+                                      {"neval":neval0, "max_F": max_F, "Eg_min":Egamma_min,"integrator": save_copy}])
         for tm in TargetMaterials:
             xSec_dict[process_key][tm].append([E_inc, xSec[tm] ] ) 
             
     xSec_dict[process_key][tm]= np.asarray(xSec_dict[process_key][tm] ) 
     samp_dict[process_key]    = samp_dict[process_key]
 
-f_xSecs = open(SvDir + "Mar24_xSec_Dicts_neval.pkl","wb")
-f_samps = open(SvDir + "Mar24_samp_Dicts_neval.pkl","wb")
+f_xSecs = open(SvDir + "Apr27_xSec_Dicts_neval.pkl","wb")
+f_samps = open(SvDir + "Apr27_samp_Dicts_neval.pkl","wb")
 
 pickle.dump(xSec_dict,f_xSecs)
 pickle.dump(samp_dict,f_samps)

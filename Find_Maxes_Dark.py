@@ -26,18 +26,17 @@ PickDir = Dir0 + "/NBP/"
 SvDir  = Dir0 + "/RyanDicts/"
 #Brem Samples were generated with Egamma_min = 0.001 GeV = 1 MeV
 Egamma_min = 0.001
-CompSamp0 = np.load(PickDir+"ComptonPickles.npy", allow_pickle=True)
-AnnSamp0 = np.load(PickDir+"AnnihilationPickles.npy", allow_pickle=True)
+CompSamp0 = np.load(PickDir+"Compton_AdaptiveMaps.npy", allow_pickle=True)
+AnnSamp0 = np.load(PickDir+"Annihilation_AdaptiveMaps.npy", allow_pickle=True)
 
-vector_masses = [0.003, 0.010, 0.030, 0.100, 0.300, 1.0]
-vector_strs = ['3MeV', '10MeV', '30MeV', '100MeV', '300MeV', '1GeV']
-BremSamp0 = [np.load(PickDir+"/DarkV/DarkBrem_"+vstr+"_HeavyTarget.npy", allow_pickle=True) for vstr in vector_strs]
+darkbrem_adaptivemaps = pickle.load(open(PickDir+"/DarkV/darkbrem_adaptivemaps.p", "rb"))
+vector_masses = list(darkbrem_adaptivemaps.keys())
 
 TargetMaterials = ['graphite','lead']
 Z = {'graphite':6.0, 'lead':82.0}
 A = {'graphite':12.0, 'lead':207.0}
 
-Process_Files={"ExactBrem":BremSamp0,
+Process_Files={"ExactBrem":darkbrem_adaptivemaps,
                "Comp": CompSamp0,
                "Ann": AnnSamp0}
 
@@ -75,7 +74,7 @@ for mVi, mV in enumerate(vector_masses):
     for process_key in Process_Files.keys():
         process_file=Process_Files[process_key]
         if process_key == "ExactBrem":
-            process_file = process_file[mVi]
+            process_file = process_file[mV]
 
         diff_xsec  =diff_xsections[process_key]
         QSq        =QSq_functions[process_key]
@@ -94,8 +93,10 @@ for mVi, mV in enumerate(vector_masses):
         for ki in tqdm(range(len(process_file))):
             counter=counter+1
             
-            E_inc, integrand = process_file[ki]
-            save_copy_integrand=copy.deepcopy(integrand)
+            E_inc, adaptive_map = process_file[ki]
+            integrand = vg.Integrator(map=adaptive_map, nstrat=nstrat_options[process_key])
+            save_copy = copy.deepcopy(adaptive_map)
+
             EvtInfo={'E_inc': E_inc, 'm_e': m_electron, 'Z_T': Z_H, 'A_T': A_H, 'mT':A_H, 'alpha_FS': alpha_em, 'mV': mV, 'Eg_min':Egamma_min}
             
             max_F=0
@@ -131,7 +132,7 @@ for mVi, mV in enumerate(vector_masses):
             samp_dict[mV][process_key].append([E_inc, \
                                         {"neval":neval0, "max_F": {tm:max_F_TM[tm] for tm in TargetMaterials},\
                                          "Eg_min":Egamma_min,\
-                                         "integrator": save_copy_integrand}])
+                                         "integrator": save_copy}])
 
         for tm in TargetMaterials:        
             xSec_dict[mV][process_key][tm]= np.asarray(xSec_dict_0[mV][process_key][tm])

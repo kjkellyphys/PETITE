@@ -9,7 +9,6 @@ from .kinematics import e_to_egamma_fourvecs, e_to_eV_fourvecs, gamma_to_epem_fo
 from .shower import Shower
 from .AllProcesses import *
 
-from tqdm import tqdm
 import sys
 from numpy.random import random as draw_U
 
@@ -91,7 +90,7 @@ class DarkShower(Shower):
         arr = np.asarray(input_list)
         index = (np.abs(arr - input_value)).argmin()
 
-        if arr[index]<input_value:
+        if arr[index]<=input_value:
             return(arr[index])
         else:
             return(arr[index-1])
@@ -201,7 +200,7 @@ class DarkShower(Shower):
 
         """
         if PID == 22:
-            if np.log10(Energy) < self._logEgMinDarkComp:
+            if Energy < self._mV*(1 + self._mV/(2*m_electron)):
                 return 0.0
             else:
                 return self._NSigmaDarkComp(Energy)/(self._NSigmaPP(Energy) + self._NSigmaComp(Energy))
@@ -215,7 +214,7 @@ class DarkShower(Shower):
                 BremPiece = 0.0
             else:
                 BremPiece = self._NSigmaDarkBrem(Energy)
-            if np.log10(Energy) < self._logEeMinDarkAnn:
+            if Energy < (self._mV**2 - m_electron**2)/(2*m_electron):
                 AnnPiece = 0.0
             else:
                 AnnPiece = self._NSigmaDarkAnn(Energy)
@@ -233,9 +232,10 @@ class DarkShower(Shower):
         integrand = dark_sample_dict["integrator"]
         max_F      = dark_sample_dict["max_F"][self._target_material]*self._maxF_fudge_global
         neval_vegas= dark_sample_dict["neval"]
+        integrand=vg.Integrator(map=integrand, max_nhcube=1, neval=neval_vegas)
 
         event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min}
-        event_info_H={'E_inc': Einc, 'm_e': m_electron, 'Z_T': 1.0, 'A_T':1.0, 'mT':1.0, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min}
+        #event_info_H={'E_inc': Einc, 'm_e': m_electron, 'Z_T': 1.0, 'A_T':1.0, 'mT':1.0, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min}
 
         diff_xsection_options={"Comp"     : dsigma_compton_dCT,
                                "ExactBrem": dsig_etl_helper,
@@ -257,7 +257,6 @@ class DarkShower(Shower):
         else:
             raise Exception("Your process is not in the list")
 
-        integrand.set(max_nhcube=1, neval=neval_vegas)
         if VB:
             sampcount = 0
         n_integrators_used = 0
@@ -302,7 +301,7 @@ class DarkShower(Shower):
     def GetPositronDarkBF(self, Energy):
         """Branching fraction for a positron to undergo dark brem vs dark 
         annihilation"""
-        if np.log10(Energy) < self._logEeMinDarkAnn:
+        if Energy < (self._mV**2 - m_electron**2)/(2*m_electron):
             return 1.0
         else:
             return self._NSigmaDarkBrem(Energy)/(self._NSigmaDarkBrem(Energy) + self._NSigmaDarkAnn(Energy))
@@ -464,7 +463,7 @@ class DarkShower(Shower):
             ShowerToSamp = self.generate_shower(PID0, p40, ParPID)
         
         NewShower = []
-        for ap in tqdm(ShowerToSamp):
+        for ap in ShowerToSamp:
             if self.GetBSMWeights(ap.get_ids()[0], ap.get_pf()[0]) == 0.0:
                 continue
             if ap.get_ids()[0] == 11:
@@ -481,7 +480,7 @@ class DarkShower(Shower):
                 else:
                     npart = self.DarkAnnihilationSample(ap)
             elif ap.get_ids()[0] == 22:
-                if np.log10(ap.get_pf()[0]) < self._logEgMinDarkComp:
+                if ap.get_pf()[0] < self._mV*(1.0 + self._mV/(2*m_electron)):
                     continue
                 npart = self.DarkComptonSample(ap)
             NewShower.append(npart)

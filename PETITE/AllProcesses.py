@@ -502,7 +502,7 @@ nitn_options={"PairProd":10,
               "Moller":20,
               "Bhabha":20,
               "Ann":20}
-nstrat_options={"PairProd":[20, 20, 20, 20],
+nstrat_options={"PairProd":[40, 40, 40, 40],
                 "Brem":[40, 40, 40, 40],
                 "DarkBrem":[15, 25, 25, 15],
                 "ExactBrem":[100,100,40],
