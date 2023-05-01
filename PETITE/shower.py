@@ -58,15 +58,13 @@ class Shower:
         self.set_samples()
 
         self._maxF_fudge_global=maxF_fudge_global
-
-        #self._neval_vegas=neval
         self._max_n_integrators=max_n_integrators
 
                 
         
     def load_sample(self, dict_dir, process):
         
-        sample_file=open(dict_dir + "samp_Dicts_neval.pkl", 'rb')
+        sample_file=open(dict_dir + "samp_Dicts.pkl", 'rb')
         sample_dict=pickle.load(sample_file)
         sample_file.close()
 
@@ -78,7 +76,7 @@ class Shower:
     
 
     def load_cross_section(self, dict_dir, process, target_material):
-        cross_section_file=open( dict_dir + "xSec_Dicts_neval.pkl", 'rb')
+        cross_section_file=open( dict_dir + "xSec_Dicts.pkl", 'rb')
         cross_section_dict=pickle.load(cross_section_file)
         cross_section_file.close()
 
@@ -212,10 +210,10 @@ class Shower:
         # this grabs the dictionary part rather than the energy. 
         sample_dict=sample_list[process][LU_Key][1]
 
-        integrand = sample_dict["integrator"]
+        adaptive_map = sample_dict["adaptive_map"]
         max_F      = sample_dict["max_F"]*self._maxF_fudge_global
         neval_vegas= sample_dict["neval"]
-        integrand=vg.Integrator(map=integrand, max_nhcube=1, neval=neval_vegas)
+        integrand=vg.Integrator(map=adaptive_map, max_nhcube=1, neval=neval_vegas)
 
         event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min}
         event_info_H={'E_inc': Einc, 'm_e': m_electron, 'Z_T': 1.0, 'A_T':1.0, 'mT':1.0, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min}

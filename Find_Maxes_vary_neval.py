@@ -26,10 +26,10 @@ PickDir = Dir0 + "/NBP/"
 SvDir  = Dir0 + "/RyanDicts/"
 
 PPSamp0 = np.load(PickDir+"PairProduction_AdaptiveMaps.npy", allow_pickle=True)
-#PPSamp0 = np.load("/Users/kjkelly/Dropbox/ResearchProjects/DarkShowers/LOCAL_Dark_Showers/raw_integrators/PairProd_TMP/PairProdIntegrators_Dimensionless.npy", allow_pickle=True)
-BremSamp0 = np.load("/Users/kjkelly/Dropbox/ResearchProjects/DarkShowers/LOCAL_Dark_Showers/raw_integrators/Brem_TMP/BremIntegrators_Dimensionless.npy", allow_pickle=True)
+BremSamp0 = np.load(PickDir+"Bremsstrahlung_AdaptiveMaps.npy", allow_pickle=True)
 CompSamp0 = np.load(PickDir+"Compton_AdaptiveMaps.npy", allow_pickle=True)
 AnnSamp0 = np.load(PickDir+"Annihilation_AdaptiveMaps.npy", allow_pickle=True)
+
 #Brem Samples were generated with Egamma_min = 0.001 GeV = 1 MeV
 Egamma_min = 0.001
 
@@ -76,13 +76,9 @@ for process_key in Process_Files.keys():
     for ki in tqdm(range(len(process_file))):
         counter=counter+1
         
-        if process_key == "Brem":
-            E_inc, integrand = process_file[ki]
-            save_copy=copy.deepcopy(integrand.map)
-        else:
-            E_inc, adaptive_map = process_file[ki]
-            integrand = vg.Integrator(map=adaptive_map, nstrat=nstrat_options[process_key])
-            save_copy = copy.deepcopy(adaptive_map)
+        E_inc, adaptive_map = process_file[ki]
+        integrand = vg.Integrator(map=adaptive_map, nstrat=nstrat_options[process_key])
+        save_copy = copy.deepcopy(adaptive_map)
         
         pts = []
         max_wgtTimesF=0
@@ -116,15 +112,15 @@ for process_key in Process_Files.keys():
 
 
         samp_dict[process_key].append([E_inc, \
-                                      {"neval":neval0, "max_F": max_F, "Eg_min":Egamma_min,"integrator": save_copy}])
+                                      {"neval":neval0, "max_F": max_F, "Eg_min":Egamma_min,"adaptive_map": save_copy}])
         for tm in TargetMaterials:
             xSec_dict[process_key][tm].append([E_inc, xSec[tm] ] ) 
             
     xSec_dict[process_key][tm]= np.asarray(xSec_dict[process_key][tm] ) 
     samp_dict[process_key]    = samp_dict[process_key]
 
-f_xSecs = open(SvDir + "Apr27_xSec_Dicts_neval.pkl","wb")
-f_samps = open(SvDir + "Apr27_samp_Dicts_neval.pkl","wb")
+f_xSecs = open(SvDir + "xSec_Dicts.pkl","wb")
+f_samps = open(SvDir + "samp_Dicts.pkl","wb")
 
 pickle.dump(xSec_dict,f_xSecs)
 pickle.dump(samp_dict,f_samps)
