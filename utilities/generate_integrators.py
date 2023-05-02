@@ -34,8 +34,8 @@ def generate_vector_mass_string(mV):
 
 # put more details in readme eg Z, A etc
 def make_readme(params, process, file_info):
-    [save_dir, save_dir_temp] = file_info
-    readme_file = open(save_dir_temp + "readme.txt", 'w')
+    save_dir = file_info + "/"
+    readme_file = open(save_dir + "readme.txt", 'w')
     readme_file.write("Integrators for " + process)
     if process == 'ExactBrem':
         line = "\nTarget has (Z, A, mass) = ({atomic_Z}, {atomic_A}, {atomic_mass})\n".\
@@ -45,6 +45,7 @@ def make_readme(params, process, file_info):
     for index, energy in enumerate(params['initial_energy_list']):
         line = "{en:9.3f}  |  {indx:3d}.p\n".format(en = energy, indx = index)
         readme_file.write(line)
+    readme_file.write(f'Integrators made on {datetime.datetime.now()}')
     readme_file.close()
     return()
 
@@ -53,8 +54,8 @@ def make_readme(params, process, file_info):
 ### FIX files names etc
 def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_index):
     params['E_inc'] = params['initial_energy_list'][energy_index]
-    [save_dir, save_dir_temp] = file_info
-    strsaveB = save_dir_temp + str(energy_index) + ".p"
+    save_dir = file_info + "/"
+    strsaveB = save_dir + str(energy_index) + ".p"
     if os.path.exists(strsaveB):
         print("Already generated integrator for this point\n")
     else:
@@ -62,13 +63,15 @@ def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_ind
         VEGAS_integrator = vegas_integration(params, process, verbose=verbosity_mode, mode='Pickle') 
         #VEGAS_integrator = 0
         print('Done VEGAS for energy index ',energy_index)
-        pickle.dump(np.array([params['E_inc'], VEGAS_integrator]), open(strsaveB, "wb"))
-        print('File created: '+strsaveB)
+        object_to_save = [params['E_inc'], VEGAS_integrator]
+        #print(object_to_save)
+        pickle.dump(object_to_save, open(strsaveB, "wb"))
+        print('File created: ' + strsaveB)
     return()
 
 
 
-def make_integrators(params, process, verbosity_mode):
+def make_integrators(params, process):
     """
     Generate vegas integrator pickles for the following parameters:
         mV : dark vector mass in GeV
@@ -80,6 +83,7 @@ def make_integrators(params, process, verbosity_mode):
     atomic_A = params['A_T']
     atomic_Z = params['Z_T']
     mT = params['mT'] 
+    verbosity_mode = params['verbosity']
     params['m_e'] = m_electron
     params['alpha_FS'] = alpha_em
 
@@ -100,22 +104,39 @@ def make_integrators(params, process, verbosity_mode):
         target_specific_label = "Z_" + str(atomic_Z) + "_A_" + str(atomic_A) + "_mT_" + str(mT)
         save_dir_temp = save_dir + process + target_specific_label + "_TMP/" 
     else:
-        save_dir_temp = save_dir + process + "_TMP/"
+        save_dir = save_dir + process
     
-    file_info = [save_dir, save_dir_temp]
-    print(file_info)
-    if os.path.exists(save_dir_temp) == False:
-        os.system("mkdir -p " + save_dir_temp)
+    #print("Saving files in ", save_dir)
+    if os.path.exists(save_dir) == False:
+        os.system("mkdir -p " + save_dir)
     # pool parallelizes the generation of integrators    
     pool = Pool()
-    res = pool.map(partial(run_vegas_in_parallel, params, process, verbosity_mode, file_info), energy_index_list)
+    res = pool.map(partial(run_vegas_in_parallel, params, process, verbosity_mode, save_dir), energy_index_list)
     print('make_integrators - done')
     
-    make_readme(params, process, file_info)#make the human readable file contining info on params of run and put in directory 
+    make_readme(params, process, save_dir)#make the human readable file contining info on params of run and put in directory 
     
-    
-
     return()
+
+# Set up parameters for and then run find_maxes
+def call_find_maxes(params, process):
+    import find_maxes
+    if (args.run_find_maxes):
+        print("Now running Find_Maxes....please wait")
+        find_maxes_params = params
+        find_maxes_params['process'] = process
+        find_maxes_params['import_directory'] = params['save_location'] + "/" + process
+        find_maxes_params['save_location'] = params['find_maxes_save_location']
+        print(find_maxes_params)
+        find_maxes.main(find_maxes_params)
+    else:
+        print('Not running find_maxes')
+    
+    return()
+
+
+
+
 
 # def make_readme(args): #FIXME: add right path, discuss and implement what exatly goes here.
 #     """Writes a short readme file with the details of the pickles generated"""
@@ -167,7 +188,8 @@ if __name__ == '__main__':
             initial_energy_list = np.logspace(np.log10(args.min_energy), np.log10(args.max_energy), args.num_energy_pts)
             params.update({'mV' : 0})
             params.update({'initial_energy_list': initial_energy_list})
-            make_integrators(params, process, verbosity_mode)
+            make_integrators(params, process)
+            call_find_maxes(params, process)
     else:# doing DarkBrem
         for mV in args.mV:
             process = 'ExactBrem'
@@ -176,12 +198,10 @@ if __name__ == '__main__':
             initial_energy_list = np.logspace(np.log10(min_energy), np.log10(args.max_energy), args.num_energy_pts)
             params.update({'mV' : mV})
             params.update({'initial_energy_list': initial_energy_list})
-            make_integrators(params, process, verbosity_mode)
+            make_integrators(params, process)
+            call_find_maxes(params, process)
     
-    if (args.run_find_maxes):
-        print("Now running Find_Maxes....please wait")
-    else:
-        print("Goodbye! We both did it.")
+    print("Goodbye!")
 
 
     

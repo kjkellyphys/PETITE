@@ -127,6 +127,11 @@ def dsigma_brem_dimensionless(event_info, phase_space_par_list):
         w, d, dp, ph = Egamma_min + x1*(ep - m_electron - Egamma_min), ep/(2*m_electron)*(x2+x3), ep/(2*m_electron)*(x2-x3), x4*2*np.pi
 
         epp = ep - w
+        if epp < m_electron:
+            dSigs.append(0.0)
+        else:
+            qsqT = m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
+            PF = 8.0/np.pi*Z**2*alpha_em*(alpha_em/m_electron)**2*(epp*m_electron**4)/(w*ep*qsqT**2)*d*dp
 
         if not((Egamma_min < w < ep - m_electron) and (m_electron < epp < ep) and (d > 0.) and (dp > 0.)):
             dSigs.append(0.0)
@@ -135,7 +140,6 @@ def dsigma_brem_dimensionless(event_info, phase_space_par_list):
             PF = 8.0/np.pi*alpha_em*(alpha_em/m_electron)**2*(epp*m_electron**4)/(w*ep*qsq**2)*d*dp
             jacobian_factor = np.pi*ep**2*(ep - m_electron - Egamma_min)/m_electron**2
             FF_hydrogen = g2_elastic(event_info_H, qsq)
-
             T1 = d**2/(1 + d**2)**2
             T2 = dp**2/(1 + dp**2)**2
             T3 = w**2/(2*ep*epp)*(d**2 + dp**2)/((1 + d**2)*(1 + dp**2))
@@ -354,7 +358,6 @@ def dsigma_pairprod_dimensionless(event_info, phase_space_par_list):
         epp, dp, dm, ph = m_electron + x1*(w-2*m_electron), w/(2*m_electron)*(x2+x3), w/(2*m_electron)*(x2-x3), x4*2*np.pi
 
         epm = w - epp
-
         if not((m_electron < epm < w) and (m_electron < epp < w) and (dm > 0.) and (dp > 0.)):
             dSigs.append(0.0)
         else:

@@ -25,17 +25,7 @@ NBP/graphite/DarkV/DarkBremEvts_100MeV.npy
 NBP/graphite/DarkV/DarkBremXSec_100MeV.npy
 examples/.ipynb_checkpoints/PETITEShower-checkpoint.ipynb
 .vscode/settings.json
-raw_integrators/DarkBremZ_6.0_A_12.0_mT_12.0_TMP/0.p
-raw_integrators/DarkBremZ_6.0_A_12.0_mT_12.0_TMP/1.p
-raw_integrators/DarkBremZ_6.0_A_12.0_mT_12.0_TMP/2.p
-raw_integrators/DarkBremZ_6.0_A_12.0_mT_12.0_TMP/3.p
-raw_integrators/DarkBremZ_6.0_A_12.0_mT_12.0_TMP/4.p
-raw_integrators/DarkBremZ_6.0_A_12.0_mT_12.0_TMP/5.p
-raw_integrators/DarkBremZ_6.0_A_12.0_mT_12.0_TMP/6.p
-raw_integrators/DarkBremZ_6.0_A_12.0_mT_12.0_TMP/7.p
-raw_integrators/DarkBremZ_6.0_A_12.0_mT_12.0_TMP/8.p
-raw_integrators/DarkBremZ_6.0_A_12.0_mT_12.0_TMP/9.p
-raw_integrators/DarkBremZ_6.0_A_12.0_mT_12.0_TMP/readme.txt
+raw_integrators/*
 .DS_Store
 .gitignore
 examples/.DS_Store
@@ -53,4 +43,6 @@ raw_integrators/Comp_TMP/0.p
 .gitignore
 raw_integrators/Comp_TMP/1.p
 raw_integrators/Comp_TMP/readme.txt
+.gitignore
+cooked_integrators/*
 .gitignore

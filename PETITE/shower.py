@@ -63,7 +63,6 @@ class Shower:
                 
         
     def load_sample(self, dict_dir, process):
-        
         sample_file=open(dict_dir + "samp_Dicts.pkl", 'rb')
         sample_dict=pickle.load(sample_file)
         sample_file.close()
@@ -181,9 +180,7 @@ class Shower:
         self._NSigmaAnn = interp1d(np.transpose(AnnS)[0], ne*GeVsqcm2*np.transpose(AnnS)[1])
         self._NSigmaComp = interp1d(np.transpose(CS)[0], ne*GeVsqcm2*np.transpose(CS)[1])
 
-    def get_mfp(self, particle):
-        PID = particle.get_ids()[0]
-        Energy = particle.get_p0()[0]
+    def get_mfp(self, PID, Energy): #FIXME: variable PID is not defined
         """Returns particle mean free path in meters for PID=22 (photons), 
         11 (electrons) or -11 (positrons) as a function of energy in GeV"""
         if PID == 22:
@@ -222,7 +219,7 @@ class Shower:
                                "Brem"     : dsigma_brem_dimensionless,
                                "Ann"      : dsigma_annihilation_dCT }
         
-        formfactor_dict              ={"PairProd" : g2_elastic,
+        formfactor_dict      ={"PairProd" : g2_elastic,
                                "Comp"     : unity,
                                "Brem"     : g2_elastic,
                                "Ann"      : unity }
@@ -482,7 +479,7 @@ class Shower:
             Part0.set_rf(Part0.get_rf())
             return Part0
         else:
-            mfp = self.get_mfp(Part0)
+            mfp = self.get_mfp(Part0.get_ids()[0], Part0.get_p0()[0])
             distC = np.random.uniform(0.0, 1.0)
             dist = mfp*np.log(1.0/(1.0-distC))
             if np.abs(Part0.get_ids()[0]) == 11:

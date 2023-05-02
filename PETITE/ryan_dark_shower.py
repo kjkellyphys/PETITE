@@ -59,12 +59,7 @@ class DarkShower(Shower):
 
 
         self._maxF_fudge_global=maxF_fudge_global
-
-        #self._neval_vegas=neval
         self._max_n_integrators=max_n_integrators
-
-
-
   
     
     def set_dark_dict_dir(self, value):
@@ -144,6 +139,7 @@ class DarkShower(Shower):
         
         if target_material in dark_cross_section_dict[process]:
             return(dark_cross_section_dict[process][target_material])
+
         else:
             raise Exception("Target Material is not in library")
 
@@ -166,7 +162,6 @@ class DarkShower(Shower):
         self._logEeMinDarkBrem, self._logEeSSDarkBrem = np.log10(self._EeVecDarkBrem[0]), np.log10(self._EeVecDarkBrem[1]) - np.log10(self._EeVecDarkBrem[0])
         self._logEeMinDarkAnn, self._logEeSSDarkAnn = np.log10(self._EeVecDarkAnn[0]), np.log10(self._EeVecDarkAnn[1]) - np.log10(self._EeVecDarkAnn[0])
         self._logEgMinDarkComp, self._logEgSSDarkComp= np.log10(self._EgVecDarkComp[0]), np.log10(self._EgVecDarkComp[1]) - np.log10(self._EgVecDarkComp[0])
-
 
 
     def get_DarkBremXSec(self):
@@ -249,7 +244,6 @@ class DarkShower(Shower):
                                 "Comp"    : dummy, 
                                 "Ann"     : dummy }
 
-
         if process in diff_xsection_options:
             diff_xsec_func = diff_xsection_options[process]
             FF_func        = formfactor_dict[process]
@@ -280,23 +274,6 @@ class DarkShower(Shower):
             return np.concatenate([list(x), [sampcount]])
         else:
             return(x)
-
-
-###      OLD CODE  |   CAN EVENTUALLY DELETE 
-#        integrand.set(max_nhcube=1, neval=self._neval_vegas)
-#        if VB:
-#           sampcount = 0
-#        for x,wgt in integrand.random():
-#            FF_eval=FF_func(event_info['Z_T'], m_electron, QSq_func(x, m_electron, event_info['E_inc'] ) )
-#            if VB:
-#                sampcount += 1  
-#            if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x)*FF_eval:
-#                break
-#        if VB:
-#            return np.concatenate([list(x), [sampcount]])
-#        else:
-#           return(x)
-
 
     def GetPositronDarkBF(self, Energy):
         """Branching fraction for a positron to undergo dark brem vs dark 
@@ -331,7 +308,6 @@ class DarkShower(Shower):
         EV = sample_event[0]*Ee0
         ct = (1 - 10**sample_event[1])
         EVf, pVxfZF, pVyfZF, pVzfZF = e_to_eV_fourvecs(Ee0, m_electron, EV, self.get_mV(), ct, 0, 0)[2]
-
         pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
         pV3LF = np.dot(RM, pV3ZF)
 
@@ -377,7 +353,6 @@ class DarkShower(Shower):
         #NFVs = Ann_FVs(EeMod, meT, MVT, SampEvt[0])[1]
         NFVs = annihilation_fourvecs(Ee0, me, self.get_mV(), sample_event[0])[1]
         GenType = process_code['Ann']
-
         EVf, pVxfZF, pVyfZF, pVzfZF = NFVs
         pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
         pV3LF = np.dot(RM, pV3ZF)
