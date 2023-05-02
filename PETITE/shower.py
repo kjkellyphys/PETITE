@@ -16,10 +16,10 @@ import sys
 from numpy.random import random as draw_U
 
 
-Z = {'graphite':6.0, 'lead':82.0} #atomic number of different targets
-A = {'graphite':12.0, 'lead':207.2} #atomic mass of different targets
-rho = {'graphite':2.210, 'lead':11.35} #g/cm^3
-dEdx = {'graphite':2.0*rho['graphite'], 'lead':2.0*rho['lead']} #MeV per cm
+Z = {'hydrogen':1.0, 'graphite':6.0, 'lead':82.0} #atomic number of different targets
+A = {'hydrogen':1.0, 'graphite':12.0, 'lead':207.2} #atomic mass of different targets
+rho = {'hydrogen':1.0, 'graphite':2.210, 'lead':11.35} #g/cm^3
+dEdx = {'hydrogen':2.0*rho['hydrogen'], 'graphite':2.0*rho['graphite'], 'lead':2.0*rho['lead']} #MeV per cm
 
 # GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm^2
 GeVsqcm2 = hbarc**2 #Conversion between cross sections in GeV^{-2} to cm^2
@@ -27,12 +27,14 @@ cmtom = 0.01
 mp0 = m_proton_grams # proton mass in grams
 
 process_code = {'Brem':0, 'Ann': 1, 'PairProd': 2, 'Comp': 3}
+#Egamma_min = 0.001
+#FIXME incorporate the minimum brem-photon energy used in training into stored, dictionary information somewhere
 
 class Shower:
     """ Representation of a shower
 
     """
-    def __init__(self, dict_dir, target_material, min_energy, maxF_fudge_global=1.0,neval=30,max_n_integrators=int(1e4)):
+    def __init__(self, dict_dir, target_material, min_energy, maxF_fudge_global=1,max_n_integrators=int(1e4)):
         """Initializes the shower object.
         Args:
             dict_dir: directory containing the pre-computed VEGAS integrators and auxillary info.
@@ -56,13 +58,11 @@ class Shower:
         self.set_samples()
 
         self._maxF_fudge_global=maxF_fudge_global
-
-        self._neval_vegas=neval
         self._max_n_integrators=max_n_integrators
 
                 
         
-    def load_sample(self, dict_dir, process): 
+    def load_sample(self, dict_dir, process):
         sample_file=open(dict_dir + "samp_Dicts.pkl", 'rb')
         sample_dict=pickle.load(sample_file)
         sample_file.close()
@@ -122,10 +122,10 @@ class Shower:
 
     def set_samples(self):
         self._loaded_samples={}
-        for process in process_code.keys():
-            self._loaded_samples[process]= \
-                self.load_sample(self._dict_dir, process)
-
+        for Process in process_code.keys():
+            self._loaded_samples[Process]= \
+                self.load_sample(self._dict_dir, Process)
+        self._Egamma_min = self._loaded_samples['Brem'][0][1]['Eg_min']
         
     def get_n_targets(self):
         """Returns nuclear and electron target densities for the 
@@ -200,8 +200,6 @@ class Shower:
         return b0/(b0+b1)
 
 
-
-
     def draw_sample(self,Einc,LU_Key,process,VB=False):
 
         sample_list=self._loaded_samples 
@@ -209,15 +207,16 @@ class Shower:
         # this grabs the dictionary part rather than the energy. 
         sample_dict=sample_list[process][LU_Key][1]
 
-        integrand = sample_dict["integrator"]
+        adaptive_map = sample_dict["adaptive_map"]
         max_F      = sample_dict["max_F"]*self._maxF_fudge_global
-        max_X      = sample_dict["max_X"]
-        max_wgt    = sample_dict["max_wgt"]
+        neval_vegas= sample_dict["neval"]
+        integrand=vg.Integrator(map=adaptive_map, max_nhcube=1, neval=neval_vegas)
 
-        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'alpha_FS': alpha_em, 'm_V': 0}
-        diff_xsection_options={"PairProd" : dsigma_pairprod_dP_T,
+        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min}
+        event_info_H={'E_inc': Einc, 'm_e': m_electron, 'Z_T': 1.0, 'A_T':1.0, 'mT':1.0, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min}
+        diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                                "Comp"     : dsigma_compton_dCT,
-                               "Brem"     : dsigma_brem_dP_T,
+                               "Brem"     : dsigma_brem_dimensionless,
                                "Ann"      : dsigma_annihilation_dCT }
         
         formfactor_dict      ={"PairProd" : g2_elastic,
@@ -225,7 +224,7 @@ class Shower:
                                "Brem"     : g2_elastic,
                                "Ann"      : unity }
 
-        QSq_dict             ={"PairProd" : pair_production_q_sq, "Brem"     : brem_q_sq, "Comp": dummy, "Ann": dummy }
+        QSq_dict             ={"PairProd" : pair_production_q_sq_dimensionless, "Brem"     : brem_q_sq_dimensionless, "Comp": dummy, "Ann": dummy }
 
         
         if process in diff_xsection_options:
@@ -235,18 +234,18 @@ class Shower:
         else:
             raise Exception("Your process is not in the list")
 
-        integrand.set(max_nhcube=1, neval=self._neval_vegas)
         if VB:
             sampcount = 0
-        sample_found = False
         n_integrators_used = 0
+        sample_found = False
         while sample_found is False and n_integrators_used < self._max_n_integrators:
             n_integrators_used += 1
             for x,wgt in integrand.random():
-                FF_eval=FF_func(event_info['Z_T'], m_electron, QSq_func(x, m_electron, event_info['E_inc'] ) )/event_info['Z_T']**2
+                FF_eval=FF_func(event_info, QSq_func(x, event_info ) )/event_info['Z_T']**2
+                FF_H = FF_func(event_info_H, QSq_func(x, event_info_H) ) 
                 if VB:
                     sampcount += 1  
-                if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x)*FF_eval:
+                if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x)*FF_eval/FF_H:
                     sample_found = True
                     break
         if sample_found is False:
@@ -285,10 +284,14 @@ class Shower:
         LUKey = LUKey + 1
         
         sample_event = self.draw_sample(Ee0, LUKey, 'Brem', VB=VB)
-
+        x1, x2, x3, x4 = sample_event[:4]
+        w = self._Egamma_min + x1*(Ee0 - m_electron - self._Egamma_min)
+        ct = np.cos((x2+x3)/2)
+        ctp = np.cos((x2-x3)*Ee0/(2*(Ee0-w)))
+        ph = x4*2.0*np.pi
                 
         # reconstruct final electron and photon 4-momenta from the MC-sampled variables
-        NFVs = e_to_egamma_fourvecs(Ee0, m_electron, sample_event[0], np.cos(m_electron/Ee0*sample_event[1]), np.cos(m_electron/(Ee0-sample_event[0])*sample_event[2]), sample_event[3])
+        NFVs = e_to_egamma_fourvecs(Ee0, m_electron, w, ct, ctp, ph)
 
         Eef, pexfZF, peyfZF, pezfZF = NFVs[1]
         Egf, pgxfZF, pgyfZF, pgzfZF = NFVs[2]
@@ -382,11 +385,15 @@ class Shower:
         LUKey = int((np.log10(Eg0) - self._logEgMinPP)/self._logEgSSPP)
         LUKey = LUKey + 1
         
-        SampEvt = self.draw_sample(Eg0, LUKey, 'PairProd', VB=VB)
-
+        sample_event = self.draw_sample(Eg0, LUKey, 'PairProd', VB=VB)
+        x1, x2, x3, x4 = sample_event[:4]
+        epp = m_electron + x1*(Eg0-2*m_electron)
+        ctp = np.cos(Eg0*(x2+x3)/(2*epp))
+        ctm = np.cos(Eg0*(x2-x3)/(2*(Eg0-epp)))
+        ph = x4*2*np.pi
         
         # reconstruct final electron and positron 4-momenta from the MC-sampled variables
-        NFVs = gamma_to_epem_fourvecs(Eg0, m_electron, SampEvt[0], np.cos(m_electron/Eg0*SampEvt[1]), np.cos(m_electron/Eg0*SampEvt[2]), SampEvt[3])
+        NFVs = gamma_to_epem_fourvecs(Eg0, m_electron, epp, ctp, ctm, ph)
         Eepf, pepxfZF, pepyfZF, pepzfZF = NFVs[1]
         Eemf, pemxfZF, pemyfZF, pemzfZF = NFVs[2]
 
@@ -400,7 +407,7 @@ class Shower:
         init_IDs = Phot0.get_ids()
 
         if VB:
-            newparticlewgt = SampEvt[-1]
+            newparticlewgt = sample_event[-1]
         else:
             newparticlewgt = 1.0
 

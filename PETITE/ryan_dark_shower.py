@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d
 
 from .moliere import get_scattered_momentum 
 from .particle import Particle
-from .kinematics import eegFourVecs, eeVFourVecs, gepemFourVecs, Compton_FVs, Ann_FVs
+from .kinematics import e_to_egamma_fourvecs, e_to_eV_fourvecs, gamma_to_epem_fourvecs, compton_fourvecs, annihilation_fourvecs
 from .shower import Shower
 from .AllProcesses import *
 
@@ -15,20 +15,21 @@ from numpy.random import random as draw_U
 me = 0.000511
         
 
-Z = {'graphite':6.0, 'lead':82.0} #atomic number of different targets
-A = {'graphite':12.0, 'lead':207.2} #atomic mass of different targets
+Z = {'hydrogen':1.0, 'graphite':6.0, 'lead':82.0} #atomic number of different targets
+A = {'hydrogen':1.0, 'graphite':12.0, 'lead':207.2} #atomic mass of different targets
 
 GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm^2
 cmtom = 0.01
 mp0 = 1.673e-24 #g
 
-process_code = {'dark_Brem':0, 'dark_Ann': 1, 'dark_Comp': 3}
+process_code = {'ExactBrem':0, 'Ann': 1, 'Comp': 3}
 
 class DarkShower(Shower):
     """ A class to reprocess an existing EM shower to generate dark photons
     """
 
-    def __init__(self, dict_dir, target_material, min_energy, mV_in_GeV , mode="exact", maxF_fudge_global=1,neval=300):
+    def __init__(self, dict_dir, target_material, min_energy, mV_in_GeV , \
+                          mode="exact", maxF_fudge_global=1,max_n_integrators=int(1e4)):
         super().__init__(dict_dir, target_material, min_energy)
         """Initializes the shower object.
         Args:
@@ -50,7 +51,7 @@ class DarkShower(Shower):
         self.set_material_properties()
         self.set_n_targets()
         self.set_mV_list(dict_dir)
-        
+        self.set_mV(mV_in_GeV, mode)
         
         self.set_dark_cross_sections()
         self.set_dark_NSigmas()
@@ -58,10 +59,7 @@ class DarkShower(Shower):
 
 
         self._maxF_fudge_global=maxF_fudge_global
-        self._neval_vegas=neval
-
-
-
+        self._max_n_integrators=max_n_integrators
   
     
     def set_dark_dict_dir(self, value):
@@ -78,7 +76,7 @@ class DarkShower(Shower):
         outer_dict=pickle.load(sample_file)
         sample_file.close()
 
-        mass_list=outer_dict.keys()
+        mass_list=list(outer_dict.keys())
 
         self._mV_list=mass_list
 
@@ -87,11 +85,10 @@ class DarkShower(Shower):
         arr = np.asarray(input_list)
         index = (np.abs(arr - input_value)).argmin()
 
-        if arr[index]<input_value:
+        if arr[index]<=input_value:
             return(arr[index])
         else:
             return(arr[index-1])
-
 
     def set_mV(self, value, mode):
         """Set MVStr to value and extract the corresponding numerical mass of the dark photon"""
@@ -109,7 +106,7 @@ class DarkShower(Shower):
         """Get the numerical value of the dark vector mass"""
         return self._mV
     
-    def load_sample(self, dict_dir, process): 
+    def load_dark_sample(self, dict_dir, process): 
         sample_file=open(dict_dir + "dark_samp_dicts.pkl", 'rb')
         outer_dict=pickle.load(sample_file)
         sample_file.close()
@@ -123,25 +120,26 @@ class DarkShower(Shower):
         
 
     def set_dark_samples(self):
-        self._loaded_samples={}
+        self._loaded_dark_samples={}
         for process in process_code.keys():
-            self._loaded_samples[process]= \
-                self.load_sample(self._dict_dir, process, self._target_material)
+            self._loaded_dark_samples[process]= \
+                self.load_dark_sample(self._dict_dir, process)
             
 
 
-    def load_cross_section(self, dict_dir, process, target_material,mV):
-        cross_section_file=open( dict_dir + "dark_xSec_Dicts.pkl", 'rb')
-        outer_dict=pickle.load(cross_section_file)
-        cross_section_file.close()
+    def load_dark_cross_section(self, dict_dir, process, target_material):
+        dark_cross_section_file=open( dict_dir + "dark_xSec_Dicts.pkl", 'rb')
+        outer_dict=pickle.load(dark_cross_section_file)
+        dark_cross_section_file.close()
 
-        cross_section_dict=outer_dict[self._mV_estimator]
+        dark_cross_section_dict=outer_dict[self._mV_estimator]
 
-        if process not in cross_section_dict:
+        if process not in dark_cross_section_dict:
             raise Exception("Process String does not match library")
         
-        if target_material in cross_section_dict[process]:
-            return(cross_section_dict[process][target_material])
+        if target_material in dark_cross_section_dict[process]:
+            return(dark_cross_section_dict[process][target_material])
+
         else:
             raise Exception("Target Material is not in library")
 
@@ -152,21 +150,18 @@ class DarkShower(Shower):
         """
 
         # These contain only the cross sections for the chosen target material
-        self._dark_brem_cross_section = self.load_cross_section(self._dict_dir, 'DarkBrem', self._target_material)
-        self._dark_annihilation_cross_section  = self.load_cross_section(self._dict_dir, 'DarkAnn', self._target_material) 
-        self._dark_compton_cross_section = self.load_cross_section(self._dict_dir, 'DarkComp', self._target_material) 
+        self._dark_brem_cross_section = self.load_dark_cross_section(self._dict_dir, 'ExactBrem', self._target_material)
+        self._dark_annihilation_cross_section  = self.load_dark_cross_section(self._dict_dir, 'Ann', self._target_material) 
+        self._dark_compton_cross_section = self.load_dark_cross_section(self._dict_dir, 'Comp', self._target_material) 
 
-        self._EeVecBrem = np.transpose(self._brem_cross_section)[0] #FIXME: not sure what these are
-        self._EgVecPP = np.transpose(self._pair_production_cross_section)[0]
-        self._EeVecAnn = np.transpose(self._annihilation_cross_section)[0]
-        self._EgVecComp = np.transpose(self._compton_cross_section)[0]
+        self._EeVecDarkBrem = np.transpose(self._dark_brem_cross_section)[0] #FIXME: not sure what these are
+        self._EeVecDarkAnn = np.transpose(self._dark_annihilation_cross_section)[0]
+        self._EgVecDarkComp = np.transpose(self._dark_compton_cross_section)[0]
 
         # log10s of minimum energes, energy spacing for the cross-section tables  
-        self._logEeMinBrem, self._logEeSSBrem = np.log10(self._EeVecBrem[0]), np.log10(self._EeVecBrem[1]) - np.log10(self._EeVecBrem[0])
-        self._logEeMinAnn, self._logEeSSAnn = np.log10(self._EeVecAnn[0]), np.log10(self._EeVecAnn[1]) - np.log10(self._EeVecAnn[0])
-        self._logEgMinPP, self._logEgSSPP = np.log10(self._EgVecPP[0]), np.log10(self._EgVecPP[1]) - np.log10(self._EgVecPP[0])
-        self._logEgMinComp, self._logEgSSComp= np.log10(self._EgVecComp[0]), np.log10(self._EgVecComp[1]) - np.log10(self._EgVecComp[0])
-
+        self._logEeMinDarkBrem, self._logEeSSDarkBrem = np.log10(self._EeVecDarkBrem[0]), np.log10(self._EeVecDarkBrem[1]) - np.log10(self._EeVecDarkBrem[0])
+        self._logEeMinDarkAnn, self._logEeSSDarkAnn = np.log10(self._EeVecDarkAnn[0]), np.log10(self._EeVecDarkAnn[1]) - np.log10(self._EeVecDarkAnn[0])
+        self._logEgMinDarkComp, self._logEgSSDarkComp= np.log10(self._EgVecDarkComp[0]), np.log10(self._EgVecDarkComp[1]) - np.log10(self._EgVecDarkComp[0])
 
 
     def get_DarkBremXSec(self):
@@ -184,7 +179,7 @@ class DarkShower(Shower):
         incoming particle energy for each process
         """
         DBS, DAnnS, DCS = self.get_DarkBremXSec(), self.get_DarkAnnXSec(), self.get_DarkCompXSec()
-        nZ, ne = self.get_nTargets()
+        nZ, ne = self.get_n_targets()
         self._NSigmaDarkBrem = interp1d(np.transpose(DBS)[0], nZ*GeVsqcm2*np.transpose(DBS)[1])
         self._NSigmaDarkAnn = interp1d(np.transpose(DAnnS)[0], ne*GeVsqcm2*np.transpose(DAnnS)[1])
         self._NSigmaDarkComp = interp1d(np.transpose(DCS)[0], ne*GeVsqcm2*np.transpose(DCS)[1])
@@ -200,7 +195,7 @@ class DarkShower(Shower):
 
         """
         if PID == 22:
-            if np.log10(Energy) < self._logEgMinDarkComp:
+            if Energy < self._mV*(1 + self._mV/(2*m_electron)):
                 return 0.0
             else:
                 return self._NSigmaDarkComp(Energy)/(self._NSigmaPP(Energy) + self._NSigmaComp(Energy))
@@ -214,7 +209,7 @@ class DarkShower(Shower):
                 BremPiece = 0.0
             else:
                 BremPiece = self._NSigmaDarkBrem(Energy)
-            if np.log10(Energy) < self._logEeMinDarkAnn:
+            if Energy < (self._mV**2 - m_electron**2)/(2*m_electron):
                 AnnPiece = 0.0
             else:
                 AnnPiece = self._NSigmaDarkAnn(Energy)
@@ -222,38 +217,32 @@ class DarkShower(Shower):
 
 
 
-    def draw_sample(self,Einc,LU_Key,process,VB=False):
+    def draw_dark_sample(self,Einc,LU_Key,process,VB=False):
 
-        sample_list=self._loaded_samples 
+        dark_sample_list=self._loaded_dark_samples 
 
         # this grabs the dictionary part rather than the energy. 
-        sample_dict=sample_list[process][LU_Key][1]
+        dark_sample_dict=dark_sample_list[process][LU_Key][1]
 
-        integrand = sample_dict["integrator"]
-        max_F      = sample_dict["max_F"]*self._maxF_fudge_global
-        max_X      = sample_dict["max_X"]
-        max_wgt    = sample_dict["max_wgt"]
-        neval_vegas= sample_dict["neval"]
+        integrand = dark_sample_dict["integrator"]
+        max_F      = dark_sample_dict["max_F"][self._target_material]*self._maxF_fudge_global
+        neval_vegas= dark_sample_dict["neval"]
+        integrand=vg.Integrator(map=integrand, max_nhcube=1, neval=neval_vegas)
 
-        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'alpha_FS': alpha_em, 'm_V': self._mV}
+        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min}
+        #event_info_H={'E_inc': Einc, 'm_e': m_electron, 'Z_T': 1.0, 'A_T':1.0, 'mT':1.0, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min}
 
-        #### START FIXME
-        # 
-        # THESE ARE dummy FUNCTIONS
-        diff_xsection_options={"dark_Comp"     : XX_dark_comp_func_XX,
-                               "dark_Brem"     : XX_dark_brem_func_XX,
-                               "dark_Ann"      : XX_dark_ann_func_XX }
+        diff_xsection_options={"Comp"     : dsigma_compton_dCT,
+                               "ExactBrem": dsig_etl_helper,
+                               "Ann"      : dsigma_annihilation_dCT }
         
-        formfactor_dict      ={"dark_Comp"     : unity,
-                               "dark_Brem"     : g2_elastic,
-                               "dark_Ann"      : unity }
+        formfactor_dict      ={"Comp"     : unity,
+                               "ExactBrem": Gelastic_inelastic,
+                               "Ann"      : unity }
 
-        QSq_dict             ={"dark_Brem"     : XX_dark_brem_q_sq_XX,
-                                "dark_Comp"    : dummy, 
-                                "dark_Ann"     : dummy }
-
-        ###  END FIXME
-
+        QSq_dict             ={"ExactBrem": exactbrem_qsq,
+                                "Comp"    : dummy, 
+                                "Ann"     : dummy }
 
         if process in diff_xsection_options:
             diff_xsec_func = diff_xsection_options[process]
@@ -262,23 +251,23 @@ class DarkShower(Shower):
         else:
             raise Exception("Your process is not in the list")
 
-        integrand.set(max_nhcube=1, neval=neval_vegas)
         if VB:
             sampcount = 0
-            n_integrators_used = 0
-            sample_found = False
+        n_integrators_used = 0
+        sample_found = False
         while sample_found is False and n_integrators_used < self._max_n_integrators:
             n_integrators_used += 1
             for x,wgt in integrand.random():
-                FF_eval=FF_func(event_info['Z_T'], m_electron, QSq_func(x, event_info ) )/event_info['Z_T']**2
-                FF_H = FF_func(1.0, m_electron, QSq_func(x, event_info ) ) 
+                #FF_eval=FF_func(event_info, QSq_func(x, event_info ) )/event_info['Z_T']**2
+                #FF_H = FF_func(event_info_H, QSq_func(x, event_info_H ) ) 
                 if VB:
                     sampcount += 1  
-                if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x)*FF_eval/FF_H:
+                if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x):#*FF_eval/FF_H:
                     sample_found = True
                     break
         if sample_found is False:
             print("No Sample Found")
+            print(process, Einc, LU_Key)
             #FIXME What to do when we end up here?
             #Coordinate with SM solution
         if VB:
@@ -286,32 +275,15 @@ class DarkShower(Shower):
         else:
             return(x)
 
-
-###      OLD CODE  |   CAN EVENTUALLY DELETE 
-#        integrand.set(max_nhcube=1, neval=self._neval_vegas)
-#        if VB:
-#           sampcount = 0
-#        for x,wgt in integrand.random():
-#            FF_eval=FF_func(event_info['Z_T'], m_electron, QSq_func(x, m_electron, event_info['E_inc'] ) )
-#            if VB:
-#                sampcount += 1  
-#            if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x)*FF_eval:
-#                break
-#        if VB:
-#            return np.concatenate([list(x), [sampcount]])
-#        else:
-#           return(x)
-
-
     def GetPositronDarkBF(self, Energy):
         """Branching fraction for a positron to undergo dark brem vs dark 
         annihilation"""
-        if np.log10(Energy) < self._logEeMinDarkAnn:
+        if Energy < (self._mV**2 - m_electron**2)/(2*m_electron):
             return 1.0
         else:
             return self._NSigmaDarkBrem(Energy)/(self._NSigmaDarkBrem(Energy) + self._NSigmaDarkAnn(Energy))
 
-    def DarkElecBremSample(self, Elec0):
+    def DarkElecBremSample(self, Elec0, VB=False):
         """Generate a brem event from an initial electron/positron
             Args:
                 Elec0: incoming electron/positron (instance of) Particle 
@@ -332,14 +304,10 @@ class DarkShower(Shower):
         LUKey = LUKey + 1
         
         ## FIXME Need right key name
-        SampEvt = self.draw_sample(Ee0, LUKey, 'dark_Brem', VB=VB)
-
-
-        ct = np.cos(self.get_mV()/(SampEvt[0])*np.sqrt((Ee0-SampEvt[0])/Ee0)*SampEvt[1])
-        ctp =np.cos(self.get_mV()/(SampEvt[0])*np.sqrt(Ee0/(Ee0-SampEvt[0]))*SampEvt[2])
-        NFVs = eeVFourVecs(Ee0, me, SampEvt[0], self.get_mV(), ct, ctp, SampEvt[3])
-
-        EVf, pVxfZF, pVyfZF, pVzfZF = NFVs[2]
+        sample_event = self.draw_dark_sample(Ee0, LUKey, 'ExactBrem', VB=VB)
+        EV = sample_event[0]*Ee0
+        ct = (1 - 10**sample_event[1])
+        EVf, pVxfZF, pVyfZF, pVzfZF = e_to_eV_fourvecs(Ee0, m_electron, EV, self.get_mV(), ct, 0, 0)[2]
         pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
         pV3LF = np.dot(RM, pV3ZF)
 
@@ -348,19 +316,19 @@ class DarkShower(Shower):
             print("High Energy V Found from Electron Samples:")
             print(Elec0.get_pf())
             print(EVf)
-            print(SampEvt)
+            print(sample_event)
             print(LUKey)
             print(Ee0)
             print("---------------------------------------------")
 
         wg = self.GetBSMWeights(11, Ee0)
 
-        GenType = process_code['dark_Brem']
+        GenType = process_code['ExactBrem']
 
-        NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_IDs()[1])+1, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, GenType, wg)
+        NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_ids()[1])+1, Elec0.get_ids()[1], Elec0.get_ids()[0], Elec0.get_ids()[4]+1, GenType, wg)
         return NewV
 
-    def DarkAnnihilationSample(self, Elec0):
+    def DarkAnnihilationSample(self, Elec0, VB=False):
         """Generate an annihilation event from an initial positron
             Args:
                 Elec0: incoming positron (instance of) Particle in lab frame
@@ -381,31 +349,29 @@ class DarkShower(Shower):
         LUKey = LUKey + 1
         
         # FIXME  need right key name 
-        sample_event = self.draw_sample(Ee0, LUKey, 'dark_Ann', VB=VB)
+        sample_event = self.draw_dark_sample(Ee0, LUKey, 'Ann', VB=VB)
         #NFVs = Ann_FVs(EeMod, meT, MVT, SampEvt[0])[1]
-        NFVs = Ann_FVs(Ee0, me, self.get_mV(), SampEvt[0])[1]
-        GenType = process_code['dark_Ann']
-
+        NFVs = annihilation_fourvecs(Ee0, me, self.get_mV(), sample_event[0])[1]
+        GenType = process_code['Ann']
         EVf, pVxfZF, pVyfZF, pVzfZF = NFVs
         pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
         pV3LF = np.dot(RM, pV3ZF)
         wg = self.GetBSMWeights(-11, Ee0)
 
-        if EVf > Ee0:
+        if EVf > Ee0+m_electron/2+(2*Ee0-m_electron)*self.get_mV()**2/(8*Ee0**2):
             print("---------------------------------------------")
             print("High Energy V Found from Positron Samples:")
             print(Elec0.get_pf())
             print(EVf)
-            print(SampEvt)
+            print(sample_event)
             print(LUKey)
-            print(EeMod)
             print(wg)
             print("---------------------------------------------")
 
-        NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_IDs()[1])+1, Elec0.get_IDs()[1], Elec0.get_IDs()[0], Elec0.get_IDs()[4]+1, GenType, wg)
+        NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_ids()[1])+1, Elec0.get_ids()[1], Elec0.get_ids()[0], Elec0.get_ids()[4]+1, GenType, wg)
         return NewV
 
-    def DarkComptonSample(self, Phot0):
+    def DarkComptonSample(self, Phot0, VB=False):
         """Generate a dark Compton event from an initial photon
             Args:
                 Phot0: incoming photon (instance of) Particle in lab frame
@@ -425,33 +391,29 @@ class DarkShower(Shower):
         LUKey = LUKey + 1
         
         # FIXME Need right key name
-        sample_event = self.draw_sample(Ee0, LUKey, 'dark_Comp', VB=VB)
-
+        sample_event = self.draw_dark_sample(Eg0, LUKey, 'Comp', VB=VB)
 
         #NFVs = Compton_FVs(EgMod, meanniT, MVT, SampEvt[0])[1]
-        NFVs = Compton_FVs(Eg0, me, self.get_mV(), SampEvt[0])[1]
-
-        EVf, pVxfZF, pVyfZF, pVzfZF = NFVs
+        EVf, pVxfZF, pVyfZF, pVzfZF = compton_fourvecs(Eg0, me, self.get_mV(), sample_event[0])[1]
         pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
         pV3LF = np.dot(RM, pV3ZF)
 
         wg = self.GetBSMWeights(22, Eg0)
-        GenType = process_code['dark_Comp']
+        GenType = process_code['Comp']
         if EVf > Eg0:
             print("---------------------------------------------")
             print("High Energy V Found from Photon Samples:")
             print(Phot0.get_pf())
             print(EVf)
-            print(SampEvt)
+            print(sample_event)
             print(LUKey)
-            print(EgMod)
             print(wg)
             print("---------------------------------------------")
 
-        NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*(Phot0.get_IDs()[1])+0, Phot0.get_IDs()[1], Phot0.get_IDs()[0], Phot0.get_IDs()[4]+1, GenType, wg)
+        NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*(Phot0.get_ids()[1])+0, Phot0.get_ids()[1], Phot0.get_ids()[0], Phot0.get_ids()[4]+1, GenType, wg)
         return NewV
 
-    def GenDarkShower(self, ExDir=None, SParams=None):
+    def generate_dark_shower(self, ExDir=None, SParams=None):
         """ Process an existing SM shower (or produce a new one) by interating 
         through its particles and generating possible dark photon emissions using 
         all available processes.
@@ -473,15 +435,17 @@ class DarkShower(Shower):
             ShowerToSamp = ExDir
         else:
             PID0, p40, ParPID = SParams
-            ShowerToSamp = self.GenShower(PID0, p40, ParPID)
+            ShowerToSamp = self.generate_shower(PID0, p40, ParPID)
         
         NewShower = []
         for ap in ShowerToSamp:
-            if ap.get_IDs()[0] == 11:
+            if self.GetBSMWeights(ap.get_ids()[0], ap.get_pf()[0]) == 0.0:
+                continue
+            if ap.get_ids()[0] == 11:
                 if np.log10(ap.get_pf()[0]) < self._logEeMinDarkBrem:
                     continue
                 npart = self.DarkElecBremSample(ap)
-            elif ap.get_IDs()[0] == -11:
+            elif ap.get_ids()[0] == -11:
                 if np.log10(ap.get_pf()[0]) < self._logEeMinDarkBrem:
                     continue
                 DarkBFEpBrem = self.GetPositronDarkBF(ap.get_pf()[0])
@@ -490,8 +454,8 @@ class DarkShower(Shower):
                     npart = self.DarkElecBremSample(ap)
                 else:
                     npart = self.DarkAnnihilationSample(ap)
-            elif ap.get_IDs()[0] == 22:
-                if np.log10(ap.get_pf()[0]) < self._logEgMinDarkComp:
+            elif ap.get_ids()[0] == 22:
+                if ap.get_pf()[0] < self._mV*(1.0 + self._mV/(2*m_electron)):
                     continue
                 npart = self.DarkComptonSample(ap)
             NewShower.append(npart)

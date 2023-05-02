@@ -101,8 +101,8 @@ def compton_fourvecs(Eg, me, mV, ct):
     b0 = 1.0/g0*np.sqrt(g0**2 - 1.0)
 
     ph = np.random.uniform(0, 2.0*np.pi)
-    pe4v = [g0*Ee - b0*g0*pF*ct, -pF*np.sqrt(1-ct**2)*np.sin(ph), -pF*np.sqrt(1-ct**2)*np.cos(ph), b0*g0*Ee-g0*pF*ct]
-    pV4v = [g0*EV + b0*g0*pF*ct, pF*np.sqrt(1-ct**2)*np.sin(ph), pF*np.sqrt(1-ct**2)*np.cos(ph), b0*g0*EV + g0*pF*ct]
+    pe4v = [g0*Ee + b0*g0*pF*ct, -pF*np.sqrt(1-ct**2)*np.sin(ph), -pF*np.sqrt(1-ct**2)*np.cos(ph), b0*g0*Ee+g0*pF*ct]
+    pV4v = [g0*EV - b0*g0*pF*ct, pF*np.sqrt(1-ct**2)*np.sin(ph), pF*np.sqrt(1-ct**2)*np.cos(ph), b0*g0*EV - g0*pF*ct]
 
     return [pe4v, pV4v]
 
