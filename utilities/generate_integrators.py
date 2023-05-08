@@ -160,7 +160,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-save_location', type=str, default='raw_integrators', help='directory to save integrators in (path relative to main PETITE directory)')
     parser.add_argument('-process', nargs='+', type=str, default=['ExactBrem'], help='list of processes to be run "all" does whole list, if mV non-zero only DarkBrem \
-        (choose from "PairProd", "Brem", "ExactBrem", "Comp", "Ann")')
+        (choose from "PairProd", "Brem", "ExactBrem", "Comp", "Ann", "Moller", "Bhabha")')
     parser.add_argument('-mV', nargs='+', type=float, default=[0.05], help='dark vector mass in GeV (can be a space-separated list)')
     parser.add_argument('-min_energy', type=float, default=0.01, help='minimum initial energy (in GeV) to evaluate (must be larger than mV)')
     parser.add_argument('-max_energy', type=float, default=100., help='maximum initial energy (in GeV) to evaluate')
@@ -175,9 +175,10 @@ if __name__ == '__main__':
 
     params = {'A_T': args.A, 'Z_T': args.Z, 'mT': args.mT, 'save_location': args.save_location}
     verbosity_mode = args.verbosity
+    params['verbosity'] = verbosity_mode
     if (args.mV == 0 or not(args.process == ['ExactBrem']) ):# doing SM processes
         if  "all" in args.process:
-            process_list_to_do = ['Brem','PairProd','Comp','Ann']
+            process_list_to_do = ['Brem','PairProd','Comp','Ann','Moller','Bhabha']
         else:#make sure DarkBrem not accidentally in list
             try:
                 process_list_to_do = args.process.remove('ExactBrem')

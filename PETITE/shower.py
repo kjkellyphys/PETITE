@@ -5,12 +5,11 @@ from scipy.interpolate import interp1d
 
 from .moliere import get_scattered_momentum 
 from .particle import Particle
-from .kinematics import e_to_egamma_fourvecs, e_to_eV_fourvecs, gamma_to_epem_fourvecs, compton_fourvecs, annihilation_fourvecs
+from .kinematics import e_to_egamma_fourvecs, e_to_eV_fourvecs, gamma_to_epem_fourvecs, compton_fourvecs, annihilation_fourvecs, ee_to_ee_fourvecs
 from .AllProcesses import *
 from datetime import datetime
 
 np.random.seed(int(datetime.now().timestamp()))
-#np.random.seed(8302385)
 
 import sys
 from numpy.random import random as draw_U
@@ -26,7 +25,7 @@ GeVsqcm2 = hbarc**2 #Conversion between cross sections in GeV^{-2} to cm^2
 cmtom = 0.01
 mp0 = m_proton_grams # proton mass in grams
 
-process_code = {'Brem':0, 'Ann': 1, 'PairProd': 2, 'Comp': 3}
+process_code = {'Brem':0, 'Ann': 1, 'PairProd': 2, 'Comp': 3, "Moller":4, "Bhabha":5}
 #Egamma_min = 0.001
 #FIXME incorporate the minimum brem-photon energy used in training into stored, dictionary information somewhere
 
@@ -144,17 +143,23 @@ class Shower:
         self._pair_production_cross_section   = self.load_cross_section(self._dict_dir, 'PairProd', self._target_material)
         self._annihilation_cross_section  = self.load_cross_section(self._dict_dir, 'Ann', self._target_material) 
         self._compton_cross_section = self.load_cross_section(self._dict_dir, 'Comp', self._target_material) 
+        self._moller_cross_section = self.load_cross_section(self._dict_dir, 'Moller', self._target_material) 
+        self._bhabha_cross_section = self.load_cross_section(self._dict_dir, 'Bhabha', self._target_material) 
 
         self._EeVecBrem = np.transpose(self._brem_cross_section)[0] #FIXME: not sure what these are
         self._EgVecPP = np.transpose(self._pair_production_cross_section)[0]
         self._EeVecAnn = np.transpose(self._annihilation_cross_section)[0]
         self._EgVecComp = np.transpose(self._compton_cross_section)[0]
+        self._EeVecMoller = np.transpose(self._moller_cross_section)[0]
+        self._EeVecBhabha = np.transpose(self._bhabha_cross_section)[0]
 
         # log10s of minimum energes, energy spacing for the cross-section tables  
         self._logEeMinBrem, self._logEeSSBrem = np.log10(self._EeVecBrem[0]), np.log10(self._EeVecBrem[1]) - np.log10(self._EeVecBrem[0])
         self._logEeMinAnn, self._logEeSSAnn = np.log10(self._EeVecAnn[0]), np.log10(self._EeVecAnn[1]) - np.log10(self._EeVecAnn[0])
         self._logEgMinPP, self._logEgSSPP = np.log10(self._EgVecPP[0]), np.log10(self._EgVecPP[1]) - np.log10(self._EgVecPP[0])
         self._logEgMinComp, self._logEgSSComp= np.log10(self._EgVecComp[0]), np.log10(self._EgVecComp[1]) - np.log10(self._EgVecComp[0])
+        self._logEeMinMoller, self._logEeSSMoller= np.log10(self._EeVecMoller[0]), np.log10(self._EeVecMoller[1]) - np.log10(self._EeVecMoller[0])
+        self._logEeMinBhabha, self._logEeSSBhabha= np.log10(self._EeVecBhabha[0]), np.log10(self._EeVecBhabha[1]) - np.log10(self._EeVecBhabha[0])
 
     def get_brem_cross_section(self):
         """ Returns array of [energy,cross-section] values for brem """ 
@@ -168,17 +173,25 @@ class Shower:
     def get_compton_cross_section(self):
         """ Returns array of [energy,cross-section] values for Compton """ 
         return self._compton_cross_section
+    def get_moller_cross_section(self):
+        """ Returns array of [energy,cross-section] values for Moller """ 
+        return self._moller_cross_section
+    def get_bhabha_cross_section(self):
+        """ Returns array of [energy,cross-section] values for Bhabha """ 
+        return self._bhabha_cross_section
 
     def set_NSigmas(self):
         """Constructs interpolations of n_T sigma (in 1/cm) as a functon of 
         incoming particle energy for each process
         """
-        BS, PPS, AnnS, CS = self.get_brem_cross_section(), self.get_pairprod_cross_section(), self.get_annihilation_cross_section(), self.get_compton_cross_section()
+        BS, PPS, AnnS, CS, MS, BS = self.get_brem_cross_section(), self.get_pairprod_cross_section(), self.get_annihilation_cross_section(), self.get_compton_cross_section(), self.get_moller_cross_section(), self.get_bhabha_cross_section()
         nZ, ne = self.get_n_targets()
-        self._NSigmaBrem = interp1d(np.transpose(BS)[0], nZ*GeVsqcm2*np.transpose(BS)[1])
-        self._NSigmaPP = interp1d(np.transpose(PPS)[0], nZ*GeVsqcm2*np.transpose(PPS)[1])
-        self._NSigmaAnn = interp1d(np.transpose(AnnS)[0], ne*GeVsqcm2*np.transpose(AnnS)[1])
-        self._NSigmaComp = interp1d(np.transpose(CS)[0], ne*GeVsqcm2*np.transpose(CS)[1])
+        self._NSigmaBrem = interp1d(np.transpose(BS)[0], nZ*GeVsqcm2*np.transpose(BS)[1], fill_value=0.0, bounds_error=False)
+        self._NSigmaPP = interp1d(np.transpose(PPS)[0], nZ*GeVsqcm2*np.transpose(PPS)[1], fill_value=0.0, bounds_error=False)
+        self._NSigmaAnn = interp1d(np.transpose(AnnS)[0], ne*GeVsqcm2*np.transpose(AnnS)[1], fill_value=0.0, bounds_error=False)
+        self._NSigmaComp = interp1d(np.transpose(CS)[0], ne*GeVsqcm2*np.transpose(CS)[1], fill_value=0.0, bounds_error=False)
+        self._NSigmaMoller = interp1d(np.transpose(MS)[0], ne*GeVsqcm2*np.transpose(MS)[1], fill_value=0.0, bounds_error=False)
+        self._NSigmaBhabha = interp1d(np.transpose(BS)[0], ne*GeVsqcm2*np.transpose(BS)[1], fill_value=0.0, bounds_error=False)
 
     def get_mfp(self, PID, Energy): #FIXME: variable PID is not defined
         """Returns particle mean free path in meters for PID=22 (photons), 
@@ -186,9 +199,9 @@ class Shower:
         if PID == 22:
             return cmtom*(self._NSigmaPP(Energy) + self._NSigmaComp(Energy))**-1
         elif PID == 11:
-            return cmtom*(self._NSigmaBrem(Energy))**-1
+            return cmtom*(self._NSigmaBrem(Energy) + self._NSigmaMoller(Energy))**-1
         elif PID == -11:
-            return cmtom*(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy))**-1
+            return cmtom*(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))**-1
         
     def BF_positron_brem(self, Energy):
         """Branching fraction for a positron to undergo brem vs annihilation"""
@@ -217,14 +230,18 @@ class Shower:
         diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                                "Comp"     : dsigma_compton_dCT,
                                "Brem"     : dsigma_brem_dimensionless,
-                               "Ann"      : dsigma_annihilation_dCT }
+                               "Ann"      : dsigma_annihilation_dCT,
+                               "Moller"   : dsigma_moller_dCT,
+                               "Bhabha"   : dsigma_bhabha_dCT }
         
         formfactor_dict      ={"PairProd" : g2_elastic,
                                "Comp"     : unity,
                                "Brem"     : g2_elastic,
-                               "Ann"      : unity }
+                               "Ann"      : unity,
+                               "Moller"   : unity,
+                               "Bhabha"   : unity }
 
-        QSq_dict             ={"PairProd" : pair_production_q_sq_dimensionless, "Brem"     : brem_q_sq_dimensionless, "Comp": dummy, "Ann": dummy }
+        QSq_dict             ={"PairProd" : pair_production_q_sq_dimensionless, "Brem"     : brem_q_sq_dimensionless, "Comp": dummy, "Ann": dummy, "Moller":dummy, "Bhabha":dummy }
 
         
         if process in diff_xsection_options:
@@ -463,6 +480,58 @@ class Shower:
         NewG = Particle(22, Egf, pg3LF[0], pg3LF[1], pg3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code['Comp'], newparticlewgt)
 
         return [NewE, NewG]
+    
+    def moller_bhabha_sample(self, ElecPos0, Process="Moller", VB=False):
+        """Generate a Moller or Bhabha scattering event from an initial electron/positron
+            Args:
+                ElecPos0: incoming electron/positron (instance of) Particle in lab frame
+            Returns:
+                [NewEP, NewE]: electron/positron and electron (instances of) Particle 
+                in lab frame
+        """
+
+        Ee0, pex0, pey0, pez0 = ElecPos0.get_pf()
+
+        # Construct rotation matrix to rotate simulated event to lab frame
+        ThZ = np.arccos(pez0/np.sqrt(pex0**2 + pey0**2 + pez0**2))
+        PhiZ = np.arctan2(pey0, pex0)
+        RM = [[np.cos(ThZ)*np.cos(PhiZ), -np.sin(PhiZ), np.sin(ThZ)*np.cos(PhiZ)],
+            [np.cos(ThZ)*np.sin(PhiZ), np.cos(PhiZ), np.sin(ThZ)*np.sin(PhiZ)],
+            [-np.sin(ThZ), 0, np.cos(ThZ)]]
+
+        # Find the closest initial energy among the precomputed samples and get it
+        if Process == "Moller":
+            LUKey = int((np.log10(Ee0) - self._logEeMinMoller)/self._logEeSSMoller)
+        elif Process == "Bhabha":
+            LUKey = int((np.log10(Ee0) - self._logEeMinBhabha)/self._logEeSSBhabha)
+        else:
+            raise Exception("Wrong Process specified for Moller/Bhabha sampling")
+
+        LUKey = LUKey + 1
+        SampEvt = self.draw_sample(Ee0, LUKey, Process, VB=VB)
+
+
+        # reconstruct final electron and photon 4-momenta from the MC-sampled variables
+        NFVs = ee_to_ee_fourvecs(Ee0, m_electron, SampEvt[0])
+
+        Eepf, pepxfZF, pepyfZF, pepzfZF = NFVs[0]
+        Eef, pexfZF, peyfZF, pezfZF = NFVs[1]
+
+        pep3LF = np.dot(RM, [pepxfZF, pepyfZF, pepzfZF])
+        pe3LF = np.dot(RM, [pexfZF, peyfZF, pezfZF])
+
+        pos = ElecPos0.get_rf()
+        init_IDs = ElecPos0.get_ids()
+
+        if VB:
+            newparticlewgt = SampEvt[-1]
+        else:
+            newparticlewgt = 1.0
+
+        NewEP = Particle(init_IDs[0], Eepf, pep3LF[0], pep3LF[1], pep3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+0, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code[Process], newparticlewgt)
+        NewE = Particle(11, Eef, pe3LF[0], pe3LF[1], pe3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code[Process], newparticlewgt)
+
+        return [NewEP, NewE]
 
     def propagate_particle(self, Part0, Losses=False, MS=False):
         """Propagates a particle through material between hard scattering events, 
@@ -479,6 +548,15 @@ class Shower:
             Part0.set_rf(Part0.get_rf())
             return Part0
         else:
+            if Part0.get_ids()[0] == 11 and (np.log10(Part0.get_p0()[0]) < np.max([self._logEeMinBhabha, self._logEeMinBrem])):
+                Part0.set_ended(True)
+                return Part0
+            elif Part0.get_ids()[0] == -11 and (np.log10(Part0.get_p0()[0]) < np.max([self._logEeMinBhabha, self._logEeMinBrem, self._logEeMinAnn])):
+                Part0.set_ended(True)
+                return Part0
+            elif Part0.get_ids()[0] == 22 and (np.log10(Part0.get_p0()[0]) < np.max([self._logEgMinComp, self._logEgMinPP])):
+                Part0.set_ended(True)
+                return Part0
             mfp = self.get_mfp(Part0.get_ids()[0], Part0.get_p0()[0])
             distC = np.random.uniform(0.0, 1.0)
             dist = mfp*np.log(1.0/(1.0-distC))
@@ -561,9 +639,9 @@ class Shower:
                     elif np.abs(ap.get_ids()[0]) == 11:
                         dEdxT = self.get_material_properties()[3]*(0.1) #Converting MeV/cm to GeV/m
                         ap = self.propagate_particle(ap, MS=MS_e, Losses=dEdxT)
-
-                    all_particles[apI] = ap
                     
+                    all_particles[apI] = ap
+
                     if (all([ap.get_ended() == True for ap in all_particles]) is True and ap.get_pf()[0] < self.min_energy):
                         break
 
@@ -571,14 +649,29 @@ class Shower:
                     # Note: secondaries include the scattered parent particle 
                     # (i.e. the original the parent is not modified)
                     if ap.get_ids()[0] == 11:
-                        npart = self.electron_brem_sample(ap, VB=VB)
-                    elif ap.get_ids()[0] == -11:
-                        BFEpBrem = self.BF_positron_brem(ap.get_pf()[0])
-                        ch = np.random.uniform(low=0., high=1.0)
-                        if ch < BFEpBrem:
+                        choices0 = self._NSigmaBrem(ap.get_pf()[0]), 0.0*self._NSigmaMoller(ap.get_pf()[0])
+                        SC = np.sum(choices0)
+                        if SC == 0.0:
+                            continue
+                        choices0 = choices0/SC
+                        draw = np.random.choice([0,1], p=choices0)
+                        if draw == 0:
                             npart = self.electron_brem_sample(ap, VB=VB)
                         else:
+                            npart = self.moller_bhabha_sample(ap, Process="Moller", VB=VB)
+                    elif ap.get_ids()[0] == -11:
+                        choices0 = self._NSigmaBrem(ap.get_pf()[0]), self._NSigmaAnn(ap.get_pf()[0]), 0.0*self._NSigmaBhabha(ap.get_pf()[0])
+                        SC = np.sum(choices0)
+                        if SC == 0.0:
+                            continue
+                        choices0 = choices0/SC
+                        draw = np.random.choice([0,1,2], p=choices0)
+                        if draw == 0:
+                            npart = self.electron_brem_sample(ap, VB=VB)
+                        elif draw == 1:
                             npart = self.AnnihilationSample(ap, VB=VB)
+                        else:
+                            npart = self.moller_bhabha_sample(ap, Process="Bhabha", VB=VB)
                     elif ap.get_ids()[0] == 22:
                         BFPhPP = self.BF_photon_pairprod(ap.get_pf()[0])
                         ch = np.random.uniform(low=0., high=1.)

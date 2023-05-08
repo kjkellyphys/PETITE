@@ -106,6 +106,28 @@ def compton_fourvecs(Eg, me, mV, ct):
 
     return [pe4v, pV4v]
 
+def ee_to_ee_fourvecs(Einc, me, ct):
+    """Reconstruct final electron and electron (positron) four vectors from 
+    mc-sampled kinematic variables for SM Moller/Bhabha  e e > e e 
+    Args:
+        Eg, me, ct
+    Returns:
+        List of four four-vectors representing the final state electron and 
+        positron/electron
+    """
+    s = 2*me**2 + 2*Einc*me
+    Ee0 = np.sqrt(s)/2.0
+    pF = np.sqrt(Ee0**2 - me**2)
+
+    g0 = Ee0/me
+    b0 = 1.0/g0*np.sqrt(g0**2 - 1.0)
+
+    ph = np.random.uniform(0, 2.0*np.pi)
+    outgoing_particle_fourvector = [g0*Ee0 + b0*g0*pF*ct, -pF*np.sqrt(1-ct**2)*np.sin(ph), -pF*np.sqrt(1-ct**2)*np.cos(ph), b0*g0*Ee0+g0*pF*ct]
+    new_electron_fourvector = [g0*Ee0 - b0*g0*pF*ct, pF*np.sqrt(1-ct**2)*np.sin(ph), pF*np.sqrt(1-ct**2)*np.cos(ph), b0*g0*Ee0 - g0*pF*ct]
+
+    return [outgoing_particle_fourvector, new_electron_fourvector]
+
 def annihilation_fourvecs(Ee, me, mV, ct):
     """Reconstruct final SM/dark photon four vectors from 
     mc-sampled kinematic variables for SM annihilation e+e- > gamma gamma

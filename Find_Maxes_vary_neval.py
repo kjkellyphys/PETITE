@@ -29,6 +29,8 @@ PPSamp0 = np.load(PickDir+"PairProduction_AdaptiveMaps.npy", allow_pickle=True)
 BremSamp0 = np.load(PickDir+"Bremsstrahlung_AdaptiveMaps.npy", allow_pickle=True)
 CompSamp0 = np.load(PickDir+"Compton_AdaptiveMaps.npy", allow_pickle=True)
 AnnSamp0 = np.load(PickDir+"Annihilation_AdaptiveMaps.npy", allow_pickle=True)
+MollerSamp0 = np.load(PickDir+"Moller_AdaptiveMaps.npy", allow_pickle=True)
+BhabhaSamp0 = np.load(PickDir+"Moller_AdaptiveMaps.npy", allow_pickle=True)
 
 #Brem Samples were generated with Egamma_min = 0.001 GeV = 1 MeV
 Egamma_min = 0.001
@@ -39,19 +41,25 @@ Z = {'graphite':6.0, 'lead':82.0}
 Process_Files={"PairProd" : PPSamp0,
                "Comp": CompSamp0,
                "Brem" : BremSamp0,
-               "Ann": AnnSamp0}
+               "Ann": AnnSamp0,
+               "Moller": MollerSamp0,
+               "Bhabha": BhabhaSamp0}
 
 diff_xsections={"PairProd" : dsigma_pairprod_dimensionless,
                 "Comp"     : dsigma_compton_dCT,    
                 "Brem"     : dsigma_brem_dimensionless,
-                "Ann"      : dsigma_annihilation_dCT }
+                "Ann"      : dsigma_annihilation_dCT,
+                "Moller"   : dsigma_moller_dCT,
+                "Bhabha"   : dsigma_bhabha_dCT }
 
 FF_dict =      {"PairProd" : g2_elastic,
                 "Comp"     : unity,
                 "Brem"     : g2_elastic,
-                "Ann"      : unity }
+                "Ann"      : unity,
+                "Moller"   : unity,
+                "Bhabha"   : unity }
 
-QSq_functions={"PairProd" : pair_production_q_sq_dimensionless, "Brem"  : brem_q_sq_dimensionless, "Comp": dummy, "Ann": dummy }
+QSq_functions={"PairProd" : pair_production_q_sq_dimensionless, "Brem"  : brem_q_sq_dimensionless, "Comp": dummy, "Ann": dummy, "Moller":dummy, "Bhabha":dummy }
 
 neval0 = 300
 n_trials = 100

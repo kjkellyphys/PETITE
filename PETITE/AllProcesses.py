@@ -127,12 +127,6 @@ def dsigma_brem_dimensionless(event_info, phase_space_par_list):
         w, d, dp, ph = Egamma_min + x1*(ep - m_electron - Egamma_min), ep/(2*m_electron)*(x2+x3), ep/(2*m_electron)*(x2-x3), x4*2*np.pi
 
         epp = ep - w
-        if epp < m_electron:
-            dSigs.append(0.0)
-        else:
-            qsqT = m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
-            PF = 8.0/np.pi*Z**2*alpha_em*(alpha_em/m_electron)**2*(epp*m_electron**4)/(w*ep*qsqT**2)*d*dp
-
         if not((Egamma_min < w < ep - m_electron) and (m_electron < epp < ep) and (d > 0.) and (dp > 0.)):
             dSigs.append(0.0)
         else:
@@ -496,7 +490,7 @@ diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                        "Brem"     : dsigma_brem_dimensionless,
                        "Ann"      : dsigma_annihilation_dCT, 
                        "DarkBrem" : dsigma_darkbrem_dP_T,
-                        "ExactBrem" :  dsig_etl_helper}
+                       "ExactBrem" :  dsig_etl_helper}
 nitn_options={"PairProd":10,
               "Brem":10,
               "DarkBrem":10,
@@ -542,7 +536,15 @@ def integration_range(event_info, process):
 
         return [[max(xmin, mV/EInc), 1.-m_electron/EInc],[-12.0, l1mct_max], [-20.0, 0.0]]
     elif process in two_dim:
-        return [[-1., 1.0]]
+        if process == "Comp" or process == "Ann":
+            return [[-1., 1.0]]
+        else:
+            if 'Ee_min' in event_info.keys():
+                DE = event_info['Ee_min']
+            else:
+                DE = 0.005
+            delta_ct_limit = 2.0*DE/(event_info['E_inc'] - m_electron)
+            return [[-1.0+delta_ct_limit, 1.0-delta_ct_limit]]
 
     else:
         raise Exception("Your process is not in the list")
@@ -583,6 +585,8 @@ def vegas_integration(event_info, process, verbose=False, mode='XSec'):
             event_info['mV'] = 0.0
         if ('Eg_min' in event_info.keys()) == False:
             event_info['Eg_min'] = 0.001
+        if ('Ee_min' in event_info.keys()) == False:
+            event_info['Ee_min'] = 0.005
         igrange = integration_range(event_info, process)
         diff_xsec_func = diff_xsection_options[process] 
     else:
