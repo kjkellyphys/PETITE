@@ -184,14 +184,14 @@ class Shower:
         """Constructs interpolations of n_T sigma (in 1/cm) as a functon of 
         incoming particle energy for each process
         """
-        BS, PPS, AnnS, CS, MS, BS = self.get_brem_cross_section(), self.get_pairprod_cross_section(), self.get_annihilation_cross_section(), self.get_compton_cross_section(), self.get_moller_cross_section(), self.get_bhabha_cross_section()
+        BS, PPS, AnnS, CS, MS, BhS = self.get_brem_cross_section(), self.get_pairprod_cross_section(), self.get_annihilation_cross_section(), self.get_compton_cross_section(), self.get_moller_cross_section(), self.get_bhabha_cross_section()
         nZ, ne = self.get_n_targets()
         self._NSigmaBrem = interp1d(np.transpose(BS)[0], nZ*GeVsqcm2*np.transpose(BS)[1], fill_value=0.0, bounds_error=False)
         self._NSigmaPP = interp1d(np.transpose(PPS)[0], nZ*GeVsqcm2*np.transpose(PPS)[1], fill_value=0.0, bounds_error=False)
         self._NSigmaAnn = interp1d(np.transpose(AnnS)[0], ne*GeVsqcm2*np.transpose(AnnS)[1], fill_value=0.0, bounds_error=False)
         self._NSigmaComp = interp1d(np.transpose(CS)[0], ne*GeVsqcm2*np.transpose(CS)[1], fill_value=0.0, bounds_error=False)
         self._NSigmaMoller = interp1d(np.transpose(MS)[0], ne*GeVsqcm2*np.transpose(MS)[1], fill_value=0.0, bounds_error=False)
-        self._NSigmaBhabha = interp1d(np.transpose(BS)[0], ne*GeVsqcm2*np.transpose(BS)[1], fill_value=0.0, bounds_error=False)
+        self._NSigmaBhabha = interp1d(np.transpose(BhS)[0], ne*GeVsqcm2*np.transpose(BhS)[1], fill_value=0.0, bounds_error=False)
 
     def get_mfp(self, PID, Energy): #FIXME: variable PID is not defined
         """Returns particle mean free path in meters for PID=22 (photons), 
@@ -649,7 +649,7 @@ class Shower:
                     # Note: secondaries include the scattered parent particle 
                     # (i.e. the original the parent is not modified)
                     if ap.get_ids()[0] == 11:
-                        choices0 = self._NSigmaBrem(ap.get_pf()[0]), 0.0*self._NSigmaMoller(ap.get_pf()[0])
+                        choices0 = self._NSigmaBrem(ap.get_pf()[0]), self._NSigmaMoller(ap.get_pf()[0])
                         SC = np.sum(choices0)
                         if SC == 0.0:
                             continue
@@ -660,7 +660,7 @@ class Shower:
                         else:
                             npart = self.moller_bhabha_sample(ap, Process="Moller", VB=VB)
                     elif ap.get_ids()[0] == -11:
-                        choices0 = self._NSigmaBrem(ap.get_pf()[0]), self._NSigmaAnn(ap.get_pf()[0]), 0.0*self._NSigmaBhabha(ap.get_pf()[0])
+                        choices0 = self._NSigmaBrem(ap.get_pf()[0]), self._NSigmaAnn(ap.get_pf()[0]), self._NSigmaBhabha(ap.get_pf()[0])
                         SC = np.sum(choices0)
                         if SC == 0.0:
                             continue
