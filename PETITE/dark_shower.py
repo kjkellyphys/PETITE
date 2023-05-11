@@ -8,7 +8,7 @@ from .kinematics import e_to_egamma_fourvecs, e_to_eV_fourvecs, gamma_to_epem_fo
 from .shower import Shower
 
 import sys
-from physical_constants import *
+from .physical_constants import *
 
         
 
