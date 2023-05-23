@@ -44,6 +44,8 @@ class DarkShower(Shower):
 
         self.set_MV(MVStr)
         self.set_dark_pickles_dir(PickDir)
+
+        ## FIX ME 
         self.set_DarkSampDir(PickDir + TargetMaterial + "/DarkV/")
         self.set_DarkSampDirE(PickDir + "electrons/DarkV/")
 
