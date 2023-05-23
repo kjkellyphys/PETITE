@@ -22,14 +22,14 @@ startTime = datetime.now()
 
 
 Dir0 = os.getcwd()
-PickDir = Dir0 + "/NBP/"
-SvDir  = Dir0 + "/RyanDicts/"
+PickDir = Dir0 + "../data/VEGAS_backend/"
+SvDir  = Dir0 + "../data/VEGAS_dictionaries/"
 #Brem Samples were generated with Egamma_min = 0.001 GeV = 1 MeV
 Egamma_min = 0.001
-CompSamp0 = np.load(PickDir+"Compton_AdaptiveMaps.npy", allow_pickle=True)
-AnnSamp0 = np.load(PickDir+"Annihilation_AdaptiveMaps.npy", allow_pickle=True)
+CompSamp0 = np.load(PickDir+"SM/Compton_AdaptiveMaps.npy", allow_pickle=True)
+AnnSamp0 = np.load(PickDir+"SM/Annihilation_AdaptiveMaps.npy", allow_pickle=True)
 
-darkbrem_adaptivemaps = pickle.load(open(PickDir+"/DarkV/darkbrem_adaptivemaps.p", "rb"))
+darkbrem_adaptivemaps = pickle.load(open(PickDir+"DarkV/darkbrem_adaptivemaps.p", "rb"))
 vector_masses = list(darkbrem_adaptivemaps.keys())
 
 TargetMaterials = ['graphite','lead']

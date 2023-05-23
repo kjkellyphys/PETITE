@@ -22,8 +22,8 @@ startTime = datetime.now()
 
 
 Dir0 = os.getcwd()
-PickDir = Dir0 + "/NBP/"
-SvDir  = Dir0 + "/RyanDicts/"
+PickDir = Dir0 + "../data/VEGAS_backend/SM/"
+SvDir  = Dir0 + "../data/VEGAS_dictionaries/"
 
 PPSamp0 = np.load(PickDir+"PairProduction_AdaptiveMaps.npy", allow_pickle=True)
 BremSamp0 = np.load(PickDir+"Bremsstrahlung_AdaptiveMaps.npy", allow_pickle=True)
