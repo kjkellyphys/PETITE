@@ -30,7 +30,7 @@ BremSamp0 = np.load(PickDir+"Bremsstrahlung_AdaptiveMaps.npy", allow_pickle=True
 CompSamp0 = np.load(PickDir+"Compton_AdaptiveMaps.npy", allow_pickle=True)
 AnnSamp0 = np.load(PickDir+"Annihilation_AdaptiveMaps.npy", allow_pickle=True)
 MollerSamp0 = np.load(PickDir+"Moller_AdaptiveMaps.npy", allow_pickle=True)
-BhabhaSamp0 = np.load(PickDir+"Moller_AdaptiveMaps.npy", allow_pickle=True)
+BhabhaSamp0 = np.load(PickDir+"Bhabha_AdaptiveMaps.npy", allow_pickle=True)
 
 #Brem Samples were generated with Egamma_min = 0.001 GeV = 1 MeV
 Egamma_min = 0.001
