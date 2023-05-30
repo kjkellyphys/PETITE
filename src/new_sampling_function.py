@@ -19,10 +19,6 @@ def sample_distance(self, PID, energy):
             return (self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))
 
 
-    ## Use first derivative of n_sigma to estimate a good step-size
-    ## in coordinate space
-    delta_z  =  cmtom/(deriv(n_sigma, energy)/n_sigma(energy) * self._dEdx)
-
     z_travelled =0
     hard_scatter=False
     var_energy  = energy
@@ -31,8 +27,13 @@ def sample_distance(self, PID, energy):
 
         random_number =  np.random.uniform(0.0, 1.0)
 
+        ## Use first derivative of n_sigma to estimate a good step-size
+        ## in coordinate space
+        delta_z  =  cmtom/(deriv(n_sigma, var_energy)/n_sigma(var_energy) * self._dEdx)
+
         mfp = cmtom/n_sigma(var_energy)
-        
+
+    
         # Test if hard scatter happened
         if random_number > np.exp( -delta_z/mfp):
             hard_scatter = True
@@ -49,7 +50,7 @@ def sample_distance(self, PID, energy):
 
     mfp = cmtom/n_sigma(final_energy)
     distC = np.random.uniform(0.0, 1.0)
-    dist = z_travelled + mfp*np.log(1.0/(1.0-distC))
+    dist = z_travelled + mfp*np.log(1.0/(1.0+(np.exp(-delta_z/mfp)-1)*distC))
 
     # I have designed this code to interface with the currently
     # written function, however it is likely more elegant to
