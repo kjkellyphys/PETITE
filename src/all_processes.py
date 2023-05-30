@@ -50,7 +50,7 @@ def brem_q_sq_dimensionless(xx, EI):
     x1, x2, x3, x4 = xx
     Egamma_min = EI['Eg_min']
     ep = EI['E_inc']
-    w, d, dp, ph = Egamma_min + x1*(ep - m_electron - Egamma_min), ep/(2*m_electron)*(x2+x3), ep/(2*m_electron)*(x2-x3), x4*2*np.pi
+    w, d, dp, ph = Egamma_min + x1*(ep - m_electron - Egamma_min), ep/(2*m_electron)*(x2+x3), ep/(2*m_electron)*(x2-x3), (x4-1/2)*2*np.pi
 
     epp = ep - w
     return m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
@@ -124,7 +124,7 @@ def dsigma_brem_dimensionless(event_info, phase_space_par_list):
     dSigs = []
     for variables in phase_space_par_list:
         x1, x2, x3, x4 = variables
-        w, d, dp, ph = Egamma_min + x1*(ep - m_electron - Egamma_min), ep/(2*m_electron)*(x2+x3), ep/(2*m_electron)*(x2-x3), x4*2*np.pi
+        w, d, dp, ph = Egamma_min + x1*(ep - m_electron - Egamma_min), ep/(2*m_electron)*(x2+x3), ep/(2*m_electron)*(x2-x3), (x4-1/2)*2*np.pi
 
         epp = ep - w
         if not((Egamma_min < w < ep - m_electron) and (m_electron < epp < ep) and (d > 0.) and (dp > 0.)):

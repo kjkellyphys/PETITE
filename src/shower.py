@@ -305,7 +305,7 @@ class Shower:
         w = self._Egamma_min + x1*(Ee0 - m_electron - self._Egamma_min)
         ct = np.cos((x2+x3)/2)
         ctp = np.cos((x2-x3)*Ee0/(2*(Ee0-w)))
-        ph = x4*2.0*np.pi
+        ph = (x4-1/2)*2.0*np.pi
                 
         # reconstruct final electron and photon 4-momenta from the MC-sampled variables
         NFVs = e_to_egamma_fourvecs(Ee0, m_electron, w, ct, ctp, ph)

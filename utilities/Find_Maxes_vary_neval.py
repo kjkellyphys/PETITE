@@ -22,15 +22,15 @@ startTime = datetime.now()
 
 
 Dir0 = os.getcwd()
-PickDir = Dir0 + "../data/VEGAS_backend/SM/"
-SvDir  = Dir0 + "../data/VEGAS_dictionaries/"
+PickDir = Dir0 + "/../data/VEGAS_backend/SM/"
+SvDir  = Dir0 + "/../data/VEGAS_dictionaries/"
 
 PPSamp0 = np.load(PickDir+"PairProduction_AdaptiveMaps.npy", allow_pickle=True)
 BremSamp0 = np.load(PickDir+"Bremsstrahlung_AdaptiveMaps.npy", allow_pickle=True)
 CompSamp0 = np.load(PickDir+"Compton_AdaptiveMaps.npy", allow_pickle=True)
 AnnSamp0 = np.load(PickDir+"Annihilation_AdaptiveMaps.npy", allow_pickle=True)
 MollerSamp0 = np.load(PickDir+"Moller_AdaptiveMaps.npy", allow_pickle=True)
-BhabhaSamp0 = np.load(PickDir+"Moller_AdaptiveMaps.npy", allow_pickle=True)
+BhabhaSamp0 = np.load(PickDir+"Bhabha_AdaptiveMaps.npy", allow_pickle=True)
 
 #Brem Samples were generated with Egamma_min = 0.001 GeV = 1 MeV
 Egamma_min = 0.001
