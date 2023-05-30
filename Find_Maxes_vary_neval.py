@@ -22,8 +22,8 @@ startTime = datetime.now()
 
 
 Dir0 = os.getcwd()
-PickDir = Dir0 + "/NBP/"
-SvDir  = Dir0 + "/RyanDicts/"
+PickDir = Dir0 + "/data/VEGAS_backend/SM/"
+SvDir  = Dir0 + "/data/VEGAS_dictionaries/"
 
 PPSamp0 = np.load(PickDir+"PairProduction_AdaptiveMaps.npy", allow_pickle=True)
 BremSamp0 = np.load(PickDir+"Bremsstrahlung_AdaptiveMaps.npy", allow_pickle=True)
@@ -63,8 +63,6 @@ QSq_functions={"PairProd" : pair_production_q_sq_dimensionless, "Brem"  : brem_q
 
 neval0 = 300
 n_trials = 100
-
-UnWS, XSecPP = [], []
 
 xSec_dict={}
 samp_dict ={}
