@@ -29,9 +29,10 @@ def sample_distance(self, PID, energy):
 
         ## Use first derivative of n_sigma to estimate a good step-size
         ## in coordinate space
-        delta_z  =  cmtom/(deriv(n_sigma, var_energy)/n_sigma(var_energy) * self._dEdx)
-
+        delta_z_est_gradient  =  cmtom/(deriv(n_sigma, var_energy)/n_sigma(var_energy) * self._dEdx)
         mfp = cmtom/n_sigma(var_energy)
+
+        delta_z= 0.5*min(mfp,delta_z_est_gradient)
 
     
         # Test if hard scatter happened
