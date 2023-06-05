@@ -532,6 +532,78 @@ class Shower:
         NewE = Particle(11, Eef, pe3LF[0], pe3LF[1], pe3LF[2], pos[0], pos[1], pos[2], 2*(init_IDs[1])+1, init_IDs[1], init_IDs[0], init_IDs[4]+1, process_code[Process], newparticlewgt)
 
         return [NewEP, NewE]
+    
+    def deriv(self, f,x):
+        # I am sure python has a native version of this but I was on the plane.
+        # replace with more elegant function
+        h=0.0001*x
+        return(  ( f(x+h)-f(x-h) )/(2*h)  ) 
+
+    def sample_distance(self, PID, energy):
+        if PID == 22:
+            def n_sigma(energy):
+                return (self._NSigmaPP(energy) + self._NSigmaComp(energy))
+
+        elif PID == 11:
+            def n_sigma(energy):
+                return (self._NSigmaBrem(energy) + self._NSigmaMoller(energy))
+
+        elif PID == -11:
+            def n_sigma(energy):
+                return (self._NSigmaBrem(energy) + self._NSigmaAnn(energy) + self._NSigmaBhabha(energy))
+
+
+        z_travelled =0
+        hard_scatter=False
+        var_energy  = energy
+    
+        while hard_scatter == False and var_energy > self.min_energy:
+
+            random_number =  np.random.uniform(0.0, 1.0)
+
+            ## Use first derivative of n_sigma to estimate a good step-size
+            ## in coordinate space
+            mfp = self.get_mfp(PID, var_energy)
+
+            dEdxT = self.get_material_properties()[3]*(0.1)#Converting MeV/cm to GeV/m
+            #delta_z_1  =  1.0/(self.deriv(n_sigma, var_energy)/n_sigma(var_energy) * dEdxT) #step size in meters
+            #delta_z_2 = (var_energy/dEdxT)/5.0
+            #delta_z = np.min([delta_z_1, delta_z_2, mfp/5.0])
+            delta_z = mfp/np.random.uniform(low=6, high=20)
+
+            #mfp = cmtom/n_sigma(var_energy) #mfp in meters
+
+        
+            # Test if hard scatter happened
+            if random_number > np.exp( -delta_z/mfp):
+                hard_scatter = True
+                final_energy = var_energy
+                break
+            # If no hard scatter propagate particle
+            # and account for energy loss
+            else:
+                hard_scatter = False
+
+                var_energy= var_energy - dEdxT*delta_z
+                z_travelled = z_travelled+delta_z
+        
+        final_energy = var_energy
+
+        mfp = cmtom/n_sigma(final_energy)
+
+        distC = np.random.uniform(0.0, 1.0)
+        dist = z_travelled + mfp*np.log(1.0/(1.0+(np.exp(-delta_z/mfp)-1)*distC))
+
+        # I have designed this code to interface with the currently
+        # written function, however it is likely more elegant to
+        # just do the energy losses etc in this function, and return
+        # the final "parent" kinematics 
+        
+        return(dist) 
+
+        
+        
+
 
     def propagate_particle(self, Part0, Losses=False, MS=False):
         """Propagates a particle through material between hard scattering events, 
@@ -557,9 +629,13 @@ class Shower:
             elif Part0.get_ids()[0] == 22 and (np.log10(Part0.get_p0()[0]) < np.max([self._logEgMinComp, self._logEgMinPP])):
                 Part0.set_ended(True)
                 return Part0
-            mfp = self.get_mfp(Part0.get_ids()[0], Part0.get_p0()[0])
-            distC = np.random.uniform(0.0, 1.0)
-            dist = mfp*np.log(1.0/(1.0-distC))
+            
+            if Part0.get_ids()[0] == 22:
+                mfp = self.get_mfp(Part0.get_ids()[0], Part0.get_p0()[0])
+                distC = np.random.uniform(0.0, 1.0)
+                dist = mfp*np.log(1.0/(1.0-distC))
+            else:
+                dist = self.sample_distance(Part0.get_ids()[0], Part0.get_p0()[0])
             if np.abs(Part0.get_ids()[0]) == 11:
                 M0 = m_electron
             elif Part0.get_ids()[0] == 22:
@@ -642,7 +718,7 @@ class Shower:
                     
                     all_particles[apI] = ap
 
-                    if (all([ap.get_ended() == True for ap in all_particles]) is True and ap.get_pf()[0] < self.min_energy):
+                    if (all([apC.get_ended() == True for apC in all_particles]) is True and ap.get_pf()[0] < self.min_energy):
                         break
 
                     # Generate secondaries for the hard interaction
@@ -651,7 +727,7 @@ class Shower:
                     if ap.get_ids()[0] == 11:
                         choices0 = self._NSigmaBrem(ap.get_pf()[0]), self._NSigmaMoller(ap.get_pf()[0])
                         SC = np.sum(choices0)
-                        if SC == 0.0:
+                        if SC == 0.0 or np.isnan(SC):
                             continue
                         choices0 = choices0/SC
                         draw = np.random.choice([0,1], p=choices0)
@@ -662,7 +738,7 @@ class Shower:
                     elif ap.get_ids()[0] == -11:
                         choices0 = self._NSigmaBrem(ap.get_pf()[0]), self._NSigmaAnn(ap.get_pf()[0]), self._NSigmaBhabha(ap.get_pf()[0])
                         SC = np.sum(choices0)
-                        if SC == 0.0:
+                        if SC == 0.0 or np.isnan(SC):
                             continue
                         choices0 = choices0/SC
                         draw = np.random.choice([0,1,2], p=choices0)
