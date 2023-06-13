@@ -7,3 +7,4 @@ PETITE.egg-info
 .DS_Store
 .gitignore
 .ipynb_checkpoints/Untitled-checkpoint.ipynb
+exploring_PETITE.py
