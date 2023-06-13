@@ -213,11 +213,29 @@ class Shower:
         return b0/(b0+b1)
 
 
-    def draw_sample(self,Einc,LU_Key,process,VB=False):
+    def draw_sample(self,Einc,LU_Key=-1,process='PairProd',VB=False):
+        """Draws a sample from the pre-computed VEGAS integrator for a given
+        process and incoming energy.
+        Inputs:
+            Einc: incoming particle energy in GeV
+            LU_Key: (look up key) index of the pre-computed VEGAS integrator corresponding to
+            the closest incoming energy. If LU_Key is negative, the look up key identifies
+            the closest incoming energy to Einc.
+            process: string label of the process
+            VB: boolean flag to print verbose output
+        Returns:
+            x: array of MC-sampled variables"""
 
         sample_list=self._loaded_samples 
 
-        # this grabs the dictionary part rather than the energy. 
+        if LU_Key<0 or LU_Key > len(sample_list[process]):
+            # Get the LU_Key corresponding to the closest incoming energy
+            energies = sample_list[process][0:]
+            energies = np.array([x[0] for x in energies])
+            # Get index of nearest energy
+            LU_Key = np.argmin(np.abs(energies - Einc))
+
+        # Get dictionary based on LU_Key or energy (if LU_Key is negative)
         sample_dict=sample_list[process][LU_Key][1]
 
         adaptive_map = sample_dict["adaptive_map"]
