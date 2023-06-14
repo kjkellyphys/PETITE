@@ -70,7 +70,7 @@ class DarkShower(Shower):
    
 
     def set_mV_list(self,dict_dir):
-        sample_file=open(dict_dir + "dark_samp_dicts.pkl", 'rb')
+        sample_file=open(dict_dir + "dark_maps.pkl", 'rb')
         outer_dict=pickle.load(sample_file)
         sample_file.close()
 
@@ -105,7 +105,7 @@ class DarkShower(Shower):
         return self._mV
     
     def load_dark_sample(self, dict_dir, process): 
-        sample_file=open(dict_dir + "dark_samp_dicts.pkl", 'rb')
+        sample_file=open(dict_dir + "dark_maps.pkl", 'rb')
         outer_dict=pickle.load(sample_file)
         sample_file.close()
 
@@ -126,7 +126,7 @@ class DarkShower(Shower):
 
 
     def load_dark_cross_section(self, dict_dir, process, target_material):
-        dark_cross_section_file=open( dict_dir + "dark_xSec_Dicts.pkl", 'rb')
+        dark_cross_section_file=open( dict_dir + "dark_xsecs.pkl", 'rb')
         outer_dict=pickle.load(dark_cross_section_file)
         dark_cross_section_file.close()
 

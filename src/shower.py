@@ -62,7 +62,7 @@ class Shower:
                 
         
     def load_sample(self, dict_dir, process):
-        sample_file=open(dict_dir + "samp_Dicts.pkl", 'rb')
+        sample_file=open(dict_dir + "sm_maps.pkl", 'rb')
         sample_dict=pickle.load(sample_file)
         sample_file.close()
 
@@ -74,7 +74,7 @@ class Shower:
     
 
     def load_cross_section(self, dict_dir, process, target_material):
-        cross_section_file=open( dict_dir + "xSec_Dicts.pkl", 'rb')
+        cross_section_file=open( dict_dir + "sm_xsecs.pkl", 'rb')
         cross_section_dict=pickle.load(cross_section_file)
         cross_section_file.close()
 

@@ -85,8 +85,8 @@ def main(params):
     save_path = "../" + params['save_location'] + "/" + params['process']    
     if os.path.exists(save_path) == False:
             os.system("mkdir -p " + save_path)
-    f_xSecs = open(save_path + "/xSec_Dicts.pkl","wb")
-    f_samps = open(save_path + "/samp_Dicts.pkl","wb")
+    f_xSecs = open(save_path + "/sm_xsecs.pkl","wb")
+    f_samps = open(save_path + "/sm_maps.pkl","wb")
 
     pickle.dump(np.array(xSec_dict),f_xSecs)
     pickle.dump(samp_dict,f_samps)

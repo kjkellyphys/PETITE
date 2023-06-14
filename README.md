@@ -14,8 +14,8 @@ PETITE comes with pre-generated showers for graphite and lead #FIXME: energies?
 
 # Structure of pre-generated VEGAS adaptive maps
 #FIXME: renaming needed:
-    samp_Dicts.pkl ==> standard_maps.pkl
-    xSec_Dicts.pkl ==> standard_xSecs.pkl
+    samp_Dicts.pkl ==> sm_maps.pkl
+    xSec_Dicts.pkl ==> sm_xSecs.pkl
     dark_samp_dicts.pkl ==> dark_maps.pkl
     dark_xSec_Dicts.pkl ==> dark_xSecs.pkl
 
