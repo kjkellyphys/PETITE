@@ -10,21 +10,19 @@ To install, from the top directory run
 PETITE comes with pre-generated showers for graphite and lead #FIXME: energies?
 
 ## Running PETITE
+TBD
 
+# Pre-generated VEGAS integrators
+PETITE comes with pre-generated VEGAS integrators (both before and after processing) for standard showers in graphite and lead.
+You can find them in the ./data/
 
-# Structure of pre-generated VEGAS adaptive maps
-#FIXME: renaming needed:
-    samp_Dicts.pkl ==> sm_maps.pkl
-    xSec_Dicts.pkl ==> sm_xSecs.pkl
-    dark_samp_dicts.pkl ==> dark_maps.pkl
-    dark_xSec_Dicts.pkl ==> dark_xSecs.pkl
-
-In VEGAS_backend one can find a list of adaptive maps for both standard and dark showers, for each process.
+## Structure of pre-generated VEGAS adaptive maps
+In ./data/VEGAS_backend one can find a list of adaptive maps for both standard and dark showers, for each process.
 #FIXME: were they done for hydrogen?
 
-In VEGAS_dictionaries you have processed versions of the adaptive maps, with the following structure:
+In ./data/VEGAS_dictionaries you have processed versions of the adaptive maps, with the following structure:
 
-## Pre-generated processed standard model showers
+### Pre-generated processed standard model showers
 standard_maps.pkl is a dictionary of dictionaries.
 The first layer of keys are the standard model processes:
     'PairProd', 'Comp', 'Ann', 'Brem', 'Moller' and 'Bhabha'
@@ -33,7 +31,7 @@ Each entry is a vector in which the first component is the incoming energy, whil
 
 Besides the adaptive maps
 
-## Pre-generated processed dark showers
+### Pre-generated processed dark showers
 dark_maps.pkl is a dictionary of dictionaries.
 The first layer of keys are the masses of the dark vector.
 For each mass, the second layer of keys are the dark shower processes:
@@ -50,7 +48,7 @@ Inside those, everything follows the same structure as for standard showers.
 
 
 
-
+# OLD (to be removed)
 Run the script "Gen_Samples.py" to make unweighted samples for lead and graphite simulations.
 
 The main code is in "shower.py" for standard model showers and "dark_shower.py", and an example script for using this code is "Example_GeVElectronShower.py".
