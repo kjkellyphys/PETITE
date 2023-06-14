@@ -23,13 +23,13 @@ In ./data/VEGAS_backend one can find a list of adaptive maps for both standard a
 In ./data/VEGAS_dictionaries you have processed versions of the adaptive maps, with the following structure:
 
 ### Pre-generated processed standard model showers
-standard_maps.pkl is a dictionary of dictionaries.
+sm_maps.pkl is a dictionary of dictionaries.
 The first layer of keys are the standard model processes:
     'PairProd', 'Comp', 'Ann', 'Brem', 'Moller' and 'Bhabha'
 For each process we there are several entries corresponding to different incoming energy.
 Each entry is a vector in which the first component is the incoming energy, while the second has a dictionary with VEGAS parameters and the adaptive map ('neval', 'max_F', 'Eg_min', 'adaptive_maps').
 
-Besides the adaptive maps
+Besides the adaptive maps, there are also cross section tables for each process, which are used to determine the process that occurs in each step of the shower evolution. These can be found in sm_xsecs.pkl.
 
 ### Pre-generated processed dark showers
 dark_maps.pkl is a dictionary of dictionaries.
@@ -38,6 +38,7 @@ For each mass, the second layer of keys are the dark shower processes:
     'Brem', 'Comp', and 'Ann'
 Inside those, everything follows the same structure as for standard showers.
 
+Cross sections for dark showers can be found in dark_xsecs.pkl.
 
 # TODO
 - [ ] Explain how to run PETITE using pre-generated pickles
