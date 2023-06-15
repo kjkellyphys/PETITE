@@ -296,6 +296,8 @@ def dsig_etl_helper(params, v):
     x, l1mct, t = v
     return dsig_dx_dcostheta_dark_brem_exact_tree_level(x, l1mct, t, params)
 
+
+
 def dsigma_annihilation_dCT(event_info, phase_space_par_list):
     """Annihilation of a Positron and Electron into a Photon and a (Dark) Photon
        e+ (Ee) + e- (me) -> gamma + gamma/V
@@ -309,6 +311,13 @@ def dsigma_annihilation_dCT(event_info, phase_space_par_list):
     Ee=event_info['E_inc']
     mV=event_info['mV']
     s = 2.0*m_electron*(Ee+m_electron)
+
+    if 'Eg_min' in event_info.keys():
+        EgMin = event_info['Eg_min']
+    else:
+        EgMin = 0.0
+    ctMax = np.sqrt((Ee+m_electron)/(Ee-m_electron))*(2*m_electron*(Ee-2*EgMin+m_electron)-mV**2)/(2*m_electron*(Ee+m_electron)-mV**2)
+
     if s < mV**2:
         if len(np.shape(phase_space_par_list)) == 1:
             return 0.0
@@ -322,7 +331,10 @@ def dsigma_annihilation_dCT(event_info, phase_space_par_list):
 
     for varth in phase_space_par_list:
         ct = varth[0]
-        dSigs.append(4.0*np.pi*alpha_em**2/(s*(1 - b**2*ct**2))*((s-mV**2)/(2*s)*(1+ct**2) + 2.0*mV**2/(s-mV**2)))
+        if ct > ctMax:
+            dSigs.append(0.0)
+        else:
+            dSigs.append(4.0*np.pi*alpha_em**2/(s*(1 - b**2*ct**2))*((s-mV**2)/(2*s)*(1+ct**2) + 2.0*mV**2/(s-mV**2)))
     if len(dSigs) == 1:
         return dSigs[0]
     else:

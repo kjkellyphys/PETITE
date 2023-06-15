@@ -22,10 +22,11 @@ startTime = datetime.now()
 
 
 Dir0 = os.getcwd()
-PickDir = Dir0 + "../data/VEGAS_backend/"
-SvDir  = Dir0 + "../data/VEGAS_dictionaries/"
+PickDir = Dir0 + "/../data/VEGAS_backend/"
+SvDir  = Dir0 + "/../data/VEGAS_dictionaries/"
 #Brem Samples were generated with Egamma_min = 0.001 GeV = 1 MeV
-Egamma_min = 0.001
+#Egamma_min = 0.001
+Egamma_min = 0.010
 CompSamp0 = np.load(PickDir+"SM/Compton_AdaptiveMaps.npy", allow_pickle=True)
 AnnSamp0 = np.load(PickDir+"SM/Annihilation_AdaptiveMaps.npy", allow_pickle=True)
 
@@ -137,8 +138,8 @@ for mVi, mV in enumerate(vector_masses):
         for tm in TargetMaterials:        
             xSec_dict[mV][process_key][tm]= np.asarray(xSec_dict_0[mV][process_key][tm])
 
-f_xSecs = open(SvDir + "dark_xSec_Dicts.pkl","wb")
-f_samps = open(SvDir + "dark_samp_dicts.pkl","wb")
+f_xSecs = open(SvDir + "dark_xSec_Dicts_New.pkl","wb")
+f_samps = open(SvDir + "dark_samp_dicts_New.pkl","wb")
 
 pickle.dump(xSec_dict,f_xSecs)
 pickle.dump(samp_dict,f_samps)

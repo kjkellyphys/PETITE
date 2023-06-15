@@ -281,11 +281,13 @@ class DarkShower(Shower):
         else:
             return self._NSigmaDarkBrem(Energy)/(self._NSigmaDarkBrem(Energy) + self._NSigmaDarkAnn(Energy))
 
-    def DarkElecBremSample(self, Elec0, VB=False):
+    def DarkElecBremSample(self, Elec0, VB=False, relative_weight=1.0):
         """Generate a brem event from an initial electron/positron
             Args:
                 Elec0: incoming electron/positron (instance of) Particle 
                 in lab frame
+                relative_weight (optional): a reweighting factor relative
+                to the overall BSM weight
             Returns:
                 NewV: outgoing dark photon (instance of) Particle 
                 in lab frame
@@ -319,18 +321,20 @@ class DarkShower(Shower):
             print(Ee0)
             print("---------------------------------------------")
 
-        wg = self.GetBSMWeights(11, Ee0)
+        wg = self.GetBSMWeights(11, Ee0)*relative_weight
 
         GenType = process_code['ExactBrem']
 
         NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_ids()[1])+1, Elec0.get_ids()[1], Elec0.get_ids()[0], Elec0.get_ids()[4]+1, GenType, wg)
         return NewV
 
-    def DarkAnnihilationSample(self, Elec0, VB=False):
+    def DarkAnnihilationSample(self, Elec0, VB=False, relative_weight=1.0):
         """Generate an annihilation event from an initial positron
             Args:
                 Elec0: incoming positron (instance of) Particle in lab frame
-            Returns:
+                relative_weight (optional): a reweighting factor relative 
+                to the overall BSM weight
+        Returns:
                 NewV: outgoing dark photon (instances of) Particle 
                 in lab frame
         """
@@ -354,7 +358,7 @@ class DarkShower(Shower):
         EVf, pVxfZF, pVyfZF, pVzfZF = NFVs
         pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
         pV3LF = np.dot(RM, pV3ZF)
-        wg = self.GetBSMWeights(-11, Ee0)
+        wg = self.GetBSMWeights(-11, Ee0)*relative_weight
 
         if EVf > Ee0+m_electron/2+(2*Ee0-m_electron)*self.get_mV()**2/(8*Ee0**2):
             print("---------------------------------------------")
@@ -443,19 +447,25 @@ class DarkShower(Shower):
                 if np.log10(ap.get_pf()[0]) < self._logEeMinDarkBrem:
                     continue
                 npart = self.DarkElecBremSample(ap)
+                NewShower.append(npart)
             elif ap.get_ids()[0] == -11:
                 if np.log10(ap.get_pf()[0]) < self._logEeMinDarkBrem:
                     continue
                 DarkBFEpBrem = self.GetPositronDarkBF(ap.get_pf()[0])
-                ch = np.random.uniform(low=0., high=1.0)
-                if ch < DarkBFEpBrem:
-                    npart = self.DarkElecBremSample(ap)
-                else:
-                    npart = self.DarkAnnihilationSample(ap)
+                #ch = np.random.uniform(low=0., high=1.0)
+                #if ch < DarkBFEpBrem:
+                #    npart = self.DarkElecBremSample(ap)
+                #else:
+                #    npart = self.DarkAnnihilationSample(ap)
+                npart = self.DarkElecBremSample(ap, relative_weight=DarkBFEpBrem)
+                NewShower.append(npart)
+                if DarkBFEpBrem < 1.0:
+                    npart2 = self.DarkAnnihilationSample(ap, relative_weight=(1.0-DarkBFEpBrem))
+                    NewShower.append(npart2)
             elif ap.get_ids()[0] == 22:
                 if ap.get_pf()[0] < self._mV*(1.0 + self._mV/(2*m_electron)):
                     continue
                 npart = self.DarkComptonSample(ap)
-            NewShower.append(npart)
+                NewShower.append(npart)
 
         return ShowerToSamp, NewShower
