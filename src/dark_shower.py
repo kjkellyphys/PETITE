@@ -20,7 +20,7 @@ GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm
 cmtom = 0.01
 mp0 = 1.673e-24 #g
 
-process_code = {'ExactBrem':0, 'Ann': 1, 'Comp': 3}
+dark_process_code = {'ExactBrem':0, 'Ann': 1, 'Comp': 3}
 
 class DarkShower(Shower):
     """ A class to reprocess an existing EM shower to generate dark photons
@@ -119,7 +119,7 @@ class DarkShower(Shower):
 
     def set_dark_samples(self):
         self._loaded_dark_samples={}
-        for process in process_code.keys():
+        for process in dark_process_code.keys():
             self._loaded_dark_samples[process]= \
                 self.load_dark_sample(self._dict_dir, process)
             
@@ -300,7 +300,10 @@ class DarkShower(Shower):
             [np.cos(ThZ)*np.sin(PhiZ), np.cos(PhiZ), np.sin(ThZ)*np.sin(PhiZ)],
             [-np.sin(ThZ), 0, np.cos(ThZ)]]
 
-        LUKey = int((np.log10(Ee0) - self._logEeMinDarkBrem)/self._logEeSSDarkBrem)
+        try:
+            LUKey = int((np.log10(Ee0) - self._logEeMinDarkBrem)/self._logEeSSDarkBrem)
+        except:
+            print(Ee0, self._logEeMinDarkBrem, self._logEeSSDarkBrem, (np.log10(Ee0) - self._logEeMinDarkBrem)/self._logEeSSDarkBrem)
         LUKey = LUKey + 1
         
         ## FIXME Need right key name
@@ -323,7 +326,7 @@ class DarkShower(Shower):
 
         wg = self.GetBSMWeights(11, Ee0)*relative_weight
 
-        GenType = process_code['ExactBrem']
+        GenType = dark_process_code['ExactBrem']
 
         NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_ids()[1])+1, Elec0.get_ids()[1], Elec0.get_ids()[0], Elec0.get_ids()[4]+1, GenType, wg)
         return NewV
@@ -354,7 +357,7 @@ class DarkShower(Shower):
         sample_event = self.draw_dark_sample(Ee0, LUKey, 'Ann', VB=VB)
         #NFVs = Ann_FVs(EeMod, meT, MVT, SampEvt[0])[1]
         NFVs = annihilation_fourvecs(Ee0, m_electron, self.get_mV(), sample_event[0])[1]
-        GenType = process_code['Ann']
+        GenType = dark_process_code['Ann']
         EVf, pVxfZF, pVyfZF, pVzfZF = NFVs
         pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
         pV3LF = np.dot(RM, pV3ZF)
@@ -401,7 +404,7 @@ class DarkShower(Shower):
         pV3LF = np.dot(RM, pV3ZF)
 
         wg = self.GetBSMWeights(22, Eg0)
-        GenType = process_code['Comp']
+        GenType = dark_process_code['Comp']
         if EVf > Eg0:
             print("---------------------------------------------")
             print("High Energy V Found from Photon Samples:")
@@ -444,12 +447,12 @@ class DarkShower(Shower):
             if self.GetBSMWeights(ap.get_ids()[0], ap.get_pf()[0]) == 0.0:
                 continue
             if ap.get_ids()[0] == 11:
-                if np.log10(ap.get_pf()[0]) < self._logEeMinDarkBrem:
+                if np.log10(ap.get_pf()[0]) < self._logEeMinDarkBrem or np.isnan(ap.get_pf()[0]):
                     continue
                 npart = self.DarkElecBremSample(ap)
                 NewShower.append(npart)
             elif ap.get_ids()[0] == -11:
-                if np.log10(ap.get_pf()[0]) < self._logEeMinDarkBrem:
+                if np.log10(ap.get_pf()[0]) < self._logEeMinDarkBrem or np.isnan(ap.get_pf()[0]):
                     continue
                 DarkBFEpBrem = self.GetPositronDarkBF(ap.get_pf()[0])
                 #ch = np.random.uniform(low=0., high=1.0)
@@ -463,7 +466,7 @@ class DarkShower(Shower):
                     npart2 = self.DarkAnnihilationSample(ap, relative_weight=(1.0-DarkBFEpBrem))
                     NewShower.append(npart2)
             elif ap.get_ids()[0] == 22:
-                if ap.get_pf()[0] < self._mV*(1.0 + self._mV/(2*m_electron)):
+                if ap.get_pf()[0] < self._mV*(1.0 + self._mV/(2*m_electron)) or np.isnan(ap.get_pf()[0]):
                     continue
                 npart = self.DarkComptonSample(ap)
                 NewShower.append(npart)

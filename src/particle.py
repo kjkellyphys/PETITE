@@ -31,6 +31,19 @@ class Particle:
     def get_ids(self):
         return self._IDs
 
+    def get_pid(self):
+        """Returns PID of particle in shower
+        """
+        return self._IDs[0]
+    def get_parent_pid(self):
+        """Returns PID of particle's parent in shower
+        """
+        return self._IDs[2]
+    def get_weight(self):
+        """Returns weight of particle in shower
+        """
+        return self._IDs[6]
+
     def set_p0(self, value):
         self._p0 = value
     def get_p0(self):
