@@ -276,7 +276,7 @@ class DarkShower(Shower):
     def GetPositronDarkBF(self, Energy):
         """Branching fraction for a positron to undergo dark brem vs dark 
         annihilation"""
-        if Energy < (self._mV**2 - m_electron**2)/(2*m_electron):
+        if Energy < (self._mV**2 - m_electron**2)/(2*m_electron) + 2*self._Egamma_min:
             return 1.0
         else:
             return self._NSigmaDarkBrem(Energy)/(self._NSigmaDarkBrem(Energy) + self._NSigmaDarkAnn(Energy))
