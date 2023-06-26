@@ -559,23 +559,25 @@ class Shower:
 
     def sample_distance(self, PID, energy):
         if PID == 22:
+            particle_min_energy = np.min([10**self._logEgMinPP, 10**self._logEgMinComp])
             def n_sigma(energy):
                 return (self._NSigmaPP(energy) + self._NSigmaComp(energy))
 
         elif PID == 11:
+            particle_min_energy = np.min([10**self._logEeMinBrem, 10**self._logEeMinMoller])
             def n_sigma(energy):
                 return (self._NSigmaBrem(energy) + self._NSigmaMoller(energy))
 
         elif PID == -11:
+            particle_min_energy = np.min([10**self._logEeMinBrem, 10**self._logEeMinAnn, 10**self._logEeMinBhabha])
             def n_sigma(energy):
                 return (self._NSigmaBrem(energy) + self._NSigmaAnn(energy) + self._NSigmaBhabha(energy))
-
 
         z_travelled =0
         hard_scatter=False
         var_energy  = energy
     
-        while hard_scatter == False and var_energy > self.min_energy:
+        while hard_scatter == False and var_energy > particle_min_energy:
 
             random_number =  np.random.uniform(0.0, 1.0)
 
@@ -607,7 +609,10 @@ class Shower:
         
         final_energy = var_energy
 
-        mfp = cmtom/n_sigma(final_energy)
+    #    mfp = cmtom/n_sigma(final_energy)
+        if final_energy < particle_min_energy:
+            final_energy = 1.01*particle_min_energy
+        mfp = self.get_mfp(PID, final_energy)
 
         distC = np.random.uniform(0.0, 1.0)
         dist = z_travelled + mfp*np.log(1.0/(1.0+(np.exp(-delta_z/mfp)-1)*distC))
