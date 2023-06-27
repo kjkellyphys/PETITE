@@ -312,7 +312,7 @@ class DarkShower(Shower):
         ct = (1 - 10**sample_event[1])
         EVf, pVxfZF, pVyfZF, pVzfZF = e_to_eV_fourvecs(Ee0, m_electron, EV, self.get_mV(), ct, 0, 0)[2]
         pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
-        pV3LF = np.dot(RM, pV3ZF)
+        pV4LF = np.concatenate([[EVf], np.dot(RM, pV3ZF)])
 
         if EVf > Ee0:
             print("---------------------------------------------")
@@ -325,10 +325,18 @@ class DarkShower(Shower):
             print("---------------------------------------------")
 
         wg = self.GetBSMWeights(11, Ee0)*relative_weight
+        
+        init_IDs = Elec0.get_ids()
+        VDict = {}
+        VDict["PID"] = 4900022
+        VDict["parent_PID"] = init_IDs["PID"]
+        VDict["ID"] = 2*(init_IDs["ID"]) + 1
+        VDict["parent_ID"] = init_IDs["ID"]
+        VDict["generation_number"] = init_IDs["generation_number"] + 1
+        VDict["generation_process"] = "ExactBrem"
+        VDict["weight"] = wg
+        NewV = Particle(pV4LF, Elec0.get_rf(), VDict)
 
-        GenType = dark_process_code['ExactBrem']
-
-        NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_ids()[1])+1, Elec0.get_ids()[1], Elec0.get_ids()[0], Elec0.get_ids()[4]+1, GenType, wg)
         return NewV
 
     def DarkAnnihilationSample(self, Elec0, VB=False, relative_weight=1.0):
@@ -356,11 +364,12 @@ class DarkShower(Shower):
         # FIXME  need right key name 
         sample_event = self.draw_dark_sample(Ee0, LUKey, 'Ann', VB=VB)
         #NFVs = Ann_FVs(EeMod, meT, MVT, SampEvt[0])[1]
-        NFVs = annihilation_fourvecs(Ee0, m_electron, self.get_mV(), sample_event[0])[1]
-        GenType = dark_process_code['Ann']
+        #NFVs = annihilation_fourvecs(Ee0, m_electron, self.get_mV(), sample_event[0])[1]
+        NFVs = annihilation_fourvecs(Elec0, sample_event, mV=self._mV_estimator)[1]
+
         EVf, pVxfZF, pVyfZF, pVzfZF = NFVs
         pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
-        pV3LF = np.dot(RM, pV3ZF)
+        pV4LF = np.concatenate([[EVf], np.dot(RM, pV3ZF)])
         wg = self.GetBSMWeights(-11, Ee0)*relative_weight
 
         if EVf > Ee0+m_electron/2+(2*Ee0-m_electron)*self.get_mV()**2/(8*Ee0**2):
@@ -373,7 +382,17 @@ class DarkShower(Shower):
             print(wg)
             print("---------------------------------------------")
 
-        NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_ids()[1])+1, Elec0.get_ids()[1], Elec0.get_ids()[0], Elec0.get_ids()[4]+1, GenType, wg)
+        init_IDs = Elec0.get_ids()
+        VDict = {}
+        VDict["PID"] = 4900022
+        VDict["parent_PID"] = init_IDs["PID"]
+        VDict["ID"] = 2*(init_IDs["ID"]) + 1
+        VDict["parent_ID"] = init_IDs["ID"]
+        VDict["generation_number"] = init_IDs["generation_number"] + 1
+        VDict["generation_process"] = "Ann"
+        VDict["weight"] = wg
+        NewV = Particle(pV4LF, Elec0.get_rf(), VDict)
+
         return NewV
 
     def DarkComptonSample(self, Phot0, VB=False):
@@ -399,9 +418,10 @@ class DarkShower(Shower):
         sample_event = self.draw_dark_sample(Eg0, LUKey, 'Comp', VB=VB)
 
         #NFVs = Compton_FVs(EgMod, meanniT, MVT, SampEvt[0])[1]
-        EVf, pVxfZF, pVyfZF, pVzfZF = compton_fourvecs(Eg0, m_electron, self.get_mV(), sample_event[0])[1]
+        EVf, pVxfZF, pVyfZF, pVzfZF = compton_fourvecs(Phot0, sample_event, mV=self._mV_estimator)[1]
+        #EVf, pVxfZF, pVyfZF, pVzfZF = compton_fourvecs(Eg0, m_electron, self.get_mV(), sample_event[0])[1]
         pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
-        pV3LF = np.dot(RM, pV3ZF)
+        pV4LF = np.concatenate([[EVf], np.dot(RM, pV3ZF)])
 
         wg = self.GetBSMWeights(22, Eg0)
         GenType = dark_process_code['Comp']
@@ -415,7 +435,17 @@ class DarkShower(Shower):
             print(wg)
             print("---------------------------------------------")
 
-        NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Phot0.get_rf()[0], Phot0.get_rf()[1], Phot0.get_rf()[2], 2*(Phot0.get_ids()[1])+0, Phot0.get_ids()[1], Phot0.get_ids()[0], Phot0.get_ids()[4]+1, GenType, wg)
+        init_IDs = Phot0.get_ids()
+        VDict = {}
+        VDict["PID"] = 4900022
+        VDict["parent_PID"] = init_IDs["PID"]
+        VDict["ID"] = 2*(init_IDs["ID"]) + 1
+        VDict["parent_ID"] = init_IDs["ID"]
+        VDict["generation_number"] = init_IDs["generation_number"] + 1
+        VDict["generation_process"] = "Ann"
+        VDict["weight"] = wg
+        NewV = Particle(pV4LF, Phot0.get_rf(), VDict)
+
         return NewV
 
     def generate_dark_shower(self, ExDir=None, SParams=None):
@@ -444,14 +474,14 @@ class DarkShower(Shower):
         
         NewShower = []
         for ap in ShowerToSamp:
-            if self.GetBSMWeights(ap.get_ids()[0], ap.get_pf()[0]) == 0.0:
+            if self.GetBSMWeights(ap.get_ids()["PID"], ap.get_pf()[0]) == 0.0:
                 continue
-            if ap.get_ids()[0] == 11:
+            if ap.get_ids()["PID"] == 11:
                 if np.log10(ap.get_pf()[0]) < self._logEeMinDarkBrem or np.isnan(ap.get_pf()[0]):
                     continue
                 npart = self.DarkElecBremSample(ap)
                 NewShower.append(npart)
-            elif ap.get_ids()[0] == -11:
+            elif ap.get_ids()["PID"] == -11:
                 if np.log10(ap.get_pf()[0]) < self._logEeMinDarkBrem or np.isnan(ap.get_pf()[0]):
                     continue
                 DarkBFEpBrem = self.GetPositronDarkBF(ap.get_pf()[0])
@@ -465,7 +495,7 @@ class DarkShower(Shower):
                 if DarkBFEpBrem < 1.0:
                     npart2 = self.DarkAnnihilationSample(ap, relative_weight=(1.0-DarkBFEpBrem))
                     NewShower.append(npart2)
-            elif ap.get_ids()[0] == 22:
+            elif ap.get_ids()["PID"] == 22:
                 if ap.get_pf()[0] < self._mV*(1.0 + self._mV/(2*m_electron)) or np.isnan(ap.get_pf()[0]):
                     continue
                 npart = self.DarkComptonSample(ap)

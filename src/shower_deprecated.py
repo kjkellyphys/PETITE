@@ -325,6 +325,273 @@ class Shower:
             return np.concatenate([list(x), [sampcount]])
         else:
             return(x)
+
+
+
+    def electron_brem_sample(self, Elec0, VB=False):
+        """Generate a brem event from an initial electron/positron
+            Args:
+                Elec0: incoming electron/positron (instance of) Particle 
+                in lab frame
+            Returns:
+                [NewE, NewG] where
+                NewE: outgoing electron/positron (instance of) Particle 
+                in lab frame
+                NewG: outgoing photon (instance of) Particle 
+                in lab frame
+        """
+        Ee0 = Elec0.get_pf()[0]
+        RM = Elec0.rotation_matrix()
+        sample_event = self.draw_sample(Ee0, process='Brem', VB=VB)
+
+        x1, x2, x3, x4 = sample_event[:4]
+        w = self._Egamma_min + x1*(Ee0 - m_electron - self._Egamma_min)
+        ct = np.cos((x2+x3)/2)
+        ctp = np.cos((x2-x3)*Ee0/(2*(Ee0-w)))
+        ph = (x4-1/2)*2.0*np.pi
+                
+        # reconstruct final electron and photon 4-momenta from the MC-sampled variables
+        NFVs = e_to_egamma_fourvecs(Ee0, m_electron, w, ct, ctp, ph)
+
+        Eef, pexfZF, peyfZF, pezfZF = NFVs[1]
+        Egf, pgxfZF, pgyfZF, pgzfZF = NFVs[2]
+
+        pe3ZF = [pexfZF, peyfZF, pezfZF]
+        pg3ZF = [pgxfZF, pgyfZF, pgzfZF]
+        
+        # Rotate back to lab frame
+        pe4LF = np.concatenate([[Eef], np.dot(RM, pe3ZF)])
+        pg4LF = np.concatenate([[Egf], np.dot(RM, pg3ZF)])
+        
+        init_IDs = Elec0.get_ids()
+
+        if VB:
+            newparticlewgt = sample_event[-1]
+        else:
+            newparticlewgt = 1.0
+        
+        EDict = {}
+        EDict["PID"] = init_IDs["PID"]
+        EDict["parent_PID"] = init_IDs["PID"]
+        EDict["ID"] = 2*(init_IDs["ID"]) + 0
+        EDict["parent_ID"] = init_IDs["ID"]
+        EDict["generation_number"] = init_IDs["generation_number"] + 1
+        EDict["generation_process"] = "Brem"
+        EDict["weight"] = newparticlewgt
+        EDict["mass"] = m_electron
+
+        GDict = EDict.copy()
+        GDict["PID"] = 22
+        GDict["ID"] = 2*(init_IDs["ID"]) + 1
+        GDict["mass"] = 0.0
+
+        NewE = Particle(pe4LF, Elec0.get_rf(), EDict)
+        NewG = Particle(pg4LF, Elec0.get_rf(), GDict)
+
+        return [NewE, NewG]
+
+    def AnnihilationSample(self, Elec0, VB=False):
+        """Generate an annihilation event from an initial positron
+            Args:
+                Elec0: incoming positron (instance of) Particle in lab frame
+            Returns:
+                [NewG1, NewG2]: outgoing photons (instances of) Particle 
+                in lab frame
+        """
+
+        Ee0 = Elec0.get_pf()[0]
+        RM = Elec0.rotation_matrix()        
+        SampEvt = self.draw_sample(Ee0, process='Ann', VB=VB)
+
+        # reconstruct final photon 4-momenta from the MC-sampled variables
+        NFVs = annihilation_fourvecs(Ee0, m_electron, 0.0, SampEvt[0])
+
+        Eg1f, pg1xfZF, pg1yfZF, pg1zfZF = NFVs[0]
+        Eg2f, pg2xfZF, pg2yfZF, pg2zfZF = NFVs[1]
+
+        pg3ZF1 = [pg1xfZF, pg1yfZF, pg1zfZF]
+        pg3ZF2 = [pg2xfZF, pg2yfZF, pg2zfZF]
+    
+        pg4LF1 = np.concatenate([[Eg1f], np.dot(RM, pg3ZF1)])
+        pg4LF2 = np.concatenate([[Eg2f], np.dot(RM, pg3ZF2)])
+
+        init_IDs = Elec0.get_ids()
+
+        if VB:
+            newparticlewgt = SampEvt[-1]
+        else:
+            newparticlewgt = 1.0
+
+        G1Dict = {}
+        G1Dict["PID"] = 22
+        G1Dict["parent_PID"] = init_IDs["PID"]
+        G1Dict["ID"] = 2*(init_IDs["ID"]) + 0
+        G1Dict["parent_ID"] = init_IDs["ID"]
+        G1Dict["generation_number"] = init_IDs["generation_number"] + 1
+        G1Dict["generation_process"] = "Ann"
+        G1Dict["weight"] = newparticlewgt
+        G1Dict["mass"] = 0.0
+
+        G2Dict = G1Dict.copy()
+        G2Dict["ID"] = 2*(init_IDs["ID"]) + 1
+        
+        NewG1 = Particle(pg4LF1, Elec0.get_rf(), G1Dict)
+        NewG2 = Particle(pg4LF2, Elec0.get_rf(), G2Dict)
+
+        return [NewG1, NewG2]
+
+    def pairprod_sample(self, Phot0, VB=False):
+        """Generate a photon splitting event from an initial photon
+            Args:
+                Phot0: incoming positron (instance of) Particle in lab frame
+            Returns:
+                [NewEp, NewEm]: outgoing positron and electron (instances of) Particle 
+                in lab frame
+        """
+        Eg0 = Phot0.get_pf()[0]
+        RM = Phot0.rotation_matrix()
+        sample_event = self.draw_sample(Eg0, process='PairProd', VB=VB)
+
+        x1, x2, x3, x4 = sample_event[:4]
+        epp = m_electron + x1*(Eg0-2*m_electron)
+        ctp = np.cos(Eg0*(x2+x3)/(2*epp))
+        ctm = np.cos(Eg0*(x2-x3)/(2*(Eg0-epp)))
+        ph = x4*2*np.pi
+        
+        # reconstruct final electron and positron 4-momenta from the MC-sampled variables
+        NFVs = gamma_to_epem_fourvecs(Eg0, m_electron, epp, ctp, ctm, ph)
+        Eepf, pepxfZF, pepyfZF, pepzfZF = NFVs[1]
+        Eemf, pemxfZF, pemyfZF, pemzfZF = NFVs[2]
+
+        pep3ZF = [pepxfZF, pepyfZF, pepzfZF]
+        pem3ZF = [pemxfZF, pemyfZF, pemzfZF]
+
+        pep4LF = np.concatenate([[Eepf], np.dot(RM, pep3ZF)])
+        pem4LF = np.concatenate([[Eemf], np.dot(RM, pem3ZF)])
+
+        pos = Phot0.get_rf()
+        init_IDs = Phot0.get_ids()
+
+        if VB:
+            newparticlewgt = sample_event[-1]
+        else:
+            newparticlewgt = 1.0
+
+        EpDict = {}
+        EpDict["PID"] = -11
+        EpDict["parent_PID"] = init_IDs["PID"]
+        EpDict["ID"] = 2*(init_IDs["ID"]) + 0
+        EpDict["parent_ID"] = init_IDs["ID"]
+        EpDict["generation_number"] = init_IDs["generation_number"] + 1
+        EpDict["generation_process"] = "PairProd"
+        EpDict["weight"] = newparticlewgt
+        EpDict["mass"] = m_electron
+
+        EmDict = EpDict.copy()
+        EmDict["PID"] = 11
+        EmDict["ID"] = 2*(init_IDs["ID"]) + 1
+        
+        NewEp = Particle(pep4LF, Phot0.get_rf(), EpDict)
+        NewEm = Particle(pem4LF, Phot0.get_rf(), EmDict)
+
+        return [NewEp, NewEm]
+
+    def compton_sample(self, Phot0, VB=False):
+        """Generate a Compton event from an initial photon
+            Args:
+                Phot0: incoming photon (instance of) Particle in lab frame
+            Returns:
+                [NewE, NewG]: electron and photon (instances of) Particle 
+                in lab frame
+        """
+
+        Eg0 = Phot0.get_pf()[0]
+        RM = Phot0.rotation_matrix()        
+        SampEvt = self.draw_sample(Eg0, process='Comp', VB=VB)
+
+        # reconstruct final electron and photon 4-momenta from the MC-sampled variables
+        NFVs = compton_fourvecs(Eg0, m_electron, 0.0, SampEvt[0])
+
+        Eef, pexfZF, peyfZF, pezfZF = NFVs[0]
+        Egf, pgxfZF, pgyfZF, pgzfZF = NFVs[1]
+
+        pe4LF = np.concatenate([[Eef], np.dot(RM, [pexfZF, peyfZF, pezfZF])])
+        pg4LF = np.concatenate([[Egf], np.dot(RM, [pgxfZF, pgyfZF, pgzfZF])])
+
+        init_IDs = Phot0.get_ids()
+
+        if VB:
+            newparticlewgt = SampEvt[-1]
+        else:
+            newparticlewgt = 1.0
+
+        EDict = {}
+        EDict["PID"] = 11
+        EDict["parent_PID"] = init_IDs["PID"]
+        EDict["ID"] = 2*(init_IDs["ID"]) + 0
+        EDict["parent_ID"] = init_IDs["ID"]
+        EDict["generation_number"] = init_IDs["generation_number"] + 1
+        EDict["generation_process"] = "Comp"
+        EDict["weight"] = newparticlewgt
+        EDict["mass"] = m_electron
+
+        GDict = EDict.copy()
+        GDict["PID"] = 22
+        GDict["ID"] = 2*(init_IDs["ID"]) + 1
+        GDict["mass"] = 0.0
+
+        NewE = Particle(pe4LF, Phot0.get_rf(), EDict)
+        NewG = Particle(pg4LF, Phot0.get_rf(), GDict)
+
+        return [NewE, NewG]
+    
+    def moller_bhabha_sample(self, ElecPos0, Process="Moller", VB=False):
+        """Generate a Moller or Bhabha scattering event from an initial electron/positron
+            Args:
+                ElecPos0: incoming electron/positron (instance of) Particle in lab frame
+            Returns:
+                [NewEP, NewE]: electron/positron and electron (instances of) Particle 
+                in lab frame
+        """
+
+        Ee0 = ElecPos0.get_pf()[0]
+        RM = ElecPos0.rotation_matrix()
+        SampEvt = self.draw_sample(Ee0, process=Process, VB=VB)
+
+        # reconstruct final electron and photon 4-momenta from the MC-sampled variables
+        NFVs = ee_to_ee_fourvecs(Ee0, m_electron, SampEvt[0])
+
+        Eepf, pepxfZF, pepyfZF, pepzfZF = NFVs[0]
+        Eef, pexfZF, peyfZF, pezfZF = NFVs[1]
+
+        pep4LF = np.concatenate([[Eepf], np.dot(RM, [pepxfZF, pepyfZF, pepzfZF])])
+        pe4LF = np.concatenate([[Eef], np.dot(RM, [pexfZF, peyfZF, pezfZF])])
+
+        init_IDs = ElecPos0.get_ids()
+
+        if VB:
+            newparticlewgt = SampEvt[-1]
+        else:
+            newparticlewgt = 1.0
+
+        EPDict = {}
+        EPDict["PID"] = init_IDs["PID"]
+        EPDict["parent_PID"] = init_IDs["PID"]
+        EPDict["ID"] = 2*(init_IDs["ID"]) + 0
+        EPDict["parent_ID"] = init_IDs["ID"]
+        EPDict["generation_number"] = init_IDs["generation_number"] + 1
+        EPDict["generation_process"] = Process
+        EPDict["weight"] = newparticlewgt
+        EPDict["mass"] = m_electron
+
+        EDict = EPDict.copy()
+        EDict["PID"] = 11
+        EDict["ID"] = 2*(init_IDs["ID"]) + 1
+
+        NewEP = Particle(pep4LF, ElecPos0.get_rf(), EPDict)
+        NewE = Particle(pe4LF, ElecPos0.get_rf(), EDict)
+
+        return [NewEP, NewE]
     
     def sample_scattering(self, p0, process, VB=False):
 
@@ -570,6 +837,11 @@ class Shower:
                         if SC == 0.0 or np.isnan(SC):
                             continue
                         choices0 = choices0/SC
+                        #draw = np.random.choice([0,1], p=choices0)
+                        #if draw == 0:
+                        #    npart = self.electron_brem_sample(ap, VB=VB)
+                        #else:
+                        #    npart = self.moller_bhabha_sample(ap, Process="Moller", VB=VB)
                         draw = np.random.choice(["Brem","Moller"], p=choices0)
                         npart = self.sample_scattering(ap, process=draw, VB=VB)
                     elif ap.get_ids()["PID"] == -11:
@@ -578,17 +850,25 @@ class Shower:
                         if SC == 0.0 or np.isnan(SC):
                             continue
                         choices0 = choices0/SC
+                        #draw = np.random.choice([0,1,2], p=choices0)
+                        #if draw == 0:
+                        #    npart = self.electron_brem_sample(ap, VB=VB)
+                        #elif draw == 1:
+                        #    npart = self.AnnihilationSample(ap, VB=VB)
+                        #else:
+                        #    npart = self.moller_bhabha_sample(ap, Process="Bhabha", VB=VB)
                         draw = np.random.choice(["Brem","Ann","Bhabha"], p=choices0)
                         npart = self.sample_scattering(ap, process=draw, VB=VB)
 
                     elif ap.get_ids()["PID"] == 22:
-                        choices0 = self._NSigmaPP(ap.get_pf()[0]), self._NSigmaComp(ap.get_pf()[0])
-                        SC = np.sum(choices0)
-                        if SC == 0.0 or np.isnan(SC):
-                            continue
-                        choices0 = choices0/SC
-                        draw = np.random.choice(["PairProd", "Comp"])
-                        npart = self.sample_scattering(ap, process=draw, VB=VB)
+                        BFPhPP = self.BF_photon_pairprod(ap.get_pf()[0])
+                        ch = np.random.uniform(low=0., high=1.)
+                        if ch < BFPhPP:
+                            #npart = self.pairprod_sample(ap, VB=VB)
+                            npart = self.sample_scattering(ap, "PairProd", VB=VB)
+                        else:
+                            npart = self.sample_scattering(ap, "Comp", VB=VB)
+                            #npart = self.compton_sample(ap, VB=VB)
                     if (npart[0]).get_p0()[0] > self.min_energy:
                         all_particles.append(npart[0])
                     if (npart[1]).get_p0()[0] > self.min_energy:
