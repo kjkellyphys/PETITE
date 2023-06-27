@@ -322,4 +322,4 @@ class DarkShower(Shower):
                 if self.GetBSMWeights(ap.get_ids()["PID"], ap.get_pf()[0], process=process_code) > 0.0:
                     npart = self.produce_bsm_particle(ap, process=process_code)
                     NewShower.append(npart)
-            return ShowerToSamp, NewShower
+        return ShowerToSamp, NewShower
