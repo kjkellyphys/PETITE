@@ -8,14 +8,10 @@ def e_to_egamma_fourvecs(p0, sampled_event):
     mc-sampled kinematic variables for electron/positron 
     SM brem e N -> e N gamma
     Args:
-        ep: incoming electron energy
-        me: electron mass
-        w: energy of emitted photon 
-        ct: 
-        ctp: 
-        ph: 
+        p0: incoming electron/positron Particle object
+        sampled_event: MC event sample of outgoing kinematics
     Returns:
-        List of four four-vectors representing initial electron, final electron and photon 
+        List of four four-vectors representing final electron and photon 
         momenta in that order
     """
     ep = p0.get_pf()[0]
@@ -40,30 +36,32 @@ def e_to_egamma_fourvecs(p0, sampled_event):
     #return [Em4v, Ep4v, g4v]
     return [Ep4v, g4v]
 
-def e_to_eV_fourvecs(ep, me, w, MV, ct, ctp, ph):
+#def e_to_eV_fourvecs(ep, me, w, MV, ct, ctp, ph):
+def e_to_eV_fourvecs(p0, sampled_event, mV=0.0):
     """Reconstruct electron and photon four vectors from 
     mc-sampled kinematic variables for electron/positron 
     dark sector brem e N -> e N V
     Args:
-        ep, me, w, ct, ctp, ph 
+        p0: incoming electron/positron Particle object
+        sampled_event: MC event sample of outgoing kinematics
+        optional mV: dark vector mass
     Returns:
-        List of four four-vectors representing initial electron, final electron
+        List of four four-vectors representing final electron
         and dark vecotor in that order
     """
 
-    epp = ep - w
-    p, pp, k = np.sqrt(ep**2 - me**2), np.sqrt(epp**2 - me**2), np.sqrt(w**2 - MV**2)
+    ep = p0.get_pf()[0]
+    w = sampled_event[0]*ep
+    ct = (1 - 10**sampled_event[1])
+    p, k = np.sqrt(ep**2 - m_electron**2), np.sqrt(w**2 - mV**2)
 
     Em4v = [ep, 0, 0, p] #Four-vector of electron
     al = np.random.uniform(0, 2.0*np.pi)
     cal, sal = np.cos(al), np.sin(al)
-    st, stp = np.sqrt(1.0 - ct**2), np.sqrt(1.0 - ctp**2)
-    sp, cp = np.sin(ph), np.cos(ph)
+    st = np.sqrt(1.0 - ct**2)
     V4v = [w, k*cal*st, k*sal*st, k*ct] #Four-vector of photon
 
-    Ep4v = [epp, pp*(sal*sp*stp + cal*(ctp*st - cp*ct*stp)), pp*(ctp*sal*st - (cp*ct*sal + cal*sp)*stp), pp*(ct*ctp + cp*st*stp)] #Four-vector of positron
-
-    return [Em4v, Ep4v, V4v]
+    return [Em4v, V4v]
 
 #def gamma_to_epem_fourvecs(w, me, epp, ctp, ctm, ph):
 def gamma_to_epem_fourvecs(p0, sampled_event):
@@ -71,11 +69,11 @@ def gamma_to_epem_fourvecs(p0, sampled_event):
     mc-sampled kinematic variables for pair production 
     gamma Z -> e- e+ Z
     Args:
-        w, me, epp, ctp, ctm, ph
+        p0: incoming photon Particle object
+        sampled_event: MC event sample of outgoing kinematics
     Returns:
-        List of four four-vectors representing the initial photon, positron and electron
+        List of four four-vectors representing the outgoing positron and electron
         momenta in that order
-
     """
 
     w = p0.get_pf()[0]
@@ -101,13 +99,14 @@ def gamma_to_epem_fourvecs(p0, sampled_event):
     #return [Eg4v, pp4v, pm4v]
     return [pp4v, pm4v]
     
-#def compton_fourvecs(Eg, me, mV, ct):
 def compton_fourvecs(p0, sampled_event, mV=0.0):
     """Reconstruct final electron and photon four vectors from 
     mc-sampled kinematic variables for SM Compton  gamma e > gamma e 
     or dark Compoton gamma e > V e
     Args:
-        Eg, me, mV, ct
+        p0: incoming photon Particle object
+        sampled_event: list including cos(theta) of outgoing particle as zero'th element
+        optional mV: mass of outgoing dark vector
     Returns:
         List of four four-vectors representing the final state electron and 
         vector (SM or dark photon)
@@ -130,12 +129,12 @@ def compton_fourvecs(p0, sampled_event, mV=0.0):
 
     return [pe4v, pV4v]
 
-#def ee_to_ee_fourvecs(Einc, me, ct):
 def ee_to_ee_fourvecs(p0, sampled_event):
     """Reconstruct final electron and electron (positron) four vectors from 
     mc-sampled kinematic variables for SM Moller/Bhabha  e e > e e 
     Args:
-        Eg, me, ct
+        p0: incoming electron/positron Particle object
+        sampled_event: list including cos(theta) of outpoing particle as zero'th element
     Returns:
         List of four four-vectors representing the final state electron and 
         positron/electron
@@ -156,13 +155,14 @@ def ee_to_ee_fourvecs(p0, sampled_event):
 
     return [outgoing_particle_fourvector, new_electron_fourvector]
 
-#def annihilation_fourvecs(Ee, me, mV, ct):
 def annihilation_fourvecs(p0, sampled_event, mV=0.0):
     """Reconstruct final SM/dark photon four vectors from 
     mc-sampled kinematic variables for SM annihilation e+e- > gamma gamma
     or dark annihilation e+e- > gamma V
     Args:
-        Ee, me, mV, ct
+        p0: incoming positron Particle object
+        sampled_event: list including cos(theta) of outgiong particle as zero'th element
+        optional mV: mass of dark vector being produced
     Returns:
         List of four four-vectors representing the two final state vectors: 
         two SM photons, or one SM photon and one dark photon

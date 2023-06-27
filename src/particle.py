@@ -79,6 +79,7 @@ class Particle:
                 print(self._mass, invariant_mass)
         else: #If mass is not provided, set it here
             self._mass = invariant_mass
+            self._IDs["mass"] = invariant_mass
     def get_p0(self):
         return self._p0
     def set_pf(self, value):
@@ -115,7 +116,7 @@ class Particle:
 
     def boost_matrix(self):
         """
-        Determines the boost matrix between the particle's rest-frame and lab-frame*
+        Determines the boost matrix between the particle's rest-frame and lab-frame
         """
         E0, px0, py0, pz0 = self.get_pf()
         m0 = self._mass
@@ -125,13 +126,15 @@ class Particle:
         betax, betay, betaz = beta*np.array([px0, py0, pz0])/np.linalg.norm([px0, py0, pz0])
 
         return [[gamma, gamma*betax, gamma*betay, gamma*betaz],
-                [gamma*betax, 1 + (gamma-1)*betax**2, (gamma-1)*betax*betay, (gamma-1)*betax*betaz],
-                [gamma*betay, (gamma-1)*betay*betax, 1 + (gamma-1)*betay**2, (gamma-1)*betay*betaz],
-                [gamma*betaz, (gamma-1)*betaz*betax, (gamma-1)*betaz*betay, 1 + (gamma-1)*betaz**2]]
+                [gamma*betax, 1 + (gamma-1)*betax**2/beta**2, (gamma-1)*betax*betay/beta**2, (gamma-1)*betax*betaz/beta**2],
+                [gamma*betay, (gamma-1)*betay*betax/beta**2, 1 + (gamma-1)*betay**2/beta**2, (gamma-1)*betay*betaz/beta**2],
+                [gamma*betaz, (gamma-1)*betaz*betax/beta**2, (gamma-1)*betaz*betay/beta**2, 1 + (gamma-1)*betaz**2/beta**2]]
 
-    def two_body_decay(self, decay_masses, angular_information="Isotropic"):
+    def two_body_decay(self, p1_dict, p2_dict, angular_information="Isotropic"):
         mX = self._mass
-        m1, m2 = decay_masses
+        if ("mass" not in p1_dict.keys()) or ("mass" not in p2_dict.keys()):
+            raise ValueError("Masses must be included when calling two_body_decay()")
+        m1, m2 = p1_dict['mass'], p2_dict['mass']
 
         E1 = (mX**2 - m2**1 + m1**2)/(2*mX)
         E2 = (mX**2 - m1**1 + m2**2)/(2*mX)
@@ -149,17 +152,23 @@ class Particle:
             phi = np.random.uniform(0.0, 2.0*np.pi)
         sin_theta = np.sqrt(1 - cos_theta**2)
 
-        p1_four_vector_RF = [E1, pF*sin_theta*np.sin(phi), pF*sin_theta*np.cos(phi), pF*cos_theta]
-        p2_four_vector_RF = [E2, -pF*sin_theta*np.sin(phi), -pF*sin_theta*np.cos(phi), -pF*cos_theta]
-        RM = self.boost_matrix()
-        p1_four_vector_LF = np.dot(RM, p1_four_vector_RF)
-        p2_four_vector_LF = np.dot(RM, p2_four_vector_RF)
+        #Includes the factor of g_{mu nu} so that we can use numpy's build in .dot() function
+        p1_four_vector_RF = [E1, -pF*sin_theta*np.sin(phi), -pF*sin_theta*np.cos(phi), -pF*cos_theta]
+        p2_four_vector_RF = [E2, pF*sin_theta*np.sin(phi), pF*sin_theta*np.cos(phi), pF*cos_theta]
+        boost = self.boost_matrix()
+        p1_four_vector_LF = np.dot(boost, p1_four_vector_RF)
+        p2_four_vector_LF = np.dot(boost, p2_four_vector_RF)
 
-        new_particle_1 = Particle(4900023, p1_four_vector_LF[0])
+        p1_dict["weight"] = self.get_ids()["weight"]
+        p2_dict["weight"] = self.get_ids()["weight"]
+        new_particle_1 = Particle(p1_four_vector_LF, self.get_rf(), p1_dict)
+        new_particle_2 = Particle(p2_four_vector_LF, self.get_rf(), p2_dict)
+        
+        return [new_particle_1, new_particle_2]
 
     def decay_particle(self, decay_product_masses, decay_type="TwoBody"):
         if len(decay_product_masses) < 2:
             raise ValueError("Decay into fewer than two final-state particles called.")
         if np.sum(decay_product_masses) > self._mass:
-            raise ValueError("Decay into particles with too great msas called.")
+            raise ValueError("Decay into particles with too great mass called.")
         

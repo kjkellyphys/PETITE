@@ -12,6 +12,7 @@ from .all_processes import *
 import sys
 from numpy.random import random as draw_U
         
+
 Z = {'hydrogen':1.0, 'graphite':6.0, 'lead':82.0} #atomic number of different targets
 A = {'hydrogen':1.0, 'graphite':12.0, 'lead':207.2} #atomic mass of different targets
 
@@ -23,9 +24,6 @@ dark_process_code = {'ExactBrem':0, 'Ann': 1, 'Comp': 3}
 dark_kinematic_function = {"ExactBrem" : e_to_eV_fourvecs,
                            "Ann"       : annihilation_fourvecs,
                            "Comp"      : compton_fourvecs}
-diff_xsection_options={"Comp"     : dsigma_compton_dCT,
-                        "ExactBrem": dsig_etl_helper,
-                        "Ann"      : dsigma_annihilation_dCT }
 
 class DarkShower(Shower):
     """ A class to reprocess an existing EM shower to generate dark photons
@@ -128,6 +126,8 @@ class DarkShower(Shower):
             self._loaded_dark_samples[process]= \
                 self.load_dark_sample(self._dict_dir, process)
             
+
+
     def load_dark_cross_section(self, dict_dir, process, target_material):
         dark_cross_section_file=open( dict_dir + "dark_xsecs.pkl", 'rb')
         outer_dict=pickle.load(dark_cross_section_file)
@@ -144,6 +144,7 @@ class DarkShower(Shower):
         else:
             raise Exception("Target Material is not in library")
 
+    
     def set_dark_cross_sections(self):
         """Loads the pre-computed cross-sections for various shower processes 
         and extracts the minimum/maximum values of initial energies
@@ -221,6 +222,7 @@ class DarkShower(Shower):
                 return 0.0
 
 
+
     def draw_dark_sample(self,Einc,LU_Key=-1,process="ExactBrem",VB=False):
 
         dark_sample_list=self._loaded_dark_samples 
@@ -240,9 +242,24 @@ class DarkShower(Shower):
         integrand=vg.Integrator(map=integrand, max_nhcube=1, neval=neval_vegas)
 
         event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min}
+        #event_info_H={'E_inc': Einc, 'm_e': m_electron, 'Z_T': 1.0, 'A_T':1.0, 'mT':1.0, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min}
+
+        diff_xsection_options={"Comp"     : dsigma_compton_dCT,
+                               "ExactBrem": dsig_etl_helper,
+                               "Ann"      : dsigma_annihilation_dCT }
         
+        formfactor_dict      ={"Comp"     : unity,
+                               "ExactBrem": Gelastic_inelastic,
+                               "Ann"      : unity }
+
+        QSq_dict             ={"ExactBrem": exactbrem_qsq,
+                                "Comp"    : dummy, 
+                                "Ann"     : dummy }
+
         if process in diff_xsection_options:
             diff_xsec_func = diff_xsection_options[process]
+            FF_func        = formfactor_dict[process]
+            QSq_func       = QSq_dict[process]
         else:
             raise Exception("Your process is not in the list")
 
@@ -253,9 +270,11 @@ class DarkShower(Shower):
         while sample_found is False and n_integrators_used < self._max_n_integrators:
             n_integrators_used += 1
             for x,wgt in integrand.random():
+                #FF_eval=FF_func(event_info, QSq_func(x, event_info ) )/event_info['Z_T']**2
+                #FF_H = FF_func(event_info_H, QSq_func(x, event_info_H ) ) 
                 if VB:
                     sampcount += 1  
-                if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x):
+                if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x):#*FF_eval/FF_H:
                     sample_found = True
                     break
         if sample_found is False:
@@ -267,6 +286,14 @@ class DarkShower(Shower):
             return np.concatenate([list(x), [sampcount]])
         else:
             return(x)
+
+    def GetPositronDarkBF(self, Energy):
+        """Branching fraction for a positron to undergo dark brem vs dark 
+        annihilation"""
+        if Energy < (self._mV**2 - m_electron**2)/(2*m_electron) + 2*self._Egamma_min:
+            return 1.0
+        else:
+            return self._NSigmaDarkBrem(Energy)/(self._NSigmaDarkBrem(Energy) + self._NSigmaDarkAnn(Energy))
 
     def produce_bsm_particle(self, p0, process, VB=False):
         E0 = p0.get_pf()[0]
@@ -290,6 +317,174 @@ class DarkShower(Shower):
         V_dict["weight"] = wg
 
         return Particle(pV4LF, p0.get_rf(), V_dict)
+
+
+    def DarkElecBremSample(self, Elec0, VB=False, relative_weight=1.0):
+        """Generate a brem event from an initial electron/positron
+            Args:
+                Elec0: incoming electron/positron (instance of) Particle 
+                in lab frame
+                relative_weight (optional): a reweighting factor relative
+                to the overall BSM weight
+            Returns:
+                NewV: outgoing dark photon (instance of) Particle 
+                in lab frame
+        """
+        Ee0, pex0, pey0, pez0 = Elec0.get_pf()
+
+        ThZ = np.arccos(pez0/np.sqrt(pex0**2 + pey0**2 + pez0**2))
+        PhiZ = np.arctan2(pey0, pex0)
+        RM = [[np.cos(ThZ)*np.cos(PhiZ), -np.sin(PhiZ), np.sin(ThZ)*np.cos(PhiZ)],
+            [np.cos(ThZ)*np.sin(PhiZ), np.cos(PhiZ), np.sin(ThZ)*np.sin(PhiZ)],
+            [-np.sin(ThZ), 0, np.cos(ThZ)]]
+
+        try:
+            LUKey = int((np.log10(Ee0) - self._logEeMinDarkBrem)/self._logEeSSDarkBrem)
+        except:
+            print(Ee0, self._logEeMinDarkBrem, self._logEeSSDarkBrem, (np.log10(Ee0) - self._logEeMinDarkBrem)/self._logEeSSDarkBrem)
+        LUKey = LUKey + 1
+        
+        ## FIXME Need right key name
+        sample_event = self.draw_dark_sample(Ee0, LUKey, 'ExactBrem', VB=VB)
+        EV = sample_event[0]*Ee0
+        ct = (1 - 10**sample_event[1])
+        EVf, pVxfZF, pVyfZF, pVzfZF = e_to_eV_fourvecs(Ee0, m_electron, EV, self.get_mV(), ct, 0, 0)[2]
+        pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
+        pV4LF = np.concatenate([[EVf], np.dot(RM, pV3ZF)])
+
+        if EVf > Ee0:
+            print("---------------------------------------------")
+            print("High Energy V Found from Electron Samples:")
+            print(Elec0.get_pf())
+            print(EVf)
+            print(sample_event)
+            print(LUKey)
+            print(Ee0)
+            print("---------------------------------------------")
+
+        wg = self.GetBSMWeights(11, Ee0)*relative_weight
+        
+        init_IDs = Elec0.get_ids()
+        VDict = {}
+        VDict["PID"] = 4900022
+        VDict["parent_PID"] = init_IDs["PID"]
+        VDict["ID"] = 2*(init_IDs["ID"]) + 1
+        VDict["parent_ID"] = init_IDs["ID"]
+        VDict["generation_number"] = init_IDs["generation_number"] + 1
+        VDict["generation_process"] = "ExactBrem"
+        VDict["weight"] = wg
+        NewV = Particle(pV4LF, Elec0.get_rf(), VDict)
+
+        return NewV
+
+    def DarkAnnihilationSample(self, Elec0, VB=False, relative_weight=1.0):
+        """Generate an annihilation event from an initial positron
+            Args:
+                Elec0: incoming positron (instance of) Particle in lab frame
+                relative_weight (optional): a reweighting factor relative 
+                to the overall BSM weight
+        Returns:
+                NewV: outgoing dark photon (instances of) Particle 
+                in lab frame
+        """
+
+        Ee0, pex0, pey0, pez0 = Elec0.get_pf()
+
+        ThZ = np.arccos(pez0/np.sqrt(pex0**2 + pey0**2 + pez0**2))
+        PhiZ = np.arctan2(pey0, pex0)
+        RM = [[np.cos(ThZ)*np.cos(PhiZ), -np.sin(PhiZ), np.sin(ThZ)*np.cos(PhiZ)],
+            [np.cos(ThZ)*np.sin(PhiZ), np.cos(PhiZ), np.sin(ThZ)*np.sin(PhiZ)],
+            [-np.sin(ThZ), 0, np.cos(ThZ)]]
+
+        LUKey = int((np.log10(Ee0) - self._logEeMinDarkAnn)/self._logEeSSDarkAnn)
+        LUKey = LUKey + 1
+        
+        # FIXME  need right key name 
+        sample_event = self.draw_dark_sample(Ee0, LUKey, 'Ann', VB=VB)
+        #NFVs = Ann_FVs(EeMod, meT, MVT, SampEvt[0])[1]
+        #NFVs = annihilation_fourvecs(Ee0, m_electron, self.get_mV(), sample_event[0])[1]
+        NFVs = annihilation_fourvecs(Elec0, sample_event, mV=self._mV_estimator)[1]
+
+        EVf, pVxfZF, pVyfZF, pVzfZF = NFVs
+        pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
+        pV4LF = np.concatenate([[EVf], np.dot(RM, pV3ZF)])
+        wg = self.GetBSMWeights(-11, Ee0)*relative_weight
+
+        if EVf > Ee0+m_electron/2+(2*Ee0-m_electron)*self.get_mV()**2/(8*Ee0**2):
+            print("---------------------------------------------")
+            print("High Energy V Found from Positron Samples:")
+            print(Elec0.get_pf())
+            print(EVf)
+            print(sample_event)
+            print(LUKey)
+            print(wg)
+            print("---------------------------------------------")
+
+        init_IDs = Elec0.get_ids()
+        VDict = {}
+        VDict["PID"] = 4900022
+        VDict["parent_PID"] = init_IDs["PID"]
+        VDict["ID"] = 2*(init_IDs["ID"]) + 1
+        VDict["parent_ID"] = init_IDs["ID"]
+        VDict["generation_number"] = init_IDs["generation_number"] + 1
+        VDict["generation_process"] = "Ann"
+        VDict["weight"] = wg
+        NewV = Particle(pV4LF, Elec0.get_rf(), VDict)
+
+        return NewV
+
+    def DarkComptonSample(self, Phot0, VB=False):
+        """Generate a dark Compton event from an initial photon
+            Args:
+                Phot0: incoming photon (instance of) Particle in lab frame
+            Returns:
+                NewV: outgoing dark photon (instances of) Particle 
+                in lab frame
+        """
+        Eg0, pgx0, pgy0, pgz0 = Phot0.get_pf()
+
+        ThZ = np.arccos(pgz0/np.sqrt(pgx0**2 + pgy0**2 + pgz0**2))
+        PhiZ = np.arctan2(pgy0, pgx0)
+        RM = [[np.cos(ThZ)*np.cos(PhiZ), -np.sin(PhiZ), np.sin(ThZ)*np.cos(PhiZ)],
+            [np.cos(ThZ)*np.sin(PhiZ), np.cos(PhiZ), np.sin(ThZ)*np.sin(PhiZ)],
+            [-np.sin(ThZ), 0, np.cos(ThZ)]]
+
+        LUKey = int((np.log10(Eg0) - self._logEgMinDarkComp)/self._logEgSSDarkComp)
+        LUKey = LUKey + 1
+        
+        # FIXME Need right key name
+        sample_event = self.draw_dark_sample(Eg0, LUKey, 'Comp', VB=VB)
+
+        #NFVs = Compton_FVs(EgMod, meanniT, MVT, SampEvt[0])[1]
+        EVf, pVxfZF, pVyfZF, pVzfZF = compton_fourvecs(Phot0, sample_event, mV=self._mV_estimator)[1]
+        #EVf, pVxfZF, pVyfZF, pVzfZF = compton_fourvecs(Eg0, m_electron, self.get_mV(), sample_event[0])[1]
+        pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
+        pV4LF = np.concatenate([[EVf], np.dot(RM, pV3ZF)])
+
+        wg = self.GetBSMWeights(22, Eg0)
+        GenType = dark_process_code['Comp']
+        if EVf > Eg0:
+            print("---------------------------------------------")
+            print("High Energy V Found from Photon Samples:")
+            print(Phot0.get_pf())
+            print(EVf)
+            print(sample_event)
+            print(LUKey)
+            print(wg)
+            print("---------------------------------------------")
+
+        init_IDs = Phot0.get_ids()
+        VDict = {}
+        VDict["PID"] = 4900022
+        VDict["parent_PID"] = init_IDs["PID"]
+        VDict["ID"] = 2*(init_IDs["ID"]) + 1
+        VDict["parent_ID"] = init_IDs["ID"]
+        VDict["generation_number"] = init_IDs["generation_number"] + 1
+        VDict["generation_process"] = "Ann"
+        VDict["weight"] = wg
+        NewV = Particle(pV4LF, Phot0.get_rf(), VDict)
+
+        return NewV
 
     def generate_dark_shower(self, ExDir=None, SParams=None):
         """ Process an existing SM shower (or produce a new one) by interating 
@@ -323,3 +518,40 @@ class DarkShower(Shower):
                     npart = self.produce_bsm_particle(ap, process=process_code)
                     NewShower.append(npart)
             return ShowerToSamp, NewShower
+            '''
+            #if self.GetBSMWeights(ap.get_ids()["PID"], ap.get_pf()[0]) == 0.0:
+            #    continue
+            if ap.get_ids()["PID"] == 11:
+                #if np.log10(ap.get_pf()[0]) < self._logEeMinDarkBrem or np.isnan(ap.get_pf()[0]):
+                #    continue
+                #npart = self.DarkElecBremSample(ap)
+                if self.GetBSMWeights(ap.get_ids()["PID"], ap.get_pf()[0], process="ExactBrem") == 0.0:
+                    continue
+                npart = self.produce_bsm_particle(ap, process="ExactBrem")
+                NewShower.append(npart)
+            elif ap.get_ids()["PID"] == -11:
+                #if np.log10(ap.get_pf()[0]) < self._logEeMinDarkBrem or np.isnan(ap.get_pf()[0]):
+                #    continue
+                #DarkBFEpBrem = self.GetPositronDarkBF(ap.get_pf()[0])
+                #ch = np.random.uniform(low=0., high=1.0)
+                #if ch < DarkBFEpBrem:
+                #    npart = self.DarkElecBremSample(ap)
+                #else:
+                #    npart = self.DarkAnnihilationSample(ap)
+                if self.GetBSMWeights(ap.get_ids()["PID"], ap.get_pf()[0], process="ExactBrem") > 0.0:
+                    #npart = self.DarkElecBremSample(ap, relative_weight=DarkBFEpBrem)
+                    npart = self.produce_bsm_particle(ap, process="ExactBrem")
+                    NewShower.append(npart)
+                if self.GetBSMWeights(ap.get_ids()["PID"], ap.get_pf()[0], process="Ann") > 0.0:
+                    #npart2 = self.DarkAnnihilationSample(ap, relative_weight=(1.0-DarkBFEpBrem))
+                    npart = self.produce_bsm_particle(ap, process="Ann")
+                    NewShower.append(npart)
+            elif ap.get_ids()["PID"] == 22:
+                #if ap.get_pf()[0] < self._mV*(1.0 + self._mV/(2*m_electron)) or np.isnan(ap.get_pf()[0]):
+                #    continue
+                if self.GetBSMWeights(ap.get_ids()["PID"], ap.get_pf()[0], process="Comp") > 0.0:
+                    npart = self.produce_bsm_particle(ap, process="Comp")
+                    NewShower.append(npart)
+
+        return ShowerToSamp, NewShower
+        '''
