@@ -207,18 +207,20 @@ class DarkShower(Shower):
         elif PID == -11:
             if process == "ExactBrem":
                 if np.log10(Energy) < self._logEeMinDarkBrem:
-                    BremPiece = 0.0
+                    return 0.0
                 else:
                     BremPiece = self._NSigmaDarkBrem(Energy)
-                return BremPiece/(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))
+                    return BremPiece/(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))
             elif process == "Ann":
                 if Energy < (self._mV**2 - m_electron**2)/(2*m_electron) + 2*self._Egamma_min:
-                    AnnPiece = 0.0
+                    return 0.0
                 else:
                     AnnPiece = self._NSigmaDarkAnn(Energy)
-                return AnnPiece/(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))
+                    return AnnPiece/(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))
             else:
                 return 0.0
+        else:
+            return 0.0
 
 
     def draw_dark_sample(self,Einc,LU_Key=-1,process="ExactBrem",VB=False):
