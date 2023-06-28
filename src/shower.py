@@ -23,7 +23,6 @@ dEdx = {'hydrogen':2.0*rho['hydrogen'], 'graphite':2.0*rho['graphite'], 'lead':2
 # GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm^2
 GeVsqcm2 = hbarc**2 #Conversion between cross sections in GeV^{-2} to cm^2
 cmtom = 0.01
-mp0 = m_proton_grams # proton mass in grams
 
 process_code = {'Brem':0, 'Ann': 1, 'PairProd': 2, 'Comp': 3, "Moller":4, "Bhabha":5}
 diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
@@ -151,7 +150,7 @@ class Shower:
            target material
         """
         ZT, AT, rhoT, dEdxT = self.get_material_properties()
-        self._nTarget = rhoT/mp0/AT
+        self._nTarget = rhoT/m_proton_grams/AT
         self._nElecs = self._nTarget*ZT
 
     def set_samples(self):
@@ -181,20 +180,9 @@ class Shower:
         self._moller_cross_section = self.load_cross_section(self._dict_dir, 'Moller', self._target_material) 
         self._bhabha_cross_section = self.load_cross_section(self._dict_dir, 'Bhabha', self._target_material) 
 
-        self._EeVecBrem = np.transpose(self._brem_cross_section)[0] #FIXME: not sure what these are
-        self._EgVecPP = np.transpose(self._pair_production_cross_section)[0]
-        self._EeVecAnn = np.transpose(self._annihilation_cross_section)[0]
-        self._EgVecComp = np.transpose(self._compton_cross_section)[0]
-        self._EeVecMoller = np.transpose(self._moller_cross_section)[0]
-        self._EeVecBhabha = np.transpose(self._bhabha_cross_section)[0]
-
-        # log10s of minimum energes, energy spacing for the cross-section tables  
-        self._logEeMinBrem, self._logEeSSBrem = np.log10(self._EeVecBrem[0]), np.log10(self._EeVecBrem[1]) - np.log10(self._EeVecBrem[0])
-        self._logEeMinAnn, self._logEeSSAnn = np.log10(self._EeVecAnn[0]), np.log10(self._EeVecAnn[1]) - np.log10(self._EeVecAnn[0])
-        self._logEgMinPP, self._logEgSSPP = np.log10(self._EgVecPP[0]), np.log10(self._EgVecPP[1]) - np.log10(self._EgVecPP[0])
-        self._logEgMinComp, self._logEgSSComp= np.log10(self._EgVecComp[0]), np.log10(self._EgVecComp[1]) - np.log10(self._EgVecComp[0])
-        self._logEeMinMoller, self._logEeSSMoller= np.log10(self._EeVecMoller[0]), np.log10(self._EeVecMoller[1]) - np.log10(self._EeVecMoller[0])
-        self._logEeMinBhabha, self._logEeSSBhabha= np.log10(self._EeVecBhabha[0]), np.log10(self._EeVecBhabha[1]) - np.log10(self._EeVecBhabha[0])
+        self._minimum_calculable_energy = {11:np.min([self._brem_cross_section[0][0], self._moller_cross_section[0][0]]),
+                                           -11:np.min([self._brem_cross_section[0][0], self._bhabha_cross_section[0][0], self._annihilation_cross_section[0][0]]),
+                                           22:np.min([self._pair_production_cross_section[0][0], self._compton_cross_section[0][0]])}
 
     def get_brem_cross_section(self):
         """ Returns array of [energy,cross-section] values for brem """ 
@@ -228,9 +216,10 @@ class Shower:
         self._NSigmaMoller = interp1d(np.transpose(MS)[0], ne*GeVsqcm2*np.transpose(MS)[1], fill_value=0.0, bounds_error=False)
         self._NSigmaBhabha = interp1d(np.transpose(BhS)[0], ne*GeVsqcm2*np.transpose(BhS)[1], fill_value=0.0, bounds_error=False)
 
-    def get_mfp(self, PID, Energy): #FIXME: variable PID is not defined
+    def get_mfp(self, particle): 
         """Returns particle mean free path in meters for PID=22 (photons), 
         11 (electrons) or -11 (positrons) as a function of energy in GeV"""
+        PID, Energy = particle.get_ids()["PID"], particle.get_pf()[0]
         if PID == 22:
             return cmtom*(self._NSigmaPP(Energy) + self._NSigmaComp(Energy))**-1
         elif PID == 11:
@@ -327,8 +316,9 @@ class Shower:
             return(x)
     
     def sample_scattering(self, p0, process, VB=False):
-
         E0 = p0.get_pf()[0]
+        if E0 <= np.max([self._minimum_calculable_energy[p0.get_ids()["PID"]], self.min_energy, p0.get_ids()["mass"]]):
+            return None
         RM = p0.rotation_matrix()
         sample_event = self.draw_sample(E0, process=process, VB=VB)
         if VB:
@@ -368,83 +358,6 @@ class Shower:
         
         return [new_particle1, new_particle2]
 
-    def deriv(self, f,x):
-        # I am sure python has a native version of this but I was on the plane.
-        # replace with more elegant function
-        h=0.0001*x
-        return(  ( f(x+h)-f(x-h) )/(2*h)  ) 
-
-    def sample_distance(self, PID, energy):
-        if PID == 22:
-            particle_min_energy = np.min([10**self._logEgMinPP, 10**self._logEgMinComp])
-            def n_sigma(energy):
-                return (self._NSigmaPP(energy) + self._NSigmaComp(energy))
-
-        elif PID == 11:
-            particle_min_energy = np.min([10**self._logEeMinBrem, 10**self._logEeMinMoller])
-            def n_sigma(energy):
-                return (self._NSigmaBrem(energy) + self._NSigmaMoller(energy))
-
-        elif PID == -11:
-            particle_min_energy = np.min([10**self._logEeMinBrem, 10**self._logEeMinAnn, 10**self._logEeMinBhabha])
-            def n_sigma(energy):
-                return (self._NSigmaBrem(energy) + self._NSigmaAnn(energy) + self._NSigmaBhabha(energy))
-
-        z_travelled =0
-        hard_scatter=False
-        var_energy  = energy
-    
-        while hard_scatter == False and var_energy > particle_min_energy:
-
-            random_number =  np.random.uniform(0.0, 1.0)
-
-            ## Use first derivative of n_sigma to estimate a good step-size
-            ## in coordinate space
-            mfp = self.get_mfp(PID, var_energy)
-
-            dEdxT = self.get_material_properties()[3]*(0.1)#Converting MeV/cm to GeV/m
-            #delta_z_1  =  1.0/(self.deriv(n_sigma, var_energy)/n_sigma(var_energy) * dEdxT) #step size in meters
-            #delta_z_2 = (var_energy/dEdxT)/5.0
-            #delta_z = np.min([delta_z_1, delta_z_2, mfp/5.0])
-            delta_z = mfp/np.random.uniform(low=6, high=20)
-
-            #mfp = cmtom/n_sigma(var_energy) #mfp in meters
-
-        
-            # Test if hard scatter happened
-            if random_number > np.exp( -delta_z/mfp):
-                hard_scatter = True
-                final_energy = var_energy
-                break
-            # If no hard scatter propagate particle
-            # and account for energy loss
-            else:
-                hard_scatter = False
-
-                var_energy= var_energy - dEdxT*delta_z
-                z_travelled = z_travelled+delta_z
-        
-        final_energy = var_energy
-
-    #    mfp = cmtom/n_sigma(final_energy)
-        if final_energy < particle_min_energy:
-            final_energy = 1.01*particle_min_energy
-        mfp = self.get_mfp(PID, final_energy)
-
-        distC = np.random.uniform(0.0, 1.0)
-        dist = z_travelled + mfp*np.log(1.0/(1.0+(np.exp(-delta_z/mfp)-1)*distC))
-
-        # I have designed this code to interface with the currently
-        # written function, however it is likely more elegant to
-        # just do the energy losses etc in this function, and return
-        # the final "parent" kinematics 
-        
-        return(dist) 
-
-        
-        
-
-
     def propagate_particle(self, Part0, Losses=False, MS=False):
         """Propagates a particle through material between hard scattering events, 
         possibly including multiple scattering and dE/dx losses
@@ -460,26 +373,79 @@ class Shower:
             Part0.set_rf(Part0.get_rf())
             return Part0
         else:
-            if Part0.get_ids()["PID"] == 11 and (np.log10(Part0.get_p0()[0]) < np.max([self._logEeMinBhabha, self._logEeMinBrem])):
-                Part0.set_ended(True)
-                return Part0
-            elif Part0.get_ids()["PID"] == -11 and (np.log10(Part0.get_p0()[0]) < np.max([self._logEeMinBhabha, self._logEeMinBrem, self._logEeMinAnn])):
-                Part0.set_ended(True)
-                return Part0
-            elif Part0.get_ids()["PID"] == 22 and (np.log10(Part0.get_p0()[0]) < np.max([self._logEgMinComp, self._logEgMinPP])):
+            if (np.linalg.norm(Part0.get_p0() - Part0.get_pf()) > 0.0) or (np.linalg.norm(Part0.get_r0() - Part0.get_rf()) > 0.0) or (Part0.get_ended()):
+            #if Part0.get_p0() != Part0.get_pf() or Part0.get_r0() != Part0.get_rf() or Part0.get_ended():
+                raise ValueError("propagate_particle() should only be called for a particle with pf = p0 and rf = r0 and get_ended() == False")
+
+            particle_min_energy = np.max([self._minimum_calculable_energy[Part0.get_ids()["PID"]], self.min_energy, Part0.get_ids()["mass"]])
+            if Part0.get_p0()[0] < particle_min_energy:
                 Part0.set_ended(True)
                 return Part0
             
-            if Part0.get_ids()["PID"] == 22:
-                mfp = self.get_mfp(Part0.get_ids()["PID"], Part0.get_p0()[0])
+            #if Part0.get_ids()["PID"] == 22 or Losses == False:
+            if Losses == False:
+                mfp = self.get_mfp(Part0)
                 distC = np.random.uniform(0.0, 1.0)
                 dist = mfp*np.log(1.0/(1.0-distC))
+
+                p0 = Part0.get_p0()[1:]
+                if MS:
+                    P0 = get_scattered_momentum(Part0.get_p0(), self._rhoTarget*(dist/cmtom), self._ATarget, self._ZTarget)
+                    PHat = (p0 + P0[1:])/np.linalg.norm(p0+P0[1:])
+                    Part0.set_pf(P0)
+                    #PHatDenom = np.sqrt((PxF0 + px0)**2 + (PyF0 + py0)**2 + (PzF0 + pz0)**2)
+                    #PHat = [(PxF0 + px0)/PHatDenom, (PyF0 + py0)/PHatDenom, (PzF0 + pz0)/PHatDenom]
+                else:
+                    PHat = p0/np.linalg.norm(p0)
+                    #PHatDenom = np.sqrt(px0**2 + py0**2 + pz0**2)
+                    #PHat = [(px0)/PHatDenom, (py0)/PHatDenom, (pz0)/PHatDenom]
+                x0, y0, z0 = Part0.get_r0()
+                Part0.set_rf([x0 + PHat[0]*dist, y0 + PHat[1]*dist, z0 + PHat[2]*dist])
+
             else:
-                dist = self.sample_distance(Part0.get_ids()["PID"], Part0.get_p0()[0])
-            if np.abs(Part0.get_ids()["PID"]) == 11:
-                M0 = m_electron
-            elif Part0.get_ids()["PID"] == 22:
-                M0 = 0.0
+                z_travelled =0
+                hard_scatter=False
+
+                while hard_scatter == False and Part0.get_pf()[0] > particle_min_energy:
+                    mfp = self.get_mfp(Part0)
+                    random_number = np.random.uniform(0.0, 1.0)
+                    delta_z = mfp/np.random.uniform(low=6, high=20)
+                
+                    # Test if hard scatter happened
+                    if random_number > np.exp( -delta_z/mfp):
+                        hard_scatter = True
+                    # If no hard scatter propagate particle
+                    # and account for energy loss
+                    else:
+                        hard_scatter = False
+                        Part0.lose_energy(Losses*delta_z)
+                        z_travelled = z_travelled+delta_z
+
+                        pfx, pfy, pfz = Part0.get_pf()[1:]
+                        pf0 = np.linalg.norm([pfx, pfy, pfz])
+                        if pf0 > 0.0:
+                            x_current, y_current, z_current = Part0.get_rf()
+                            Part0.set_rf([x_current + pfx/pf0*delta_z, y_current + pfy/pf0*delta_z, z_current + pfz/pf0*delta_z])
+                        if MS:
+                            Part0.set_pf(get_scattered_momentum(Part0.get_pf(), self._rhoTarget*(delta_z/cmtom), self._ATarget, self._ZTarget))
+
+                distC = np.random.uniform(0.0, 1.0)
+                if Part0._pf[0] < particle_min_energy:
+                    last_increment = distC*delta_z
+                else:
+                    mfp = self.get_mfp(Part0)
+                    last_increment = mfp*np.log(1.0/(1.0+(np.exp(-delta_z/mfp)-1)*distC))
+                Part0.lose_energy(Losses*last_increment)
+                pfx, pfy, pfz = Part0.get_pf()[1:]
+                pf0 = np.linalg.norm([pfx, pfy, pfz])
+                if pf0 > 0.0:
+                    x_current, y_current, z_current = Part0.get_rf()
+                    Part0.set_rf([x_current + pfx/pf0*last_increment, y_current + pfy/pf0*last_increment, z_current + pfz/pf0*last_increment])
+                if MS:
+                    Part0.set_pf(get_scattered_momentum(Part0.get_pf(), self._rhoTarget*(last_increment/cmtom), self._ATarget, self._ZTarget))
+
+            '''
+            M0 = Part0.get_ids()["mass"]
 
             E0, px0, py0, pz0 = Part0.get_p0()
             if MS:
@@ -508,7 +474,7 @@ class Shower:
                     Part0.set_ended(True)
                     return Part0
                 Part0.set_pf(np.array([Ef, px0/p30*np.sqrt(Ef**2-M0**2), py0/p30*np.sqrt(Ef**2-M0**2), pz0/p30*np.sqrt(Ef**2-M0**2)]))
-
+            '''
             Part0.set_ended(True)
             return Part0
 
@@ -549,49 +515,57 @@ class Shower:
                 if ap.get_ended() is True:
                     continue
                 else:
-                    # Propagate particle until next hard interaction
-                    if ap.get_ids()["PID"] == 22:
-                        ap = self.propagate_particle(ap,MS=MS_g)
-                    elif np.abs(ap.get_ids()["PID"]) == 11:
-                        dEdxT = self.get_material_properties()[3]*(0.1) #Converting MeV/cm to GeV/m
-                        ap = self.propagate_particle(ap, MS=MS_e, Losses=dEdxT)
+                    newparticles = None
+
+                    if ap.get_ids()["stability"] == "short-lived":
+                        newparticles = ap.decay_particle()
                     
-                    all_particles[apI] = ap
+                    elif ap.get_ids()["stability"] == "stable":
+                        # Propagate particle until next hard interaction
+                        if ap.get_ids()["PID"] == 22:
+                            ap = self.propagate_particle(ap,MS=MS_g)
+                        elif np.abs(ap.get_ids()["PID"]) == 11:
+                            dEdxT = self.get_material_properties()[3]*(0.1) #Converting MeV/cm to GeV/m
+                            ap = self.propagate_particle(ap, MS=MS_e, Losses=dEdxT)
+                        
+                        all_particles[apI] = ap
 
-                    if (all([apC.get_ended() == True for apC in all_particles]) is True and ap.get_pf()[0] < self.min_energy):
-                        break
+                        if (all([apC.get_ended() == True for apC in all_particles]) is True and ap.get_pf()[0] < self.min_energy):
+                            break
 
-                    # Generate secondaries for the hard interaction
-                    # Note: secondaries include the scattered parent particle 
-                    # (i.e. the original the parent is not modified)
-                    if ap.get_ids()["PID"] == 11:
-                        choices0 = self._NSigmaBrem(ap.get_pf()[0]), self._NSigmaMoller(ap.get_pf()[0])
-                        SC = np.sum(choices0)
-                        if SC == 0.0 or np.isnan(SC):
-                            continue
-                        choices0 = choices0/SC
-                        draw = np.random.choice(["Brem","Moller"], p=choices0)
-                        npart = self.sample_scattering(ap, process=draw, VB=VB)
-                    elif ap.get_ids()["PID"] == -11:
-                        choices0 = self._NSigmaBrem(ap.get_pf()[0]), self._NSigmaAnn(ap.get_pf()[0]), self._NSigmaBhabha(ap.get_pf()[0])
-                        SC = np.sum(choices0)
-                        if SC == 0.0 or np.isnan(SC):
-                            continue
-                        choices0 = choices0/SC
-                        draw = np.random.choice(["Brem","Ann","Bhabha"], p=choices0)
-                        npart = self.sample_scattering(ap, process=draw, VB=VB)
+                        # Generate secondaries for the hard interaction
+                        # Note: secondaries include the scattered parent particle 
+                        # (i.e. the original the parent is not modified)
+                        if ap.get_ids()["PID"] == 11:
+                            choices0 = self._NSigmaBrem(ap.get_pf()[0]), self._NSigmaMoller(ap.get_pf()[0])
+                            SC = np.sum(choices0)
+                            if SC == 0.0 or np.isnan(SC):
+                                continue
+                            choices0 = choices0/SC
+                            draw = np.random.choice(["Brem","Moller"], p=choices0)
+                            newparticles = self.sample_scattering(ap, process=draw, VB=VB)
+                        elif ap.get_ids()["PID"] == -11:
+                            choices0 = self._NSigmaBrem(ap.get_pf()[0]), self._NSigmaAnn(ap.get_pf()[0]), self._NSigmaBhabha(ap.get_pf()[0])
+                            SC = np.sum(choices0)
+                            if SC == 0.0 or np.isnan(SC):
+                                continue
+                            choices0 = choices0/SC
+                            draw = np.random.choice(["Brem","Ann","Bhabha"], p=choices0)
+                            newparticles = self.sample_scattering(ap, process=draw, VB=VB)
 
-                    elif ap.get_ids()["PID"] == 22:
-                        choices0 = self._NSigmaPP(ap.get_pf()[0]), self._NSigmaComp(ap.get_pf()[0])
-                        SC = np.sum(choices0)
-                        if SC == 0.0 or np.isnan(SC):
-                            continue
-                        choices0 = choices0/SC
-                        draw = np.random.choice(["PairProd", "Comp"])
-                        npart = self.sample_scattering(ap, process=draw, VB=VB)
-                    if (npart[0]).get_p0()[0] > self.min_energy:
-                        all_particles.append(npart[0])
-                    if (npart[1]).get_p0()[0] > self.min_energy:
-                        all_particles.append(npart[1])
+                        elif ap.get_ids()["PID"] == 22:
+                            choices0 = self._NSigmaPP(ap.get_pf()[0]), self._NSigmaComp(ap.get_pf()[0])
+                            SC = np.sum(choices0)
+                            if SC == 0.0 or np.isnan(SC):
+                                continue
+                            choices0 = choices0/SC
+                            draw = np.random.choice(["PairProd", "Comp"], p=choices0)
+                            newparticles = self.sample_scattering(ap, process=draw, VB=VB)
 
+                    if newparticles is None:
+                        continue
+                    for dp in newparticles:
+                        if dp.get_p0()[0] > self.min_energy:
+                            all_particles.append(dp)
+                    
         return all_particles

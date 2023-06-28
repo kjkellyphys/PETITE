@@ -12,3 +12,10 @@ m_neutron = 939.56542052*MeV
 atomic_mass_unit = 931.49410241*MeV
 n_avogadro = 6.0221409e+23
 hbarc = 0.1973269804E-13*GeV*centimeter
+
+m_muon = 105.6583755*MeV
+m_pi0, c_tau_pi0 = 134.9768*MeV, 25.3*(1e-9) #meters
+m_pi_pm, c_tau_pi_pm = 139.57039*MeV, 7.8045 #meters
+
+m_eta, Gamma_eta = 547.862*MeV, 1.31*keV
+m_eta_prime, Gamma_eta_prime = 957.78*MeV, 0.188*MeV

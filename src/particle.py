@@ -1,17 +1,37 @@
 import numpy as np
+from .physical_constants import *
 
-default_ids = {"PID":11, "ID":0, "parent_PID":22, "parent_ID":-1, "generation_number":0, "generation_process":"Input", "weight":1.0, "mass":None}
+mass_dict = {11: m_electron, -11:m_electron,
+             22:0.0, 13:m_muon, -13:m_muon,
+             111:m_pi0, 211:m_pi_pm, -211:m_pi_pm,
+             221:m_eta, 331:m_eta_prime, 2212:m_proton}
+
+default_ids = {"PID":11, "ID":1, "parent_PID":22, 
+               "parent_ID":-1, "generation_number":0, 
+               "generation_process":"Input", "weight":1.0, 
+               "mass":None, "stability":"stable"}
+
+#pi0 (111) decays to gamma gamma with Br = 0.98823
+#eta (221) decays to gamma gamma with Br = 0.3936
+#                 to three pi0 with Br = 0.3257
+
+#eta-prime (331) decays to gamma gamma with Br = 0.02307
+#                       to pi0 + pi0 + eta with Br = 0.224
+#                       to three pi0 with Br = 0.00250
+meson_decay_dict = {111: [[0.98823, [22,22]]],
+                    221: [[0.3936, [22,22]], [0.3257, [111, 111, 111]]],
+                    331: [[0.224, [111, 111, 221]], [0.02307, [22,22]], [0.00250, [111, 111, 111]]]}
+
 class Particle:
     """Container for particle information as it is propagated through target
     """
-#    def __init__(self, PID, E0, px0, py0, pz0, x0, y0, z0, ID, ParID, ParPID, GenID, GenProcess, Weight, mass=None):
-    def __init__(self, p0, r0, id_dictionary=None):
+    def __init__(self, p0, r0=np.array([0,0,0]), id_dictionary=None):
         """Initializes an instance of the Particle class
         Args:
             PID: PDG id of the particle
             p0: (four-vector) energy and components of momentum
-            r0: (three-vector) current coordinates of the particle in the target
-            ID: a unique label of the particle in the shower
+            r0: (three-vector) beginning coordinates of the particle in the target
+                -default:origin
 
             id_dictionary: dictionary containing following identification keys (defaults given for unspecified information):
                 --PID (PDG particle ID) -- default:11
@@ -22,11 +42,7 @@ class Particle:
                 --generation_process (string denoting process by which this particle was created) -- default:"Input"
                 --weight (used for dark-particle generation for weighted showers) -- default:1
                 --mass (mass of the particle) -- default:None (gets set later)
-            ParID: shower label of the parent particle
-            ParPID: PGD id of the parent paricle
-            GenID: 
-            GenProcess: id of the process that produced the particle
-            Weight: probability weight for the process that generated this particle
+                --stability (string identifying whether particle is stable/short-lived/long-lived) -- default:"stable"
         """
 
         #self.set_ids(np.array([PID, ID, ParPID, ParID, GenID, GenProcess, Weight]))
@@ -35,7 +51,17 @@ class Particle:
         self.set_ids(id_dictionary)
 
         self.set_mass(self.get_ids()['mass'])
+        if type(p0) is list:
+            p0 = np.array(p0)
+        #if p0 is given as a number, assume it to be the particle's energy,
+        #momentum pointing in z-direction
+        elif type(p0) is int or type(p0) is float:
+            if self.get_ids()["mass"] is None:
+                self._mass = mass_dict[self.get_ids()["PID"]]
+            p0 = np.array([p0, 0, 0, np.sqrt(p0**2 - self._mass**2)])
         self.set_p0(p0)
+        if type(r0) is list:
+            r0 = np.array(r0)
         self.set_r0(r0)
 
         self.set_ended(False)
@@ -87,6 +113,16 @@ class Particle:
     def get_pf(self):
         return self._pf
 
+    def lose_energy(self, value):
+        E0, px0, py0, pz0 = self.get_pf()
+        p30 = np.linalg.norm([px0, py0, pz0])
+        E_updated = E0 - value
+        if E_updated < self.get_ids()["mass"]:
+            E_updated = self.get_ids()["mass"]
+        p3f = np.sqrt(E_updated**2 - self.get_ids()["mass"]**2)
+        if p3f > 0.0:
+            self.set_pf([E_updated, px0/p30*p3f, py0/p30*p3f, pz0/p30*p3f])
+
     def set_r0(self, value):
         self._r0 = value
     def get_r0(self):
@@ -102,6 +138,9 @@ class Particle:
         self._Ended = value
     def get_ended(self):
         return self._Ended
+
+    def copy(self):
+        return Particle(self.get_p0(), self.get_r0(), self.get_ids())
 
     def rotation_matrix(self):
         """
@@ -132,8 +171,23 @@ class Particle:
 
     def two_body_decay(self, p1_dict, p2_dict, angular_information="Isotropic"):
         mX = self._mass
-        if ("mass" not in p1_dict.keys()) or ("mass" not in p2_dict.keys()):
-            raise ValueError("Masses must be included when calling two_body_decay()")
+        if ("mass") not in p1_dict.keys():
+            if ("PID") not in p1_dict.keys():
+                raise ValueError("Masses must be included in `p1_dict' when calling two_body_decay()")
+            else:
+                try:
+                    p1_dict['mass'] = mass_dict[p1_dict["PID"]]
+                except:
+                    raise ValueError("PID provided for unspecified particle.")
+        if ("mass") not in p2_dict.keys():
+            if ("PID") not in p2_dict.keys():
+                raise ValueError("Masses must be included in `p2_dict' when calling two_body_decay()")
+            else:
+                try:
+                    p2_dict['mass'] = mass_dict[p2_dict["PID"]]
+                except:
+                    raise ValueError("PID provided for unspecified particle.")
+
         m1, m2 = p1_dict['mass'], p2_dict['mass']
 
         E1 = (mX**2 - m2**1 + m1**2)/(2*mX)
@@ -159,16 +213,29 @@ class Particle:
         p1_four_vector_LF = np.dot(boost, p1_four_vector_RF)
         p2_four_vector_LF = np.dot(boost, p2_four_vector_RF)
 
-        p1_dict["weight"] = self.get_ids()["weight"]
-        p2_dict["weight"] = self.get_ids()["weight"]
         new_particle_1 = Particle(p1_four_vector_LF, self.get_rf(), p1_dict)
         new_particle_2 = Particle(p2_four_vector_LF, self.get_rf(), p2_dict)
         
         return [new_particle_1, new_particle_2]
 
-    def decay_particle(self, decay_product_masses, decay_type="TwoBody"):
-        if len(decay_product_masses) < 2:
-            raise ValueError("Decay into fewer than two final-state particles called.")
-        if np.sum(decay_product_masses) > self._mass:
-            raise ValueError("Decay into particles with too great mass called.")
+    def decay_particle(self):
+        if self.get_ids()["PID"] not in meson_decay_dict.keys():
+            raise ValueError("Decay options for particle not specified. Edit dictionary in 'particle.py' to include it")
+        decay_options = meson_decay_dict[self.get_ids()["PID"]]
+        if len(decay_options) == 1:
+            br_sum, decay = decay_options[0]
+        else:
+            branching_ratios = [decay_options[ii][0] for ii in range(len(decay_options))]
+            br_sum = np.sum(branching_ratios)
+            choice_weights = branching_ratios/br_sum
+            decay = decay_options[np.random.choice(range(len(decay_options)), p=choice_weights)][1]
+
+        if len(decay) > 2:
+            raise ValueError("Three-body (and above) decays not yet implemented")
+        elif len(decay) == 2:
+            p1_dict = {"PID":decay[0], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"])}
+            p2_dict = {"PID":decay[1], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"])+1}
+            new_particles = self.two_body_decay(p1_dict=p1_dict, p2_dict=p2_dict)
         
+        self.set_ended(True)
+        return new_particles        
