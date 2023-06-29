@@ -234,8 +234,8 @@ class Particle:
         if len(decay) > 2:
             raise ValueError("Three-body (and above) decays not yet implemented")
         elif len(decay) == 2:
-            p1_dict = {"PID":decay[0], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"])}
-            p2_dict = {"PID":decay[1], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"])+1}
+            p1_dict = {"PID":decay[0], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"]), "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1)}
+            p2_dict = {"PID":decay[1], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"])+1, "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1)}
             new_particles = self.two_body_decay(p1_dict=p1_dict, p2_dict=p2_dict)
         
         self.set_ended(True)

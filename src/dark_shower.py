@@ -306,7 +306,7 @@ class DarkShower(Shower):
         V_dict["parent_ID"] = init_IDs["ID"]
         V_dict["generation_number"] = init_IDs["generation_number"] + 1
         V_dict["generation_process"] = process
-        V_dict["weight"] = wg
+        V_dict["weight"] = wg*init_IDs["weight"]
 
         return Particle(pV4LF, p0.get_rf(), V_dict)
 
