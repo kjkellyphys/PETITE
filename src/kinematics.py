@@ -128,6 +128,26 @@ def ee_to_ee_fourvecs(Einc, me, ct):
 
     return [outgoing_particle_fourvector, new_electron_fourvector]
 
+def radiative_return_fourvecs(pe, mV, x):
+    """
+    Reconstruct V four-momentum in the radiative return process e^+ e^- > gamma V working in the 
+    collinear emission approximation for the ISR photons. 
+    Args:
+        pe : four momentum of the incoming positron in the lab frame
+        mV : vector mass
+        x : energy fraction of electron (the positron energy fraction if mV^2/(x s)
+    Returns:
+        pV : four momentum
+    """
+    ml = 0.51099895 * 1e-3
+    s = 2.*me*(me + pe[0])
+    E1 = x1*np.sqrt(s)/2.
+    E2 = (x2/x1)*np.sqrt(s)/2.
+    
+    p1 = np.array([E1, 0., 0., np.sqrt(E1**2 - ml**2)])
+    p2 = np.array([E2, 0., 0., -np.sqrt(E2**2 - ml**2)])
+    pV = p1 + p2
+
 def annihilation_fourvecs(Ee, me, mV, ct):
     """Reconstruct final SM/dark photon four vectors from 
     mc-sampled kinematic variables for SM annihilation e+e- > gamma gamma

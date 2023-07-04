@@ -10,11 +10,19 @@
     python Gen_Samples.py
 """
 
-from PETITE.AllProcesses import *
+import sys, os
+path = os.getcwd()
+path = os.path.join(path,"../src/")
+sys.path.insert(0,path)
+try:
+    from PETITE.AllProcesses import *
+    from PETITE.physical_constants import *
+except:
+    from all_processes import *
+
 import pickle
 import copy
 import numpy as np
-import os
 import random as rnd
 from datetime import datetime
 from tqdm import tqdm
@@ -45,15 +53,19 @@ diff_xsections={"PairProd" : dsigma_pairprod_dimensionless,
                 "Comp"     : dsigma_compton_dCT,    
                 "Brem"     : dsigma_brem_dimensionless,
                 "ExactBrem": dsig_etl_helper,
-                "Ann"      : dsigma_annihilation_dCT }
+                "Ann"      : dsigma_annihilation_dCT, 
+                "RadRet"   : dsigma_radiative_return_du,
+                }
 
 FF_dict =      {"PairProd" : g2_elastic,
                 "Comp"     : unity,
                 "Brem"     : g2_elastic,
                 "ExactBrem": Gelastic_inelastic,
-                "Ann"      : unity }
+                "Ann"      : unity,
+                "RadRet"   : unity
+                }
 
-QSq_functions={"PairProd" : pair_production_q_sq_dimensionless, "Brem"  : brem_q_sq_dimensionless, "ExactBrem":exactbrem_qsq, "Comp": dummy, "Ann": dummy }
+QSq_functions={"PairProd" : pair_production_q_sq_dimensionless, "Brem"  : brem_q_sq_dimensionless, "ExactBrem":exactbrem_qsq, "Comp": dummy, "Ann": dummy, "RadRet":dummy}
 
 neval0 = 300
 n_trials = 100
@@ -95,7 +107,8 @@ for mVi, mV in enumerate(vector_masses):
             counter=counter+1
             
             E_inc, adaptive_map = process_file[ki]
-            integrand = vg.Integrator(map=adaptive_map, nstrat=nstrat_options[process_key])
+            #integrand = vg.Integrator(map=adaptive_map, nstrat=nstrat_options[process_key])
+            integrand = vg.Integrator(map=adaptive_map, **vegas_integrator_options[process_key])
             save_copy = copy.deepcopy(adaptive_map)
 
             EvtInfo={'E_inc': E_inc, 'm_e': m_electron, 'Z_T': Z_H, 'A_T': A_H, 'mT':A_H, 'alpha_FS': alpha_em, 'mV': mV, 'Eg_min':Egamma_min}

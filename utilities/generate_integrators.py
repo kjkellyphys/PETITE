@@ -14,10 +14,14 @@
 import numpy as np
 import sys, os
 path = os.getcwd()
-path = os.path.join(path,"../PETITE")
+path = os.path.join(path,"../src/")
 sys.path.insert(0,path)
-from PETITE.AllProcesses import *
-from PETITE.physical_constants import *
+try:
+    from PETITE.AllProcesses import *
+    from PETITE.physical_constants import *
+except:
+    from all_processes import *
+    from physical_constants import *
 
 
 from copy import deepcopy
@@ -159,8 +163,9 @@ if __name__ == '__main__':
 
 
     parser.add_argument('-save_location', type=str, default='raw_integrators', help='directory to save integrators in (path relative to main PETITE directory)')
+    parser.add_argument('-find_maxes_save_location', type=str, default='cooked_integrators', help='directory to save integrators in (path relative to main PETITE directory)')
     parser.add_argument('-process', nargs='+', type=str, default=['ExactBrem'], help='list of processes to be run "all" does whole list, if mV non-zero only DarkBrem \
-        (choose from "PairProd", "Brem", "ExactBrem", "Comp", "Ann", "Moller", "Bhabha")')
+        (choose from "PairProd", "Brem", "ExactBrem", "Comp", "Ann", "RadRet", "Moller", "Bhabha")')
     parser.add_argument('-mV', nargs='+', type=float, default=[0.05], help='dark vector mass in GeV (can be a space-separated list)')
     parser.add_argument('-min_energy', type=float, default=0.01, help='minimum initial energy (in GeV) to evaluate (must be larger than mV)')
     parser.add_argument('-max_energy', type=float, default=100., help='maximum initial energy (in GeV) to evaluate')
@@ -173,10 +178,11 @@ if __name__ == '__main__':
     print('**** Arguments passed to generate_integrators ****')
     print(args)
 
-    params = {'A_T': args.A, 'Z_T': args.Z, 'mT': args.mT, 'save_location': args.save_location}
+    params = {'A_T': args.A, 'Z_T': args.Z, 'mT': args.mT, 'save_location': args.save_location, 'find_maxes_save_location': args.find_maxes_save_location}
     verbosity_mode = args.verbosity
     params['verbosity'] = verbosity_mode
-    if (args.mV == 0 or not(args.process == ['ExactBrem']) ):# doing SM processes
+    if (args.mV == 0 and not(args.process == ['ExactBrem']) ):# doing SM processes
+        print("Doing SM!")
         if  "all" in args.process:
             process_list_to_do = ['Brem','PairProd','Comp','Ann','Moller','Bhabha']
         else:#make sure DarkBrem not accidentally in list
@@ -193,7 +199,8 @@ if __name__ == '__main__':
             call_find_maxes(params, process)
     else:# doing DarkBrem
         for mV in args.mV:
-            process = 'ExactBrem'
+            #process = 'ExactBrem'
+            process = args.process[0]
             print("Working on mV = ", mV)
             min_energy = max(args.min_energy, 1.01 * mV)
             initial_energy_list = np.logspace(np.log10(min_energy), np.log10(args.max_energy), args.num_energy_pts)

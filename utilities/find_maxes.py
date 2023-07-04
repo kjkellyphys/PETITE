@@ -52,9 +52,9 @@ def do_find_max_work(params, process_file):
 
 def main(params):
     #Dictionary of proceses with corresponding x-secs, form factors and Q**2 functions
-    process_info ={'PairProd' : {'diff_xsection': dsigma_pairprod_dP_T,   'form_factor': g2_elastic, 'QSq_func': pair_production_q_sq},
+    process_info ={'PairProd' : {'diff_xsection': dsigma_pairprod_dimensionless,   'form_factor': g2_elastic, 'QSq_func': pair_production_q_sq},
                    'Comp'     : {'diff_xsection': dsigma_compton_dCT,     'form_factor': unity,      'QSq_func': dummy},
-                    'Brem'     : {'diff_xsection': dsigma_brem_dP_T,       'form_factor': g2_elastic, 'QSq_func': brem_q_sq},
+                    'Brem'     : {'diff_xsection': dsigma_brem_dimensionless,       'form_factor': g2_elastic, 'QSq_func': brem_q_sq},
                     'Ann'      : {'diff_xsection': dsigma_annihilation_dCT,'form_factor': unity,      'QSq_func': dummy}}
     #Set up process to run
     path = "../" + params['import_directory'] + "/"
@@ -102,7 +102,7 @@ path = os.getcwd()
 path = os.path.join(path,"../PETITE")
 sys.path.insert(0,path)
 
-from AllProcesses import *
+from all_processes import *
 import pickle
 import copy
 import numpy as np

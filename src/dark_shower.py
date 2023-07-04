@@ -331,6 +331,30 @@ class DarkShower(Shower):
         NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_ids()[1])+1, Elec0.get_ids()[1], Elec0.get_ids()[0], Elec0.get_ids()[4]+1, GenType, wg)
         return NewV
 
+    def dark_radiative_return_sample(self, Elec0, VB=False, relative_weight=1.0):
+        pe = Elec0.get_pf()
+        sample_event = self.draw_dark_sample(pe[0], LUKey, 'RadRet', VB=VB)
+        pV = radiative_return_fourvecs(pe, self.get_mV(), sample_event[0])
+        GenType = dark_process_code['Ann']
+        EVf, pVxfZF, pVyfZF, pVzfZF = NFVs
+        pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
+        pV3LF = np.dot(RM, pV3ZF)
+        wg = self.GetBSMWeights(-11, Ee0)*relative_weight
+
+        if EVf > Ee0+m_electron/2+(2*Ee0-m_electron)*self.get_mV()**2/(8*Ee0**2):
+            print("---------------------------------------------")
+            print("High Energy V Found from Positron Samples:")
+            print(Elec0.get_pf())
+            print(EVf)
+            print(sample_event)
+            print(LUKey)
+            print(wg)
+            print("---------------------------------------------")
+
+        NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_ids()[1])+1, Elec0.get_ids()[1], Elec0.get_ids()[0], Elec0.get_ids()[4]+1, GenType, wg)
+        return NewV
+
+
     def DarkAnnihilationSample(self, Elec0, VB=False, relative_weight=1.0):
         """Generate an annihilation event from an initial positron
             Args:
