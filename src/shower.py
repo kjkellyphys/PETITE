@@ -321,10 +321,6 @@ class Shower:
             return None
         RM = p0.rotation_matrix()
         sample_event = self.draw_sample(E0, process=process, VB=VB)
-        if VB:
-            newparticlewgt = sample_event[-1]
-        else:
-            newparticlewgt = 1.0
 
         NFVs = kinematic_function[process](p0, sample_event)
 
@@ -342,7 +338,7 @@ class Shower:
         p1_dict["parent_ID"] = init_IDs["ID"]
         p1_dict["generation_number"] = init_IDs["generation_number"] + 1
         p1_dict["generation_process"] = process
-        p1_dict["weight"] = newparticlewgt
+        p1_dict["weight"] = init_IDs["weight"]
 
         p2_dict = p1_dict.copy()
         p2_dict["PID"] = process_PIDS[process][1]

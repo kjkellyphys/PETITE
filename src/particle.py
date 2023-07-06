@@ -20,7 +20,8 @@ default_ids = {"PID":11, "ID":1, "parent_PID":22,
 #                       to three pi0 with Br = 0.00250
 meson_decay_dict = {111: [[0.98823, [22,22]]],
                     221: [[0.3936, [22,22]], [0.3257, [111, 111, 111]]],
-                    331: [[0.224, [111, 111, 221]], [0.02307, [22,22]], [0.00250, [111, 111, 111]]]}
+                    331: [[0.02307, [22,22]], [0.224, [111, 111, 221]], [0.00250, [111, 111, 111]]]}
+meson_twobody_branchingratios = {pid0:meson_decay_dict[pid0][0][0] for pid0 in meson_decay_dict.keys()}
 
 class Particle:
     """Container for particle information as it is propagated through target
@@ -190,8 +191,8 @@ class Particle:
 
         m1, m2 = p1_dict['mass'], p2_dict['mass']
 
-        E1 = (mX**2 - m2**1 + m1**2)/(2*mX)
-        E2 = (mX**2 - m1**1 + m2**2)/(2*mX)
+        E1 = (mX**2 - m2**2 + m1**2)/(2*mX)
+        E2 = (mX**2 - m1**2 + m2**2)/(2*mX)
         pF = np.sqrt(E1**2 - m1**2)
         if angular_information == "Isotropic":
             cos_theta = np.random.uniform(-1.0, 1.0)
@@ -233,8 +234,8 @@ class Particle:
         if len(decay) > 2:
             raise ValueError("Three-body (and above) decays not yet implemented")
         elif len(decay) == 2:
-            p1_dict = {"PID":decay[0], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"])}
-            p2_dict = {"PID":decay[1], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"])+1}
+            p1_dict = {"PID":decay[0], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"]), "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1)}
+            p2_dict = {"PID":decay[1], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"])+1, "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1)}
             new_particles = self.two_body_decay(p1_dict=p1_dict, p2_dict=p2_dict)
         
         self.set_ended(True)

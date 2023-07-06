@@ -4,7 +4,7 @@ import pickle
 from scipy.interpolate import interp1d
 
 from .moliere import get_scattered_momentum 
-from .particle import Particle
+from .particle import Particle, meson_twobody_branchingratios
 from .kinematics import e_to_egamma_fourvecs, e_to_eV_fourvecs, gamma_to_epem_fourvecs, compton_fourvecs, annihilation_fourvecs
 from .shower import Shower
 from .all_processes import *
@@ -19,7 +19,8 @@ GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm
 cmtom = 0.01
 mp0 = 1.673e-24 #g
 
-dark_process_code = {'ExactBrem':0, 'Ann': 1, 'Comp': 3}
+dark_process_codes = ["ExactBrem", "Ann", "Comp", "TwoBody_BSMDecay"]
+
 dark_kinematic_function = {"ExactBrem" : e_to_eV_fourvecs,
                            "Ann"       : annihilation_fourvecs,
                            "Comp"      : compton_fourvecs}
@@ -32,7 +33,8 @@ class DarkShower(Shower):
     """
 
     def __init__(self, dict_dir, target_material, min_energy, mV_in_GeV , \
-                          mode="exact", maxF_fudge_global=1,max_n_integrators=int(1e4)):
+                          mode="exact", maxF_fudge_global=1,max_n_integrators=int(1e4), \
+                          kinetic_mixing=1.0, g_e=None, active_processes=None):
         super().__init__(dict_dir, target_material, min_energy)
         """Initializes the shower object.
         Args:
@@ -46,10 +48,17 @@ class DarkShower(Shower):
             vector events to use (see MVLib variable for available choices)
         """
 
+        self.active_processes = active_processes
+        if self.active_processes is None:
+            self.active_processes = dark_process_codes
 
         self.set_dark_dict_dir(dict_dir)
         self.set_target_material(target_material)
         self.min_energy = min_energy
+        self.kinetic_mixing = kinetic_mixing
+        self.g_e = g_e
+        if self.g_e is None:
+            self.g_e = self.kinetic_mixing*np.sqrt(4*np.pi*alpha_em)
 
         self.set_material_properties()
         self.set_n_targets()
@@ -124,7 +133,7 @@ class DarkShower(Shower):
 
     def set_dark_samples(self):
         self._loaded_dark_samples={}
-        for process in dark_process_code.keys():
+        for process in diff_xsection_options.keys():
             self._loaded_dark_samples[process]= \
                 self.load_dark_sample(self._dict_dir, process)
             
@@ -184,7 +193,7 @@ class DarkShower(Shower):
         self._NSigmaDarkAnn = interp1d(np.transpose(DAnnS)[0], ne*GeVsqcm2*np.transpose(DAnnS)[1])
         self._NSigmaDarkComp = interp1d(np.transpose(DCS)[0], ne*GeVsqcm2*np.transpose(DCS)[1])
 
-    def GetBSMWeights(self, PID, Energy, process):
+    def GetBSMWeights(self, particle, process):
         """Compute relative weight of dark photon emission to the available SM processes
         Args: 
             PID: incoming PDG ID of the particle 
@@ -194,11 +203,12 @@ class DarkShower(Shower):
             divided by the probabilities of available SM processes
 
         """
+        PID, Energy = particle.get_ids()["PID"], particle.get_pf()[0]
         if PID == 22:
             if (Energy < self._mV*(1 + self._mV/(2*m_electron))) or (process != "Comp"):
                 return 0.0
             else:
-                return self._NSigmaDarkComp(Energy)/(self._NSigmaPP(Energy) + self._NSigmaComp(Energy))
+                return (self.g_e**2/(4*np.pi*alpha_em))*self._NSigmaDarkComp(Energy)/(self._NSigmaPP(Energy) + self._NSigmaComp(Energy))
         elif PID == 11:
             if (np.log10(Energy) < self._logEeMinDarkBrem) or (process != "ExactBrem"):
                 return 0.0
@@ -207,22 +217,31 @@ class DarkShower(Shower):
         elif PID == -11:
             if process == "ExactBrem":
                 if np.log10(Energy) < self._logEeMinDarkBrem:
-                    BremPiece = 0.0
+                    return 0.0
                 else:
                     BremPiece = self._NSigmaDarkBrem(Energy)
-                return BremPiece/(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))
+                    return (self.g_e**2/(4*np.pi*alpha_em))*BremPiece/(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))
             elif process == "Ann":
                 if Energy < (self._mV**2 - m_electron**2)/(2*m_electron) + 2*self._Egamma_min:
-                    AnnPiece = 0.0
+                    return 0.0
                 else:
                     AnnPiece = self._NSigmaDarkAnn(Energy)
-                return AnnPiece/(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))
+                    return (self.g_e**2/(4*np.pi*alpha_em))*AnnPiece/(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))
             else:
                 return 0.0
+        elif PID == 111 or PID == 221 or PID == 331:
+            if process == "TwoBody_BSMDecay":
+                mass_ratio = self._mV_estimator/particle.get_ids()["mass"]
+                if mass_ratio >= 1.0:
+                    return 0.0
+                return 2*(self.kinetic_mixing)**2*(1.0 - mass_ratio**2)**3*meson_twobody_branchingratios[particle.get_ids()["PID"]]
+            else:
+                return 0.0
+        else:
+            return 0.0
 
 
     def draw_dark_sample(self,Einc,LU_Key=-1,process="ExactBrem",VB=False):
-
         dark_sample_list=self._loaded_dark_samples 
         if LU_Key<0 or LU_Key > len(dark_sample_list[process]):
             # Get the LU_Key corresponding to the closest incoming energy
@@ -277,7 +296,7 @@ class DarkShower(Shower):
         EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV_estimator)[-1]
         pV4LF = np.concatenate([[EVf], np.dot(RM, [pVxfZF, pVyfZF, pVzfZF])])
 
-        wg = self.GetBSMWeights(p0.get_ids()["PID"], E0, process)
+        wg = self.GetBSMWeights(p0, process)
 
         init_IDs = p0.get_ids()
         V_dict = {}
@@ -287,7 +306,7 @@ class DarkShower(Shower):
         V_dict["parent_ID"] = init_IDs["ID"]
         V_dict["generation_number"] = init_IDs["generation_number"] + 1
         V_dict["generation_process"] = process
-        V_dict["weight"] = wg
+        V_dict["weight"] = wg*init_IDs["weight"]
 
         return Particle(pV4LF, p0.get_rf(), V_dict)
 
@@ -318,8 +337,18 @@ class DarkShower(Shower):
 
         NewShower = []
         for ap in ShowerToSamp:
-            for process_code in dark_process_code.keys():
-                if self.GetBSMWeights(ap.get_ids()["PID"], ap.get_pf()[0], process=process_code) > 0.0:
-                    npart = self.produce_bsm_particle(ap, process=process_code)
-                    NewShower.append(npart)
+            for process_code in self.active_processes:
+                if self.GetBSMWeights(ap, process=process_code) > 0.0:
+                    if process_code == "TwoBody_BSMDecay":
+                        gamma_dict = {"mass":0, "PID":22}
+                        V_dict = {"mass":self._mV_estimator, "PID":4900022,
+                                  "weight":ap.get_ids()["weight"]*self.GetBSMWeights(ap, process=process_code),
+                                  "parent_PID":ap.get_ids()["PID"], "parent_ID":ap.get_ids()["ID"],
+                                  "ID":2*(ap.get_ids()["ID"])+1, "generation_number":ap.get_ids()["generation_number"]+1,
+                                  "generation_process":process_code}
+                        npart = ap.two_body_decay(gamma_dict, V_dict)[1]
+                        NewShower.append(npart)
+                    else:    
+                        npart = self.produce_bsm_particle(ap, process=process_code)
+                        NewShower.append(npart)
         return ShowerToSamp, NewShower
