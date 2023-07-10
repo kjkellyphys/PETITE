@@ -1,14 +1,4 @@
-""" Create utility that makes readme explaining the pickles in a specific directory
-    Pickles directory can be an input in command line -pickle_dir=/blahblah/ (target name)
-    SM ==> one run
-    DARK ==> one per mass and target (only dark brem is target-specific)
-    Run find_maxes after generating pickles to generate dicts (once per material)
-    Save readme in Ryan dicts and directory
-    NBP ==> user-defined, but we will have ours: raw_integrators
-    Ryan dicts ==> cooked_integrators
-    FIXME: units and constants
-    FIXME: manual
-    FIXME: comments
+""" This script generates VEGAS integrators for various production processes and stitch them together for different energies.
 """
 
 import numpy as np
@@ -26,7 +16,7 @@ import pickle
 from functools import partial
 import argparse
 import datetime
-
+import vegas
 
 # helper function to turn float to string
 def generate_vector_mass_string(mV):
@@ -52,7 +42,16 @@ def make_readme(params, process, file_info):
 
 #Run VEGAS in parallel and save outputs, deals with file management
 ### FIX files names etc
-def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_index):
+def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_index, integrator_map_only=True):
+    '''Run VEGAS in parallel for a given energy index and process, and save the integrator 
+    and relevant parameters to a pickle file.
+    Input:
+        params: dictionary of parameters
+        process: string of process name
+        verbosity_mode: boolean
+        file_info: directory where files should be saved
+        energy_index: index of energy in initial_energy_list
+    '''
     params['E_inc'] = params['initial_energy_list'][energy_index]
     save_dir = file_info + "/"
     strsaveB = save_dir + str(energy_index) + ".p"
@@ -63,7 +62,11 @@ def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_ind
         VEGAS_integrator = vegas_integration(params, process, verbose=verbosity_mode, mode='Pickle') 
         #VEGAS_integrator = 0
         print('Done VEGAS for energy index ',energy_index)
-        object_to_save = [params['E_inc'], VEGAS_integrator]
+        # objects to be saved. Should include all important parameters (in params) and the VEGAS integrator.
+        if integrator_map_only:
+            object_to_save = [params, VEGAS_integrator.map]
+        else:
+            object_to_save = [params, VEGAS_integrator]
         #print(object_to_save)
         pickle.dump(object_to_save, open(strsaveB, "wb"))
         print('File created: ' + strsaveB)
@@ -119,7 +122,7 @@ def make_integrators(params, process):
     return()
 
 # Set up parameters for and then run find_maxes
-def call_find_maxes(params, process):
+def call_find_maxes(params, process): # FIXME: calling an old function
     import find_maxes
     if (args.run_find_maxes):
         print("Now running Find_Maxes....please wait")
@@ -131,11 +134,34 @@ def call_find_maxes(params, process):
         find_maxes.main(find_maxes_params)
     else:
         print('Not running find_maxes')
-    
-    return()
+    return
 
-
-
+def stitch_integrators(dir, file_name):
+    """
+    Stich together integrators for different energies
+    Input:
+        dir: directory where integrators are saved
+        file_name: name of file to save stiched integrator to
+    """
+    from glob import glob
+    # get all files in directory
+    files = glob(dir + '/*.p')
+    # sort files by energy
+    files.sort(key=lambda x: int(x.split('/')[-1].split('.')[0]))
+    # check if they were saved as adaptive maps only or full integrators by checking type of second element (should be a VEGAS adaptive map)
+    if type(pickle.load(open(files[0], 'rb'))[1]) == vegas._vegas.Integrator:
+        to_save = []
+        for file_name in files:
+            file = pickle.load(open(file_name, 'rb'))
+            to_save.append([file[0], file[1].map])
+    elif type(pickle.load(open(files[0], 'rb'))[1]) == vegas._vegas.AdaptiveMap:
+        to_save = [pickle.load(open(file_name, 'rb')) for file_name in files]  
+    else:
+        raise ValueError('Unknown type of integrator')   
+    # save stitched integrator as numpy arrays
+    np.save(file_name, to_save)
+    print('Stitched integrator saved to ' + file_name)
+    return
 
 
 # def make_readme(args): #FIXME: add right path, discuss and implement what exatly goes here.
@@ -167,6 +193,8 @@ if __name__ == '__main__':
     parser.add_argument('-num_energy_pts', type=int, default=100, help='number of initial energy values to evaluate, scan is done in log space')
     parser.add_argument('-run_find_maxes', type=bool, default=True,  help='run Find_Maxes.py after done')
     parser.add_argument('-verbosity', type=bool, default=False, help='verbosity mode')
+    # stich integrators
+    parser.add_argument('-stitch', type=bool, default=True, help='stitch integrators for different energies together')
 
     args = parser.parse_args()
 
@@ -191,6 +219,8 @@ if __name__ == '__main__':
             params.update({'initial_energy_list': initial_energy_list})
             make_integrators(params, process)
             call_find_maxes(params, process)
+            # stitch integrators for different energies together
+            stitch_integrators('../' + params['save_location'] + "/" + process, '../' + params['save_location'] + "/" + process + '.npy')
     else:# doing DarkBrem
         for mV in args.mV:
             process = 'ExactBrem'
@@ -201,6 +231,8 @@ if __name__ == '__main__':
             params.update({'initial_energy_list': initial_energy_list})
             make_integrators(params, process)
             call_find_maxes(params, process)
+            # stitch integrators for different energies together (add mV to the name of output file)
+            stitch_integrators('../' + params['save_location'] + "/" + process, '../' + params['save_location'] + "/" + process + '_mV_' + str(int(np.floor(mV*1000.))) + 'MeV.npy')
     
     print("Goodbye!")
 
