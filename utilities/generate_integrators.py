@@ -25,7 +25,7 @@ def generate_vector_mass_string(mV):
 # put more details in readme eg Z, A etc
 def make_readme(params, process, file_info):
     save_dir = file_info + "/"
-    readme_file = open(save_dir + "readme.txt", 'w')
+    readme_file = open(save_dir + process + "_readme.txt", 'w')
     readme_file.write("Integrators for " + process)
     if process == 'ExactBrem':
         line = "\nTarget has (Z, A, mass) = ({atomic_Z}, {atomic_A}, {atomic_mass})\n".\
@@ -124,12 +124,12 @@ def make_integrators(params, process):
 # Set up parameters for and then run find_maxes
 def call_find_maxes(params, process): # FIXME: calling an old function
     import find_maxes
-    if (args.run_find_maxes):
+    if (params['run_find_maxes']):
+        # find_maxes_params['process'] = process
+        # find_maxes_params['import_directory'] = params['save_location'] + "/" + process
+        # find_maxes_params['save_location'] = params['find_maxes_save_location']
         print("Now running Find_Maxes....please wait")
         find_maxes_params = params
-        find_maxes_params['process'] = process
-        find_maxes_params['import_directory'] = params['save_location'] + "/" + process
-        find_maxes_params['save_location'] = params['find_maxes_save_location']
         print(find_maxes_params)
         find_maxes.main(find_maxes_params)
     else:
