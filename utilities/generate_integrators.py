@@ -218,9 +218,9 @@ if __name__ == '__main__':
             params.update({'mV' : 0})
             params.update({'initial_energy_list': initial_energy_list})
             make_integrators(params, process)
-            call_find_maxes(params, process)
             # stitch integrators for different energies together
             stitch_integrators('../' + params['save_location'] + "/" + process, '../' + params['save_location'] + "/" + process + '.npy')
+            call_find_maxes(params, process)
     else:# doing DarkBrem
         for mV in args.mV:
             process = 'ExactBrem'
@@ -230,10 +230,10 @@ if __name__ == '__main__':
             params.update({'mV' : mV})
             params.update({'initial_energy_list': initial_energy_list})
             make_integrators(params, process)
-            call_find_maxes(params, process)
             # stitch integrators for different energies together (add mV to the name of output file)
             stitch_integrators('../' + params['save_location'] + "/" + process, '../' + params['save_location'] + "/" + process + '_mV_' + str(int(np.floor(mV*1000.))) + 'MeV.npy')
-    
+            call_find_maxes(params, process)
+            
     print("Goodbye!")
 
 

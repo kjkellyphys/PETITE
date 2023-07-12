@@ -2,7 +2,7 @@ The utilities directory contains several helpful scripts that are used to genera
 
 
 # generate_integrators.py  
-This script generates the VEGAS integrators for all processes that can produce a dark vector in a shower, over a range of energies. 
+This script generates the VEGAS integrators for all processes involved in a shower, over a range of energies. 
 It takes both command line options, a full list can be seen by "python generate_integrators.py -h" and can read a run card for various VEGAS options.
 e.g.
 

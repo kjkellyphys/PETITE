@@ -7,15 +7,11 @@ To install, from the top directory run
 
     >> pip install .
 
-PETITE comes with pre-generated showers for graphite and lead #FIXME: energies?
-
 ## Running PETITE
 TBD
-We first describe how to run PETITE using the pre-generated files.  It is also possible to generate new files for both SM and dark processes.  The scripts necessary for this are in the utilities directory and we describe their use below.  Jupyter notebook examples of how to run PETITE using pre-generated files are given in examples/shower_SM.ipynb and examples/dark_shower.ipynb.
+We first describe how to run PETITE using the pre-generated VEGAS integrator files.  It is also possible to generate new files for both SM and dark processes.  The scripts necessary for this are in the utilities directory and we describe their use below, as well as in utilities/README.md.  Jupyter notebook examples of how to run PETITE using pre-generated files are given in examples/shower_SM.ipynb and examples/dark_shower.ipynb.
 
-
-
-
+First one must import the VEGAS integrators and other infrastructure for the physicsal processes in the relevant material.  This is done using Shower and DarkShower.  With these loaded one may then generate a full shower by calling generate_(dark_)shower, or investigate individual physical processes using draw_(dark_)sample.
 # Pre-generated VEGAS integrators
 PETITE comes with pre-generated VEGAS integrators (both before and after processing) for standard showers in graphite and lead.
 You can find them in the ./data/
