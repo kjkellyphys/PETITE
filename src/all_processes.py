@@ -443,18 +443,36 @@ def dsigma_moller_dCT(event_info, phase_space_par_list):
             Einc (incident electron energy)
     """
     Ee = event_info['E_inc']
+    DE = event_info['Ee_min']
+    delta_ct_limit = 2.0*DE/(Ee - m_electron)
     if len(np.shape(phase_space_par_list)) == 1:
         phase_space_par_list = np.array([phase_space_par_list])
     dSigs = []
     for varth in phase_space_par_list:
         ct = varth[0]
-        s = m_electron**2 + 2*Ee*m_electron
-
-        dSigs.append(16*np.pi**2*alpha_em**2*(s**2*(3+ct**2)**2 - 8*m_electron**2*s*(7+ct**4)+16*m_electron**4*(6-3*ct**2+ct**4))/(8*np.pi*s*(s-4*m_electron**2)**2*(1-ct)**2*(1+ct)**2))
+        if (ct < -1 + delta_ct_limit) or (ct > 1.0 - delta_ct_limit):
+            dSigs.append(0.0)
+        else:
+            s = m_electron**2 + 2*Ee*m_electron
+            dSigs.append(16*np.pi**2*alpha_em**2*(s**2*(3+ct**2)**2 - 8*m_electron**2*s*(7+ct**4)+16*m_electron**4*(6-3*ct**2+ct**4))/(8*np.pi*s*(s-4*m_electron**2)**2*(1-ct)**2*(1+ct)**2))
     if len(dSigs) == 1:
         return dSigs[0]
     else:
         return dSigs
+    
+def sigma_moller(event_info):
+    """Total cross section for Moller scattering
+    """
+
+    Ee = event_info['E_inc']
+    TeMIN = event_info['Ee_min'] - m_electron
+    threshold = 3*m_electron + 4*TeMIN
+
+    PF = 2*np.pi*alpha_em**2/(m_electron*(Ee**2 - m_electron**2))
+    T1 = Ee - 3*m_electron - 4*TeMIN + 2*Ee**2*(-2/(Ee - 3*m_electron - 2*TeMIN) + 1/TeMIN + 1/(-Ee+m_electron+TeMIN) + 2/(Ee + m_electron + 2*TeMIN))
+    T2 = 2*m_electron*(m_electron-2*Ee)/(Ee-m_electron)* np.log(((-Ee+m_electron+TeMIN)*(-Ee+3*m_electron+2*TeMIN)/(TeMIN*(Ee+m_electron+2*TeMIN)))*np.heaviside(Ee-threshold,1) + np.heaviside(threshold-Ee,1))
+
+    return PF*(T1+T2)*np.heaviside(Ee-threshold, 1)
 
 def dsigma_bhabha_dCT(event_info, phase_space_par_list):
     """Bhabha Scattering of a Positron off an at-rest Electron
@@ -464,19 +482,37 @@ def dsigma_bhabha_dCT(event_info, phase_space_par_list):
             Einc (incident positron energy)
     """
     Ee = event_info['E_inc']
+    DE = event_info['Ee_min']
+    delta_ct_limit = 2.0*DE/(Ee - m_electron)
     if len(np.shape(phase_space_par_list)) == 1:
         phase_space_par_list = np.array([phase_space_par_list])
     dSigs = []
     for varth in phase_space_par_list:
         ct = varth[0]
-        s = m_electron**2 + 2*Ee*m_electron 
-        dSigs.append((alpha_em**2*np.pi*(256*(-1 + ct)**2*ct**2*m_electron**8 - 128*(-1 + ct)*(1 + ct*(1 + ct)*(-3 + 2*ct))*m_electron**6*s + 16*(7 + ct*(2 + ct*(-5 + 6*(-1 + ct)*ct)))\
+        if (ct < -1 + delta_ct_limit) or (ct > 1.0 - delta_ct_limit):
+            dSigs.append(0.0)
+        else:
+            s = m_electron**2 + 2*Ee*m_electron 
+            dSigs.append((alpha_em**2*np.pi*(256*(-1 + ct)**2*ct**2*m_electron**8 - 128*(-1 + ct)*(1 + ct*(1 + ct)*(-3 + 2*ct))*m_electron**6*s + 16*(7 + ct*(2 + ct*(-5 + 6*(-1 + ct)*ct)))\
                             *m_electron**4*s**2 - 8*(7 + ct*(-3 + ct*(3 + ct*(-1 + 2*ct))))*m_electron**2*s**3 + (3 + ct**2)**2*s**4))/(2*(-1 + ct)**2*s**3*(-4*m_electron**2 + s)**2))
     if len(dSigs) == 1:
         return dSigs[0]
     else:
         return dSigs
     
+def sigma_bhabha(event_info):
+    """Total cross section for Bhabha scattering"""
+
+    Ee = event_info['E_inc']
+    TeMIN = event_info['Ee_min'] - m_electron
+    threshold = 3*m_electron + 4*TeMIN
+
+    PF = np.pi*alpha_em**2/(12*(Ee-m_electron)*m_electron*(Ee+m_electron)**3*(Ee-3*m_electron-2*TeMIN)*TeMIN)
+    T1 = (Ee-3*m_electron-4*TeMIN)*(24*Ee**2*(Ee+m_electron)**2 + (Ee-3*m_electron)*(31*Ee**2+84*Ee*m_electron+57*m_electron**2)*TeMIN-4*(16*Ee**2+39*Ee*m_electron+33*m_electron**2)*TeMIN**2 + 8*(Ee-3*m_electron)*TeMIN**3-8*TeMIN**4)
+    T2 = 24*(Ee+m_electron)*(2*Ee**2+4*Ee*m_electron+m_electron**2)*(Ee-3*m_electron-2*TeMIN)*TeMIN*np.log((2*TeMIN/(Ee-3*m_electron-2*TeMIN))*np.heaviside(Ee-threshold,1) + np.heaviside(threshold-Ee,1))
+
+    return PF*(T1+T2)*np.heaviside(Ee-threshold, 1)
+
 #Function for drawing unweighted events from a weighted distribution
 def get_points(distribution, npts):
     """If weights are too cumbersome, this function returns a properly-weighted sample from Dist"""
@@ -548,15 +584,16 @@ def integration_range(event_info, process):
 
         return [[max(xmin, mV/EInc), 1.-m_electron/EInc],[-12.0, l1mct_max], [-20.0, 0.0]]
     elif process in two_dim:
-        if process == "Comp" or process == "Ann":
-            return [[-1., 1.0]]
-        else:
-            if 'Ee_min' in event_info.keys():
-                DE = event_info['Ee_min']
-            else:
-                DE = 0.005
-            delta_ct_limit = 2.0*DE/(event_info['E_inc'] - m_electron)
-            return [[-1.0+delta_ct_limit, 1.0-delta_ct_limit]]
+        return [[-1., 1.0]]
+        #if process == "Comp" or process == "Ann":
+        #    return [[-1., 1.0]]
+        #else:
+        #    if 'Ee_min' in event_info.keys():
+        #        DE = event_info['Ee_min']
+        #    else:
+        #        DE = 0.005
+        #    delta_ct_limit = 2.0*DE/(event_info['E_inc'] - m_electron)
+        #    return [[-1.0+delta_ct_limit, 1.0-delta_ct_limit]]
 
     else:
         raise Exception("Your process is not in the list")

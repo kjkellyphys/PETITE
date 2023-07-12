@@ -213,8 +213,13 @@ class Shower:
         self._NSigmaPP = interp1d(np.transpose(PPS)[0], nZ*GeVsqcm2*np.transpose(PPS)[1], fill_value=0.0, bounds_error=False)
         self._NSigmaAnn = interp1d(np.transpose(AnnS)[0], ne*GeVsqcm2*np.transpose(AnnS)[1], fill_value=0.0, bounds_error=False)
         self._NSigmaComp = interp1d(np.transpose(CS)[0], ne*GeVsqcm2*np.transpose(CS)[1], fill_value=0.0, bounds_error=False)
-        self._NSigmaMoller = interp1d(np.transpose(MS)[0], ne*GeVsqcm2*np.transpose(MS)[1], fill_value=0.0, bounds_error=False)
-        self._NSigmaBhabha = interp1d(np.transpose(BhS)[0], ne*GeVsqcm2*np.transpose(BhS)[1], fill_value=0.0, bounds_error=False)
+        bhabha_moller_energies = np.logspace(np.log10(3*m_electron + self.min_energy), 2, 101)
+        self._NSigmaMoller = interp1d(bhabha_moller_energies, ne*GeVsqcm2*sigma_moller({"E_inc":bhabha_moller_energies, "Ee_min":self.min_energy}), fill_value=0.0, bounds_error=False)
+        self._NSigmaBhabha = interp1d(bhabha_moller_energies, ne*GeVsqcm2*sigma_bhabha({"E_inc":bhabha_moller_energies, "Ee_min":self.min_energy}), fill_value=0.0, bounds_error=False)
+        #self._NSigmaMoller = interp1d(np.transpose(MS)[0], ne*GeVsqcm2*np.transpose(MS)[1], fill_value=0.0, bounds_error=False)
+        #self._NSigmaBhabha = interp1d(np.transpose(BhS)[0], ne*GeVsqcm2*np.transpose(BhS)[1], fill_value=0.0, bounds_error=False)
+        #self._NSigmaMoller = ne*GeVsqcm2*sigma_moller
+        #self._NSigmaBhabha = ne*GeVsqcm2*sigma_bhabha
 
     def get_mfp(self, particle): 
         """Returns particle mean free path in meters for PID=22 (photons), 
@@ -267,8 +272,8 @@ class Shower:
         neval_vegas= sample_dict["neval"]
         integrand=vg.Integrator(map=adaptive_map, max_nhcube=1, neval=neval_vegas)
 
-        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min}
-        event_info_H={'E_inc': Einc, 'm_e': m_electron, 'Z_T': 1.0, 'A_T':1.0, 'mT':1.0, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min}
+        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min, 'Ee_min':self.min_energy}
+        event_info_H={'E_inc': Einc, 'm_e': m_electron, 'Z_T': 1.0, 'A_T':1.0, 'mT':1.0, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min, 'Ee_min':self.min_energy}
         diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                                "Comp"     : dsigma_compton_dCT,
                                "Brem"     : dsigma_brem_dimensionless,
@@ -321,6 +326,10 @@ class Shower:
             return None
         RM = p0.rotation_matrix()
         sample_event = self.draw_sample(E0, process=process, VB=VB)
+        #FIXME
+        #Check if new particle(s) have energy above threshold or not.
+        #If not, return "None" for efficiency.
+        #For Bhabha/Moller scattering, return "None" and reset incoming particle to "not ended" to re-propagate it
 
         NFVs = kinematic_function[process](p0, sample_event)
 

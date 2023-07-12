@@ -213,7 +213,7 @@ class DarkShower(Shower):
             if (np.log10(Energy) < self._logEeMinDarkBrem) or (process != "ExactBrem"):
                 return 0.0
             else:
-                return self._NSigmaDarkBrem(Energy)/self._NSigmaBrem(Energy)
+                return self._NSigmaDarkBrem(Energy)/(self._NSigmaBrem(Energy) + self._NSigmaMoller(Energy))
         elif PID == -11:
             if process == "ExactBrem":
                 if np.log10(Energy) < self._logEeMinDarkBrem:
