@@ -10,7 +10,7 @@
     python Gen_Samples.py
 """
 
-from PETITE.AllProcesses import *
+from PETITE.all_processes import *
 import pickle
 import copy
 import numpy as np

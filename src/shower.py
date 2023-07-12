@@ -115,12 +115,10 @@ class Shower:
         if process not in cross_section_dict:
             raise Exception("Process String does not match library")
         
-        if target_material in cross_section_dict[process]:
-            return(cross_section_dict[process][target_material])
+        if Z[target_material] in cross_section_dict[process]:
+            return(cross_section_dict[process][Z[target_material]])
         else:
             raise Exception("Target Material is not in library")
-
-
 
         
     def set_dict_dir(self, value):

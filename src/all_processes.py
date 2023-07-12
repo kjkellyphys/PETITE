@@ -309,7 +309,10 @@ def dsigma_annihilation_dCT(event_info, phase_space_par_list):
             al (electro-weak fine-structure constant)
     """
     Ee=event_info['E_inc']
-    mV=event_info['mV']
+    if 'mV' in event_info.keys():
+        mV=event_info['mV']
+    else:
+        mV = 0.0
     s = 2.0*m_electron*(Ee+m_electron)
 
     if 'Eg_min' in event_info.keys():
@@ -396,7 +399,10 @@ def dsigma_compton_dCT(event_info, phase_space_par_list):
             MV (Dark Vector Mass -- can be set to zero for SM Case)
     """
     Eg=event_info['E_inc']
-    mV=event_info['mV']
+    if 'mV' in event_info.keys():
+        mV=event_info['mV']
+    else:
+        mV = 0.0
 
     s = m_electron**2 + 2*Eg*m_electron
     if s < (m_electron + mV)**2:
@@ -443,7 +449,10 @@ def dsigma_moller_dCT(event_info, phase_space_par_list):
             Einc (incident electron energy)
     """
     Ee = event_info['E_inc']
-    DE = event_info['Ee_min']
+    if 'Ee_min' in event_info.keys():
+        DE = event_info['Ee_min']
+    else:
+        DE = 0.010
     delta_ct_limit = 2.0*DE/(Ee - m_electron)
     if len(np.shape(phase_space_par_list)) == 1:
         phase_space_par_list = np.array([phase_space_par_list])
@@ -482,7 +491,10 @@ def dsigma_bhabha_dCT(event_info, phase_space_par_list):
             Einc (incident positron energy)
     """
     Ee = event_info['E_inc']
-    DE = event_info['Ee_min']
+    if 'Ee_min' in event_info.keys():
+        DE = event_info['Ee_min']
+    else:
+        DE = 0.010    
     delta_ct_limit = 2.0*DE/(Ee - m_electron)
     if len(np.shape(phase_space_par_list)) == 1:
         phase_space_par_list = np.array([phase_space_par_list])
