@@ -6,7 +6,7 @@ import sys, os
 path = os.getcwd()
 path = os.path.join(path,"../PETITE")
 sys.path.insert(0,path)
-from PETITE.AllProcesses import *
+from PETITE.all_processes import *
 from PETITE.physical_constants import *
 
 
@@ -64,8 +64,10 @@ def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_ind
         print('Done VEGAS for energy index ',energy_index)
         # objects to be saved. Should include all important parameters (in params) and the VEGAS integrator.
         if integrator_map_only:
+            params['process'] = process
             object_to_save = [params, VEGAS_integrator.map]
         else:
+            params['process'] = process
             object_to_save = [params, VEGAS_integrator]
         #print(object_to_save)
         pickle.dump(object_to_save, open(strsaveB, "wb"))
@@ -130,6 +132,10 @@ def call_find_maxes(params, process): # FIXME: calling an old function
         # find_maxes_params['save_location'] = params['find_maxes_save_location']
         print("Now running Find_Maxes....please wait")
         find_maxes_params = params
+        find_maxes_params['process'] = process
+        find_maxes_params['import_directory'] = params['save_location']# + "/" + process
+        find_maxes_params['neval'] = 300
+        find_maxes_params['n_trials'] = 100
         print(find_maxes_params)
         find_maxes.main(find_maxes_params)
     else:
@@ -180,11 +186,11 @@ if __name__ == '__main__':
 
     # optional parameters
     parser.add_argument('-A', type=float, default=12, help='atomic mass number')
-    parser.add_argument('-Z', type=float, default=6, help='atomic number')
+    parser.add_argument('-Z', type=float, action='append', default=[6.0], help='atomic number of targets to save')
     parser.add_argument('-mT', type=float, default=11.178, help='nuclear target mass in GeV')
 
 
-    parser.add_argument('-save_location', type=str, default='raw_integrators', help='directory to save integrators in (path relative to main PETITE directory)')
+    parser.add_argument('-save_location', type=str, default='data/VEGAS_backend/SM/', help='directory to save integrators in (path relative to main PETITE directory)')
     parser.add_argument('-process', nargs='+', type=str, default=['ExactBrem'], help='list of processes to be run "all" does whole list, if mV non-zero only DarkBrem \
         (choose from "PairProd", "Brem", "ExactBrem", "Comp", "Ann", "Moller", "Bhabha")')
     parser.add_argument('-mV', nargs='+', type=float, default=[0.05], help='dark vector mass in GeV (can be a space-separated list)')
@@ -201,7 +207,7 @@ if __name__ == '__main__':
     print('**** Arguments passed to generate_integrators ****')
     print(args)
 
-    params = {'A_T': args.A, 'Z_T': args.Z, 'mT': args.mT, 'save_location': args.save_location}
+    params = {'A_T': args.A, 'Z_T': np.unique(args.Z), 'mT': args.mT, 'save_location': args.save_location, 'run_find_maxes':args.run_find_maxes}
     verbosity_mode = args.verbosity
     params['verbosity'] = verbosity_mode
     if (args.mV == 0 or not(args.process == ['ExactBrem']) ):# doing SM processes
@@ -220,7 +226,7 @@ if __name__ == '__main__':
             make_integrators(params, process)
             # stitch integrators for different energies together
             stitch_integrators('../' + params['save_location'] + "/" + process, '../' + params['save_location'] + "/" + process + '.npy')
-            call_find_maxes(params, process)
+        call_find_maxes(params, process_list_to_do)
     else:# doing DarkBrem
         for mV in args.mV:
             process = 'ExactBrem'

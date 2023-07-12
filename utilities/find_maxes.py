@@ -10,9 +10,9 @@
     python Gen_Samples.py
 """
 import os, sys
-path = os.getcwd()
-path = os.path.join(path,"../PETITE")
-sys.path.insert(0,path)
+#path = os.getcwd()
+#path = os.path.join(path,"../PETITE")
+#sys.path.insert(0,path)
 
 from PETITE.all_processes import *
 import pickle
@@ -36,7 +36,7 @@ def get_file_names(path):
     all_files = os.listdir(path)
     print(all_files)
     #pickle_files = [file for file in all_files if file.endswith(".p")]
-    pickle_files = [file for file in all_files if file.endswith("_v2.npy")]
+    pickle_files = [file for file in all_files if file.endswith(".npy")]
     if 'readme.txt' in all_files:
         readme_file = 'readme.txt'
     else:
@@ -136,13 +136,13 @@ def main(params):
     save_path = "../" + params['save_location']  
     if os.path.exists(save_path) == False:
             os.system("mkdir -p " + save_path)
-    f_xSecs = open(save_path + "/sm_xsecs.pkl","rb")
-    f_samps = open(save_path + "/sm_maps.pkl","rb")
     try:
+        f_xSecs = open(save_path + "/sm_xsecs.pkl","rb")
         xSec_dict_existing = pickle.load(f_xSecs)
     except:
         xSec_dict_existing = {}
     try:
+        f_samps = open(save_path + "/sm_maps.pkl","rb")
         samp_dict_existing = pickle.load(f_samps)
     except:
         samp_dict_existing = {}
@@ -160,8 +160,8 @@ def main(params):
     pickle.dump(xSec_dict_existing,f_xSecs_save)
     pickle.dump(samp_dict_existing,f_samps_save)
 
-    f_xSecs.close()
-    f_samps.close()
+    #f_xSecs.close()
+    #f_samps.close()
     return()
 
 
@@ -179,7 +179,7 @@ if __name__ == "__main__":
     parser.add_argument('-import_directory', type=str, help='directory to import files from (path relative to main PETITE directory)', required=True)
     # optional parameters
     parser.add_argument('-A', type=float, default=12, help='atomic mass number')
-    parser.add_argument('-Z', type=float, action='append', default=[6.0], help='atomic number of targets to save', required=True)
+    parser.add_argument('-Z', type=float, action='append', default=[6.0], help='atomic number of targets to save')
     #parser.add_argument('-Z', type=list, default=[6], help='atomic number of targets to save')
     parser.add_argument('-mT', type=float, default=11.178, help='nuclear target mass in GeV')
     parser.add_argument('-process', type=str, default='DarkBrem', help='processes to be run, if mV non-zero only DarkBrem \
@@ -187,8 +187,8 @@ if __name__ == "__main__":
 
     parser.add_argument('-save_location', type=str, default='cooked_integrators', help='directory to save integrators in (path relative to main PETITE directory)')
     parser.add_argument('-verbosity', type=bool, default=False, help='verbosity mode')
-    parser.add_argument('-neval', type=int, default=300, help='neval value to provide to VEGAS for making integrator objects')
-    parser.add_argument('-n_trials', type=int, default=100, help='number of evaluations to perform for estimating cross-section')
+    parser.add_argument('-neval', type=int, default=300, help='neval value to provide to VEGAS for making integrator objects', required=True)
+    parser.add_argument('-n_trials', type=int, default=100, help='number of evaluations to perform for estimating cross-section', required=True)
 
     args = parser.parse_args()
     print(args)
