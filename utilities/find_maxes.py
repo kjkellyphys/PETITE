@@ -104,7 +104,7 @@ def do_find_max_work(params, process_file):
     return(samp_dict, xSec, event_info['E_inc'])
 
 def main(params):
-    print(params['process'])
+    print('Process: ', params['process'])
     #Set up process to run
     path = "../" + params['import_directory'] + "/"
     file_list, readme_file = get_file_names(path)
@@ -114,12 +114,14 @@ def main(params):
         with open(path + readme_file, 'r') as file_temp:
             print(file_temp.read())
 
+    # Initialise dictionaries to store samples and cross sections
     samp_dict = {}
     xSec_dict = {}
     for process in params['process']:
         samp_dict[process] = []
         xSec_dict[process] = {}
 
+        # Initialise dictionary to store cross sections for each target material
         for ZT in params['Z_T']:
             xSec_dict[process][ZT] = []
 
