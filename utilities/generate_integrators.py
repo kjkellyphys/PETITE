@@ -22,8 +22,13 @@ import vegas
 def generate_vector_mass_string(mV):
     return str(int(np.floor(mV*1000.)))+"MeV"
 
-# put more details in readme eg Z, A etc
 def make_readme(params, process, file_info):
+    """Creates a readme file to accompany the integrators with supplementary information on the parameters used to generate the integrators (Z, A, mV, etc.)
+    Input: 
+        params: dictionary of parameters used in generating integrators
+        process: string of process name
+        file_info: directory where files should be saved
+    """
     save_dir = file_info + "/"
     readme_file = open(save_dir + process + "_readme.txt", 'w')
     readme_file.write("Integrators for " + process)
@@ -40,8 +45,6 @@ def make_readme(params, process, file_info):
     return()
 
 
-#Run VEGAS in parallel and save outputs, deals with file management
-### FIX files names etc
 def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_index, integrator_map_only=True):
     '''Run VEGAS in parallel for a given energy index and process, and save the integrator 
     and relevant parameters to a pickle file.
@@ -62,7 +65,7 @@ def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_ind
         VEGAS_integrator = vegas_integration(params, process, verbose=verbosity_mode, mode='Pickle') 
         #VEGAS_integrator = 0
         print('Done VEGAS for energy index ',energy_index)
-        # objects to be saved. Should include all important parameters (in params) and the VEGAS integrator.
+        # Objects to be saved. Should include all important parameters (in params) and the VEGAS integrator.
         if integrator_map_only:
             params['process'] = process
             object_to_save = [params, VEGAS_integrator.map]
@@ -124,7 +127,13 @@ def make_integrators(params, process):
     return()
 
 # Set up parameters for and then run find_maxes
-def call_find_maxes(params, process): # FIXME: calling an old function
+def call_find_maxes(params, process): 
+    """Call find_maxes.py to find the maximum of the integrand for each energy.
+    Note that find_maxes.py will save the maximum of the integrand and the corresponding energy to a pickle file.
+    Input:
+        params: dictionary of parameters used in generating integrators
+        process: string of process name
+    """
     import find_maxes
     if (params['run_find_maxes']):
         # find_maxes_params['process'] = process

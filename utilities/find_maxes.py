@@ -45,6 +45,15 @@ def get_file_names(path):
 
 # do the find max work on an individual file
 def do_find_max_work(params, process_file):
+    """ Find the maximum value of the integrand for a given process_file.
+    Input:
+        params: dictionary of parameters for the process
+        process_file: array of event_info and integrand which was read from a file
+    Output:
+        samp_dict: dictionary of information about the sampling, containing the number of evaluations used in VEGAS (neval), the maximum value of the integrand (max_F) and the adaptive map used in the sampling (adaptive_map); and possibly the minimum energy of the outgoing photon (Eg_min) and electron (Ee_min) if they were specified in the event_info
+        xSec: dictionary of cross sections for each target material
+        event_info['E_inc']: energy of the incoming particle
+    """
 
     [diff_xsec, FF_func, QSq_func] = [params['diff_xsec'], params['FF_func'], params['QSq_func']]
     event_info, integrand_or_map = process_file
