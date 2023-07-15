@@ -181,9 +181,11 @@ def main(params):
     f_samps_save = open(save_path + "/sm_maps.pkl","wb")
     pickle.dump(xSec_dict_existing,f_xSecs_save)
     pickle.dump(samp_dict_existing,f_samps_save)
-
-    #f_xSecs.close()
-    #f_samps.close()
+    f_xSecs_save.close()
+    f_samps_save.close()
+    # print out file path
+    print("Saved cross sections to " + save_path + "/sm_xsecs.pkl")
+    print("Saved samples to " + save_path + "/sm_maps.pkl")
     return()
 
 
