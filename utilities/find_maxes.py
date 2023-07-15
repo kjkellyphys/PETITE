@@ -34,9 +34,9 @@ process_info ={'PairProd' : {'diff_xsection': dsigma_pairprod_dimensionless,   '
 
 def get_file_names(path):
     all_files = os.listdir(path)
-    print(all_files)
+    print('files:', all_files)
     #pickle_files = [file for file in all_files if file.endswith(".p")]
-    pickle_files = [file for file in all_files if file.endswith(".npy")]
+    pickle_files = [file for file in all_files if file.endswith(".p")]
     if 'readme.txt' in all_files:
         readme_file = 'readme.txt'
     else:
@@ -117,8 +117,9 @@ def main(params):
 
     print('Process: ', params['process'])
     #Set up process to run
-    path = "../" + params['import_directory'] + "/"
+    path = "../" + params['import_directory'] + "/" + params['process'][0] + "/"
     file_list, readme_file = get_file_names(path)
+    print('Files to process: ', file_list)
     #print readme for info purposes
     if not(readme_file==0):
         print("Files to process")
@@ -139,6 +140,8 @@ def main(params):
     for file in file_list:
         print('Files to be processed: ', file)
         process_file_array = np.load(path + file, allow_pickle=True)
+        print('process file ',process_file_array)
+        input() # FIXME: something is wrong in reading the file. What is actually in the file?
 
         for process_file in tqdm(process_file_array):
             for process in params['process']:
