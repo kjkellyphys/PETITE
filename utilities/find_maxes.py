@@ -138,24 +138,25 @@ def main(params):
             xSec_dict[process][ZT] = []
 
     for file in file_list:
-        print('Files to be processed: ', file)
-        process_file_array = np.load(path + file, allow_pickle=True)
-        print('process file ',process_file_array)
-        input() # FIXME: something is wrong in reading the file. What is actually in the file?
+        print('File being processed: ', file)
+        # loading file content
+        params_and_vegas_obj = np.load(path + file, allow_pickle=True)
+        process_file = params_and_vegas_obj
+        # for process_file in tqdm(params_and_vegas_obj):
+        #     print('process file: ',process_file)
+        #     input() 
+        #     for process in params['process']:
+        if process_file[0]['process'] == process: # [0]???
+            process_params = copy.deepcopy(params)
+            process_params['process'] = process
+            process_params['diff_xsec'] = process_info[process]['diff_xsection']
+            process_params['FF_func'] = process_info[process]['form_factor']
+            process_params['QSq_func'] = process_info[process]['QSq_func']
 
-        for process_file in tqdm(process_file_array):
-            for process in params['process']:
-                if process_file[0]['process'] == process:
-                    process_params = copy.deepcopy(params)
-                    process_params['process'] = process
-                    process_params['diff_xsec'] = process_info[process]['diff_xsection']
-                    process_params['FF_func'] = process_info[process]['form_factor']
-                    process_params['QSq_func'] = process_info[process]['QSq_func']
-
-                    samp_dict_TEMP, xSec_dict_TEMP, energy_TEMP = do_find_max_work(process_params, process_file)
-                    samp_dict[process].append(samp_dict_TEMP)
-                    for ZT in params['Z_T']:
-                        xSec_dict[process][ZT].append([energy_TEMP, xSec_dict_TEMP[ZT]])
+            samp_dict_TEMP, xSec_dict_TEMP, energy_TEMP = do_find_max_work(process_params, process_file)
+            samp_dict[process].append(samp_dict_TEMP)
+            for ZT in params['Z_T']:
+                xSec_dict[process][ZT].append([energy_TEMP, xSec_dict_TEMP[ZT]])
 
                 
     save_path = "../" + params['save_location']  

@@ -122,7 +122,7 @@ def make_integrators(params, process):
     res = pool.map(partial(run_vegas_in_parallel, params, process, verbosity_mode, save_dir), energy_index_list)
     
     make_readme(params, process, save_dir)#make the human readable file contining info on params of run and put in directory 
-    print('make_integrators is complete, readme files created in ' + save_dir + 'for convenience')
+    print('make_integrators is complete, readme files created in ' + save_dir + ' for convenience')
 
 
     return()
