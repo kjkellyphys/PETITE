@@ -104,6 +104,17 @@ def do_find_max_work(params, process_file):
     return(samp_dict, xSec, event_info['E_inc'])
 
 def main(params):
+    """ Find the maximum value of the integrand for a given process_file.
+    Input:
+        params: dictionary of parameters for the process
+    """
+    # Convert single process to a list if necessary
+    if isinstance(params['process'], str):
+        params['process'] = [params['process']]
+    # Convert single target to a list if necessary
+    if isinstance(params['Z_T'], int):
+        params['Z_T'] = [params['Z_T']]
+
     print('Process: ', params['process'])
     #Set up process to run
     path = "../" + params['import_directory'] + "/"
@@ -121,22 +132,12 @@ def main(params):
         samp_dict[process] = []
         xSec_dict[process] = {}
 
-        # Get list of target atomic numbers
-        Z_T_values = params['Z_T']
-        # Convert integer to a list if necessary
-        if isinstance(Z_T_values, int):
-            Z_T_values = [Z_T_values]
-        else:
-            Z_T_values = list(Z_T_values)
-        # Update params dictionary with the modified Z_T_values
-        params['Z_T'] = Z_T_values
-
         # Initialise dictionary to store cross sections for each target material
         for ZT in params['Z_T']:
             xSec_dict[process][ZT] = []
 
     for file in file_list:
-        print(file)
+        print('Files to be processed: ', file)
         process_file_array = np.load(path + file, allow_pickle=True)
 
         for process_file in tqdm(process_file_array):
