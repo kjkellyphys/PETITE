@@ -8,4 +8,4 @@ PETITE.egg-info
 .gitignore
 .ipynb_checkpoints/Untitled-checkpoint.ipynb
 exploring_PETITE.py
-paddy_test
+paddy_test/
