@@ -48,7 +48,7 @@ def do_find_max_work(params, process_file):
     """ Find the maximum value of the integrand for a given process_file.
     Input:
         params: dictionary of parameters for the process
-        process_file: array of event_info and integrand which was read from a file
+        process_file: array of event_info and integrand which was read from a file (0.p, 1.p, ...)
     Output:
         samp_dict: dictionary of information about the sampling, containing the number of evaluations used in VEGAS (neval), the maximum value of the integrand (max_F) and the adaptive map used in the sampling (adaptive_map); and possibly the minimum energy of the outgoing photon (Eg_min) and electron (Ee_min) if they were specified in the event_info
         xSec: dictionary of cross sections for each target material
@@ -57,11 +57,11 @@ def do_find_max_work(params, process_file):
 
     [diff_xsec, FF_func, QSq_func] = [params['diff_xsec'], params['FF_func'], params['QSq_func']]
     event_info, integrand_or_map = process_file
-    if type(event_info) == np.float64:
+    if type(event_info) == np.float64: #FIXME: do we still need this?
         event_info = {'E_inc':event_info, 'process':params['process']}
 
     if type(integrand_or_map) == vegas._vegas.Integrator:
-        integrand = integrand
+        integrand = integrand #FIXME: WTF?
         save_copy = copy.deepcopy(integrand.map)
 
     elif type(integrand_or_map) == vegas._vegas.AdaptiveMap:
@@ -140,23 +140,26 @@ def main(params):
     for file in file_list:
         print('File being processed: ', file)
         # loading file content
-        params_and_vegas_obj = np.load(path + file, allow_pickle=True)
-        process_file = params_and_vegas_obj
+        process_file = np.load(path + file, allow_pickle=True)
         # for process_file in tqdm(params_and_vegas_obj):
         #     print('process file: ',process_file)
         #     input() 
         #     for process in params['process']:
-        if process_file[0]['process'] == process: # [0]???
+        if process_file[0]['process'] == process:
             process_params = copy.deepcopy(params)
             process_params['process'] = process
             process_params['diff_xsec'] = process_info[process]['diff_xsection']
             process_params['FF_func'] = process_info[process]['form_factor']
             process_params['QSq_func'] = process_info[process]['QSq_func']
 
+            ###########################################################################################
+            # Find max work for each process
             samp_dict_TEMP, xSec_dict_TEMP, energy_TEMP = do_find_max_work(process_params, process_file)
             samp_dict[process].append(samp_dict_TEMP)
             for ZT in params['Z_T']:
                 xSec_dict[process][ZT].append([energy_TEMP, xSec_dict_TEMP[ZT]])
+            # done
+            ###########################################################################################
 
                 
     save_path = "../" + params['save_location']  

@@ -22,15 +22,14 @@ import vegas
 def generate_vector_mass_string(mV):
     return str(int(np.floor(mV*1000.)))+"MeV"
 
-def make_readme(params, process, file_info):
+def make_readme(params, process, process_directory):
     """Creates a readme file to accompany the integrators with supplementary information on the parameters used to generate the integrators (Z, A, mV, etc.)
     Input: 
         params: dictionary of parameters used in generating integrators
         process: string of process name
         file_info: directory where files should be saved
     """
-    save_dir = file_info + "/"
-    readme_file = open(save_dir + process + "_readme.txt", 'w')
+    readme_file = open(process_directory + process + "_readme.txt", 'w')
     readme_file.write("Integrators for " + process)
     if process == 'ExactBrem':
         line = "\nTarget has (Z, A, mass) = ({atomic_Z}, {atomic_A}, {atomic_mass})\n".\
@@ -45,47 +44,48 @@ def make_readme(params, process, file_info):
     return()
 
 
-def run_vegas_in_parallel(params, process, verbosity_mode, file_info, energy_index, integrator_map_only=True):
-    '''Run VEGAS in parallel for a given energy index and process, and save the integrator 
+def run_vegas_in_parallel(params, process, verbosity_mode, process_directory, energy_index):
+    '''Run VEGAS in parallel for a given energy index and process, and save the integrator adaptive map 
     and relevant parameters to a pickle file.
     Input:
-        params: dictionary of parameters
+        params: dictionary of parameters containing
+            mV : dark vector mass in GeV
+            A : target atomic mass number
+            Z : target atomic number
+            mT : target mass in GeV
         process: string of process name
         verbosity_mode: boolean
-        file_info: directory where files should be saved
+        process_directory: directory where files should be saved
         energy_index: index of energy in initial_energy_list
     '''
     params['E_inc'] = params['initial_energy_list'][energy_index]
-    save_dir = file_info + "/"
-    strsaveB = save_dir + str(energy_index) + ".p"
-    if os.path.exists(strsaveB):
+    file_name = process_directory + process + '_' + str(energy_index) + ".p"
+    if os.path.exists(file_name):
         print("Already generated integrator for this point\n")
     else:
         print('Starting VEGAS for energy index ',energy_index)
         VEGAS_integrator = vegas_integration(params, process, verbose=verbosity_mode, mode='Pickle') 
         #VEGAS_integrator = 0
         print('Done VEGAS for energy index ',energy_index)
-        # Objects to be saved. Should include all important parameters (in params) and the VEGAS integrator.
-        if integrator_map_only:
-            params['process'] = process
-            object_to_save = [params, VEGAS_integrator.map]
-        else:
-            params['process'] = process
-            object_to_save = [params, VEGAS_integrator]
-        #print(object_to_save)
-        pickle.dump(object_to_save, open(strsaveB, "wb"))
-        print('File created: ' + strsaveB)
+        # Objects to be saved. Should include all important parameters (in params) and the VEGAS integrator adaptive map.
+        params['process'] = process
+        object_to_save = [params, VEGAS_integrator.map]
+        pickle.dump(object_to_save, open(file_name, "wb"))
+        print('File created: ' + file_name)
     return()
 
 
 
 def make_integrators(params, process):
     """
-    Generate vegas integrator pickles for the following parameters:
-        mV : dark vector mass in GeV
-        A : target atomic mass number
-        Z : target atomic number
-        mT : target mass in GeV
+    Generate vegas integrator pickles for a given process and set of parameters.
+    Input:
+        params: dictionary of parameters containing
+            mV : dark vector mass in GeV
+            A : target atomic mass number
+            Z : target atomic number
+            mT : target mass in GeV
+        process: string of process name
     """
     mV = params['mV']
     atomic_A = params['A_T']
@@ -107,22 +107,18 @@ def make_integrators(params, process):
     # energy_index_list = range(len(initial_energy_list))
     # vec_mass_string = generate_vector_mass_string(params['mV'])
 
-    save_dir = '../' + params['save_location'] + "/"
-    if process == 'ExactBrem':
-        target_specific_label = "Z_" + str(atomic_Z) + "_A_" + str(atomic_A) + "_mT_" + str(mT)
-        save_dir_temp = save_dir + process + target_specific_label + "_TMP/" 
-    else:
-        save_dir = save_dir + process
+    # Create process specific directory in mother directory for saving VEGAS adaptive maps
+    process_directory = params['save_location'] + '/' + process + '/'
     
-    #print("Saving files in ", save_dir)
-    if os.path.exists(save_dir) == False:
-        os.system("mkdir -p " + save_dir)
+    # If directory does not exist, create it
+    if not(os.path.exists(process_directory)):
+        os.system("mkdir -p " + process_directory)
     # pool parallelizes the generation of integrators    
     pool = Pool()
-    res = pool.map(partial(run_vegas_in_parallel, params, process, verbosity_mode, save_dir), energy_index_list)
-    
-    make_readme(params, process, save_dir)#make the human readable file contining info on params of run and put in directory 
-    print('make_integrators is complete, readme files created in ' + save_dir + ' for convenience')
+    res = pool.map(partial(run_vegas_in_parallel, params, process, verbosity_mode, process_directory), energy_index_list)
+    # make the human readable file contining info on params of run and put in directory 
+    make_readme(params, process, process_directory)
+    print('make_integrators is complete, readme files created in ' + process_directory + ' for convenience')
 
 
     return()
