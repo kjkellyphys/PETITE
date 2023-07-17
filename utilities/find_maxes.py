@@ -108,15 +108,20 @@ def main(params):
     Input:
         params: dictionary of parameters for the process
     """
-    # Convert single process to a list if necessary
+    # params['process'] should be a list of all processes to be run
+    # available processes are ['PairProd', 'Comp', 'Ann', 'Brem', 'Moller', 'Bhabha']
+    # If a single process is given, convert single process to a list if necessary
     if isinstance(params['process'], str):
         params['process'] = [params['process']]
     # Convert single target to a list if necessary
     if isinstance(params['Z_T'], int):
         params['Z_T'] = [params['Z_T']]
 
-    print('Process: ', params['process'])
-    #Set up process to run
+    print('List of processes: ', params['process'])
+
+    # This needs to loop over all processes in params['process']. Then, acess each directory, loads the 'process_AdaptiveMaps.npy' file, and then runs the do_find_max_work function on each of these files. Finally, all the results are saved in a dictionary and pickled (sm_maps.pkl).
+
+    #Set up processes to run
     path = "../" + params['import_directory'] + "/" + params['process'][0] + "/"
     file_list, readme_file = get_file_names(path)
     print('Files to process: ', file_list)
@@ -137,34 +142,36 @@ def main(params):
         for ZT in params['Z_T']:
             xSec_dict[process][ZT] = []
 
-    for file in file_list:
-        print('File being processed: ', file)
-        # loading file content
-        process_file = np.load(path + file, allow_pickle=True)
-        # for process_file in tqdm(params_and_vegas_obj):
-        #     print('process file: ',process_file)
-        #     input() 
-        #     for process in params['process']:
-        if process_file[0]['process'] == process:
-            process_params = copy.deepcopy(params)
-            process_params['process'] = process
-            process_params['diff_xsec'] = process_info[process]['diff_xsection']
-            process_params['FF_func'] = process_info[process]['form_factor']
-            process_params['QSq_func'] = process_info[process]['QSq_func']
+        for file in file_list: # we can just run over all rows in the process_AdaptiveMaps.npy file instead of running through the #.p files
+            print('File being processed: ', file)
+            # loading file content
+            process_file = np.load(path + file, allow_pickle=True)
+            # for process_file in tqdm(params_and_vegas_obj):
+            #     print('process file: ',process_file)
+            #     input() 
+            #     for process in params['process']:
+            if process_file[0]['process'] == process:
+                process_params = copy.deepcopy(params)
+                process_params['process'] = process
+                process_params['diff_xsec'] = process_info[process]['diff_xsection']
+                process_params['FF_func'] = process_info[process]['form_factor']
+                process_params['QSq_func'] = process_info[process]['QSq_func']
 
-            ###########################################################################################
-            # Find max work for each process
-            samp_dict_TEMP, xSec_dict_TEMP, energy_TEMP = do_find_max_work(process_params, process_file)
-            samp_dict[process].append(samp_dict_TEMP)
-            for ZT in params['Z_T']:
-                xSec_dict[process][ZT].append([energy_TEMP, xSec_dict_TEMP[ZT]])
-            # done
-            ###########################################################################################
+                ###########################################################################################
+                # Find max work for each process
+                samp_dict_TEMP, xSec_dict_TEMP, energy_TEMP = do_find_max_work(process_params, process_file)
+                samp_dict[process].append(samp_dict_TEMP)
+                for ZT in params['Z_T']:
+                    xSec_dict[process][ZT].append([energy_TEMP, xSec_dict_TEMP[ZT]])
+                # done
+                ###########################################################################################
 
                 
     save_path = "../" + params['save_location']  
     if os.path.exists(save_path) == False:
             os.system("mkdir -p " + save_path)
+    
+    ### Do we need the following code?
     try:
         f_xSecs = open(save_path + "/sm_xsecs.pkl","rb")
         xSec_dict_existing = pickle.load(f_xSecs)
@@ -183,6 +190,7 @@ def main(params):
         if process in samp_dict_existing.keys():
             print("Overwriting existing samples for process " + process)
         samp_dict_existing[process] = np.array(samp_dict[process])
+    ### end of code that may not be needed
 
     f_xSecs_save = open(save_path + "/sm_xsecs.pkl","wb")
     f_samps_save = open(save_path + "/sm_maps.pkl","wb")

@@ -8,6 +8,7 @@ path = os.path.join(path,"../PETITE")
 sys.path.insert(0,path)
 from PETITE.all_processes import *
 from PETITE.physical_constants import *
+from glob import glob
 
 
 from copy import deepcopy
@@ -124,12 +125,12 @@ def make_integrators(params, process):
     return()
 
 # Set up parameters for and then run find_maxes
-def call_find_maxes(params, process): 
+def call_find_maxes(params, list_of_processes): 
     """Call find_maxes.py to find the maximum of the integrand for each energy.
     Note that find_maxes.py will save the maximum of the integrand and the corresponding energy to a pickle file.
     Input:
         params: dictionary of parameters used in generating integrators
-        process: string of process name
+        list_of_processes: vector containing all processes to be run
     """
     import find_maxes
     if (params['run_find_maxes']):
@@ -138,8 +139,10 @@ def call_find_maxes(params, process):
         # find_maxes_params['save_location'] = params['find_maxes_save_location']
         print("Now running find_maxes....please wait")
         find_maxes_params = params
-        find_maxes_params['process'] = process
-        find_maxes_params['import_directory'] = params['save_location']# + "/" + process
+        # add process key to find_maxes_params
+        find_maxes_params['process'] = list_of_processes
+        # import directory is the directory where the integrators are saved
+        # find_maxes_params['import_directory'] = params['save_location'] + '/' + list_of_processes + '/'
         # if params['neval'] is not present, default to 300
         if 'neval' not in find_maxes_params:
             find_maxes_params['neval'] = 300
@@ -152,31 +155,25 @@ def call_find_maxes(params, process):
         print('Not running find_maxes')
     return
 
-def stitch_integrators(dir, file_name):
+def stitch_integrators(dir):
     """
-    Stich together integrators for different energies
+    Stich together integrators adaptive maps for different energies
     Input:
-        dir: directory where integrators are saved
+        dir: directory for each process where integrator adaptive maps are saved
         file_name: name of file to save stiched integrator to
     """
-    from glob import glob
     # get all files in directory
     files = glob(dir + '/*.p')
     # sort files by energy
-    files.sort(key=lambda x: int(x.split('/')[-1].split('.')[0]))
-    # check if they were saved as adaptive maps only or full integrators by checking type of second element (should be a VEGAS adaptive map)
-    if type(pickle.load(open(files[0], 'rb'))[1]) == vegas._vegas.Integrator:
-        to_save = []
-        for file_name in files:
-            file = pickle.load(open(file_name, 'rb'))
-            to_save.append([file[0], file[1].map])
-    elif type(pickle.load(open(files[0], 'rb'))[1]) == vegas._vegas.AdaptiveMap:
-        to_save = [pickle.load(open(file_name, 'rb')) for file_name in files]  
-    else:
-        raise ValueError('Unknown type of integrator')   
+    files.sort(key=lambda x: int(x.split('_')[-1].split('.')[0]))
+    # get process name from first file
+    process = files[0].split('/')[-1].split('_')[0]
+    # stitch them together in a vector
+    to_save = [pickle.load(open(file_name, 'rb')) for file_name in files]  
     # save stitched integrator as numpy arrays
+    file_name = dir + '/' + process + '_AdaptiveMaps.npy'
     np.save(file_name, to_save)
-    print('Stitched integrator saved to ' + file_name)
+    print('Stitched integrator saved as ' + file_name)
     return
 
 
