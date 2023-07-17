@@ -144,8 +144,12 @@ def call_find_maxes(params, process):
         find_maxes_params = params
         find_maxes_params['process'] = process
         find_maxes_params['import_directory'] = params['save_location']# + "/" + process
-        find_maxes_params['neval'] = 300
-        find_maxes_params['n_trials'] = 100
+        # if params['neval'] is not present, default to 300
+        if 'neval' not in find_maxes_params:
+            find_maxes_params['neval'] = 300
+        # if params['n_trials'] is not present, default to 100
+        if 'n_trials' not in find_maxes_params:
+            find_maxes_params['n_trials'] = 100
         print('Parameters used in find_maxes: ', find_maxes_params)
         find_maxes.main(find_maxes_params)
     else:
