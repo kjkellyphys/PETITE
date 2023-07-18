@@ -67,21 +67,11 @@ def do_find_max_work(params, process_file):
         event_info['E_inc']: energy of the incoming particle
     """
 
-    [diff_xsec, FF_func, QSq_func] = [params['diff_xsec'], params['FF_func'], params['QSq_func']]
+    diff_xsec = params['diff_xsec']
     event_info, integrand_or_map = process_file
-    if type(event_info) == np.float64: #FIXME: do we still need this?
-        event_info = {'E_inc':event_info, 'process':params['process']}
 
-    if type(integrand_or_map) == vegas._vegas.Integrator:
-        integrand = integrand #FIXME: WTF?
-        save_copy = copy.deepcopy(integrand.map)
-
-    elif type(integrand_or_map) == vegas._vegas.AdaptiveMap:
-        integrand = vegas.Integrator(map=integrand_or_map, nstrat=nstrat_options[params['process']])
-        save_copy = copy.deepcopy(integrand_or_map)
-
-    #event_info_H = event_info
-    #event_info_H['Z_T'] = 1.0  #Take training information, make event_info for hydrogen target
+    integrand = vegas.Integrator(map=integrand_or_map, nstrat=nstrat_options[params['process']])
+    save_copy = copy.deepcopy(integrand_or_map)
 
     max_F_TM = {}
     xSec = {}
