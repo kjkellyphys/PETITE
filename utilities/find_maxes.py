@@ -84,8 +84,8 @@ def do_find_max_work(params, process_file):
 
     max_F = 0
     xSec = {}
-    for ZT in params['Z_T']:
-        xSec[ZT] = 0.0
+    for tm in params['process_targets']:
+        xSec[tm] = 0.0
 
     integrand.set(max_nhcube=1, neval=params['neval'])
     for trial_number in range(params['n_trials']):
@@ -99,11 +99,11 @@ def do_find_max_work(params, process_file):
             form_factor_hydrogen = FF_func(event_info_H, QSq_func(x, event_info_H))
 
             # with nucleus as target
-            for ZT in params['Z_T']:
+            for tm in params['process_targets']:
                 event_info_target = event_info
-                event_info_target['Z_T'] = ZT #Take training information, make event_info for desired target
+                event_info_target['Z_T'] = target_information[tm]['Z_T'] #Take training information, make event_info for desired target
                 form_factor_target = FF_func(event_info_target, QSq_func(x, event_info_target))
-                xSec[ZT] += MM_H*form_factor_target/form_factor_hydrogen/params['n_trials']
+                xSec[tm] += MM_H*form_factor_target/form_factor_hydrogen/params['n_trials']
 
     samp_dict_info = {"neval":params['neval'], "max_F": max_F, "adaptive_map": save_copy}
     if "Eg_min" in event_info.keys():
@@ -139,10 +139,14 @@ def main(params):
     if isinstance(params['process'], str):
         params['process'] = [params['process']]
     # Convert single target to a list if necessary
-    if isinstance(params['Z_T'], int):
-        params['Z_T'] = [params['Z_T']]
+    if isinstance(params['process_targets'], str):
+        params['process_targets'] = [params['process_targets']]
     print('List of processes: ', params['process'])
-    print('List of atomic number of target materials: ', params['Z_T'])
+    print('List of target materials: ', params['process_targets'])
+
+    # Initialise dictionaries to store samples and cross sections
+    final_sampling_dict = {}
+    final_xsec_dict = {}
 
     # Loop over all processes
     for process in params['process']:
@@ -152,14 +156,12 @@ def main(params):
         adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
         # Load adaptive map file. Format: list of [params, adaptive_map]
         adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
-        # Initialise dictionaries to store samples and cross sections
-        final_sampling_dict = {}
-        final_xsec_dict = {}
+
         final_sampling_dict[process] = []
         final_xsec_dict[process] = {}
         # Initialise dictionary to store cross sections for each target material
-        for ZT in params['Z_T']:
-            final_xsec_dict[process][ZT] = []
+        for tm in params['process_targets']:
+            final_xsec_dict[process][tm] = []
         print('File being processed: ', adaptive_maps_file)
         # Add relevant info to params
         params['process']   = process
@@ -174,15 +176,15 @@ def main(params):
             # Append sampling dictionary to final sampling dictionary
             final_sampling_dict[process].append(sampling)
             # Append incoming energy and cross section dictionary to final cross section dictionary for each target material
-            for ZT in params['Z_T']:
-                final_xsec_dict[process][ZT].append([incoming_energy, cross_section[ZT]])
+            for tm in params['process_targets']:
+                final_xsec_dict[process][tm].append([incoming_energy, cross_section[tm]])
         ####=====------ FIND MAX ------=====####
 
-        # Save sampling and cross section dictionaries to mother directory
-        with open(params['save_location'] + '/sm_maps.pkl', 'wb') as f:
-            pickle.dump(final_sampling_dict, f)
-        with open(params['save_location'] + '/sm_xsec.pkl', 'wb') as f:
-            pickle.dump(final_xsec_dict, f)
+    # Save sampling and cross section dictionaries to mother directory
+    with open(params['save_location'] + '/sm_maps.pkl', 'wb') as f:
+        pickle.dump(final_sampling_dict, f)
+    with open(params['save_location'] + '/sm_xsec.pkl', 'wb') as f:
+        pickle.dump(final_xsec_dict, f)
     print("Saved cross sections to " + params['save_location'] + "/sm_xsecs.pkl")
     print("Saved samples to " + params['save_location'] + "/sm_maps.pkl")
     return

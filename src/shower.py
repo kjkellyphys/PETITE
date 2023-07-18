@@ -108,15 +108,18 @@ class Shower:
     
 
     def load_cross_section(self, dict_dir, process, target_material):
-        cross_section_file=open( dict_dir + "sm_xsecs.pkl", 'rb')
+        #cross_section_file=open( dict_dir + "sm_xsecs.pkl", 'rb')
+        cross_section_file=open( dict_dir + "sm_xsec.pkl", 'rb')
         cross_section_dict=pickle.load(cross_section_file)
         cross_section_file.close()
 
         if process not in cross_section_dict:
             raise Exception("Process String does not match library")
         
-        if Z[target_material] in cross_section_dict[process]:
-            return(cross_section_dict[process][Z[target_material]])
+        #if Z[target_material] in cross_section_dict[process]:
+        if target_material in cross_section_dict[process]:
+            #return(cross_section_dict[process][Z[target_material]])
+            return(cross_section_dict[process][target_material])
         else:
             raise Exception("Target Material is not in library")
 

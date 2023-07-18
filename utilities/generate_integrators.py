@@ -88,10 +88,29 @@ def make_integrators(params, process):
             mT : target mass in GeV
         process: string of process name
     """
-    mV = params['mV']
-    atomic_A = params['A_T']
-    atomic_Z = params['Z_T']
-    mT = params['mT'] 
+    if 'mV' not in params:
+        mV = 0.0
+    else:
+        mV = params['mV']
+    if process == 'ExactBrem':
+        if 'training_target' not in params:
+            raise ValueError("Training target must be specified when running ExactBrem")
+        else:
+            training_target = params['training_target']
+        params['A_T'] = target_information[training_target]['A_T']
+        params['Z_T'] = target_information[training_target]['Z_T']
+        if 'mT' in params:
+            print("Using specified m_T = " + str(params['mT']))
+        else:
+            params['mT'] = target_information[params['training_target']]['mT']
+    else:
+        if 'training_target' in params:
+            raise ValueError("Training target redundant for SM processes")
+        else:
+            params['A_T'] = target_information['hydrogen']['A_T']
+            params['Z_T'] = target_information['hydrogen']['Z_T']
+            params['mT'] = target_information['hydrogen']['mT']
+
     verbosity_mode = params['verbosity']
     params['m_e'] = m_electron
     params['alpha_FS'] = alpha_em
@@ -133,26 +152,26 @@ def call_find_maxes(params, list_of_processes):
         list_of_processes: vector containing all processes to be run
     """
     import find_maxes
-    if (params['run_find_maxes']):
-        # find_maxes_params['process'] = process
-        # find_maxes_params['import_directory'] = params['save_location'] + "/" + process
-        # find_maxes_params['save_location'] = params['find_maxes_save_location']
-        print("Now running find_maxes....please wait")
-        find_maxes_params = params
-        # add process key to find_maxes_params
-        find_maxes_params['process'] = list_of_processes
-        # import directory is the directory where the integrators are saved
-        # find_maxes_params['import_directory'] = params['save_location'] + '/' + list_of_processes + '/'
-        # if params['neval'] is not present, default to 300
-        if 'neval' not in find_maxes_params:
-            find_maxes_params['neval'] = 300
-        # if params['n_trials'] is not present, default to 100
-        if 'n_trials' not in find_maxes_params:
-            find_maxes_params['n_trials'] = 100
-        print('Parameters used in find_maxes: ', find_maxes_params)
-        find_maxes.main(find_maxes_params)
-    else:
-        print('Not running find_maxes')
+    #if (params['run_find_maxes']):
+    # find_maxes_params['process'] = process
+    # find_maxes_params['import_directory'] = params['save_location'] + "/" + process
+    # find_maxes_params['save_location'] = params['find_maxes_save_location']
+    print("Now running find_maxes....please wait")
+    find_maxes_params = params
+    # add process key to find_maxes_params
+    find_maxes_params['process'] = list_of_processes
+    # import directory is the directory where the integrators are saved
+    # find_maxes_params['import_directory'] = params['save_location'] + '/' + list_of_processes + '/'
+    # if params['neval'] is not present, default to 300
+    if 'neval' not in find_maxes_params:
+        find_maxes_params['neval'] = 300
+    # if params['n_trials'] is not present, default to 100
+    if 'n_trials' not in find_maxes_params:
+        find_maxes_params['n_trials'] = 100
+    print('Parameters used in find_maxes: ', find_maxes_params)
+    find_maxes.main(find_maxes_params)
+    #else:
+    #    print('Not running find_maxes')
     return
 
 def stitch_integrators(dir):
@@ -192,10 +211,11 @@ if __name__ == '__main__':
     
 
     # optional parameters
-    parser.add_argument('-A', type=float, default=12, help='atomic mass number')
-    parser.add_argument('-Z', type=float, action='append', default=[6.0], help='atomic number of targets to save')
-    parser.add_argument('-mT', type=float, default=11.178, help='nuclear target mass in GeV')
-
+    #parser.add_argument('-A', type=float, default=12, help='atomic mass number')
+    #parser.add_argument('-Z', type=float, action='append', default=[6.0], help='atomic number of targets to save')
+    #parser.add_argument('-mT', type=float, default=11.178, help='nuclear target mass in GeV')
+    parser.add_argument('-training_target', type=str, default='hydrogen', help='target on which to train (Dark Brem. Only)')
+    parser.add_argument('-process_targets', nargs='+', type=str, default=['graphite'], help='list of targets to process for shower code')
 
     parser.add_argument('-save_location', type=str, default='../data/VEGAS_backend/SM/', help='directory to save integrators in (path relative to main PETITE directory)')
     parser.add_argument('-process', nargs='+', type=str, default=['ExactBrem'], help='list of processes to be run "all" does whole list, if mV non-zero only DarkBrem \
@@ -214,9 +234,10 @@ if __name__ == '__main__':
     print('**** Arguments passed to generate_integrators ****')
     print(args)
 
-    params = {'A_T': args.A, 'Z_T': np.unique(args.Z), 'mT': args.mT, 'save_location': args.save_location, 'run_find_maxes':args.run_find_maxes}
-    verbosity_mode = args.verbosity
-    params['verbosity'] = verbosity_mode
+    #params = {'A_T': args.A, 'Z_T': np.unique(args.Z), 'mT': args.mT, 'save_location': args.save_location, 'run_find_maxes':args.run_find_maxes}
+    training_params = {'training_target':args.training_target, 'save_location':args.save_location, 'verbosity':args.verbosity}
+    processing_params = {'process_targets':args.process_targets, 'save_location':args.save_location, 'verbosity':args.verbosity}
+
     if (args.mV == 0 or not(args.process == ['ExactBrem']) ):# doing SM processes
         if  "all" in args.process:
             process_list_to_do = ['Brem','PairProd','Comp','Ann','Moller','Bhabha']
@@ -228,25 +249,31 @@ if __name__ == '__main__':
                 pass
         for process in process_list_to_do:
             initial_energy_list = np.logspace(np.log10(args.min_energy), np.log10(args.max_energy), args.num_energy_pts)
-            params.update({'mV' : 0})
-            params.update({'initial_energy_list': initial_energy_list})
-            make_integrators(params, process)
+            training_params.update({'mV' : 0})
+            training_params.update({'initial_energy_list': initial_energy_list})
+            make_integrators(training_params, process)
             # stitch integrators for different energies together
-            stitch_integrators(params['save_location'] + "/" + process + "/")
-        call_find_maxes(params, process_list_to_do)
+            stitch_integrators(training_params['save_location'] + "/" + process + "/")
+        if args.run_find_maxes:
+            call_find_maxes(processing_params, process_list_to_do)
+        else:
+            print("Not Running find_maxes")
     else:# doing DarkBrem
         for mV in args.mV:
             process = 'ExactBrem'
             print("Working on mV = ", mV)
             min_energy = max(args.min_energy, 1.01 * mV)
             initial_energy_list = np.logspace(np.log10(min_energy), np.log10(args.max_energy), args.num_energy_pts)
-            params.update({'mV' : mV})
-            params.update({'initial_energy_list': initial_energy_list})
-            make_integrators(params, process)
+            training_params.update({'mV' : mV})
+            training_params.update({'initial_energy_list': initial_energy_list})
+            make_integrators(training_params, process)
             # stitch integrators for different energies together (add mV to the name of output file)
-            stitch_integrators('../' + params['save_location'] + "/" + process, '../' + params['save_location'] + "/" + process + '_mV_' + str(int(np.floor(mV*1000.))) + 'MeV.npy')
-            call_find_maxes(params, process)
-            
+            stitch_integrators('../' + training_params['save_location'] + "/" + process, '../' + training_params['save_location'] + "/" + process + '_mV_' + str(int(np.floor(mV*1000.))) + 'MeV.npy')
+            if args.run_find_maxes:
+                call_find_maxes(processing_params, process)
+            else:
+                print("Not Running find_maxes")
+
     print("Goodbye!")
 
 
