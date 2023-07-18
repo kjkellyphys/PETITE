@@ -113,9 +113,8 @@ def dsigma_brem_dimensionless(event_info, phase_space_par_list):
             Z (Target Atomic Number)
     """
     ep=event_info['E_inc']
-    Z =event_info['Z_T']
-    event_info_H = event_info
-    event_info_H['Z_T'] = 1.0
+    #event_info_H = event_info
+    #event_info_H['Z_T'] = 1.0
     Egamma_min = event_info['Eg_min']
     mV=0
 
@@ -133,15 +132,16 @@ def dsigma_brem_dimensionless(event_info, phase_space_par_list):
             qsq = m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
             PF = 8.0/np.pi*alpha_em*(alpha_em/m_electron)**2*(epp*m_electron**4)/(w*ep*qsq**2)*d*dp
             jacobian_factor = np.pi*ep**2*(ep - m_electron - Egamma_min)/m_electron**2
-            FF_hydrogen = g2_elastic(event_info_H, qsq)
+            #FF_hydrogen = g2_elastic(event_info_H, qsq)
+            FF = g2_elastic(event_info, qsq)
             T1 = d**2/(1 + d**2)**2
             T2 = dp**2/(1 + dp**2)**2
             T3 = w**2/(2*ep*epp)*(d**2 + dp**2)/((1 + d**2)*(1 + dp**2))
             T4 = -(epp/ep + ep/epp)*(d*dp*np.cos(ph))/((1 + d**2)*(1 + dp**2))
-            dSig0 = PF*(T1+T2+T3+T4)*jacobian_factor*FF_hydrogen
+            dSig0 = PF*(T1+T2+T3+T4)*jacobian_factor*FF
 
             if dSig0 < 0.0 or np.isnan(dSig0):
-                print([dSig0, PF, T1, T2, T3, T4, qsq, jacobian_factor, FF_hydrogen])
+                print([dSig0, PF, T1, T2, T3, T4, qsq, jacobian_factor, FF])
                 print([x1,x2,x3,x4])
                 print([w,d,dp,ph])
             dSigs.append(dSig0)
@@ -353,9 +353,8 @@ def dsigma_pairprod_dimensionless(event_info, phase_space_par_list):
             Z (Target Atomic Number)
     """
     w=event_info['E_inc']
-    Z =event_info['Z_T']
-    event_info_H = event_info
-    event_info_H['Z_T'] = 1.0
+    #event_info_H = event_info
+    #event_info_H['Z_T'] = 1.0
 
     mV=0
     
@@ -373,17 +372,18 @@ def dsigma_pairprod_dimensionless(event_info, phase_space_par_list):
             qsq_over_m_electron_sq = (dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + m_electron**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2
             PF = 8.0/np.pi*alpha_em*(alpha_em/m_electron)**2*epp*epm/(w**3*qsq_over_m_electron_sq**2)*dp*dm
             jacobian_factor = np.pi*w**2*(w-2*m_electron)/m_electron**2
-            FF_hydrogen = g2_elastic(event_info_H, m_electron**2*qsq_over_m_electron_sq)
+            #FF_hydrogen = g2_elastic(event_info_H, m_electron**2*qsq_over_m_electron_sq)
+            FF = g2_elastic(event_info, m_electron**2*qsq_over_m_electron_sq)
 
             T1 = -1.0*dp**2/(1.0 + dp**2)**2
             T2 = -1.0*dm**2/(1.0 + dm**2)**2
             T3 = w**2/(2.0*epp*epm)*(dp**2 + dm**2)/((1.0 + dp**2)*(1.0 + dm**2))
             T4 = (epp/epm + epm/epp)*(dp*dm*np.cos(ph))/((1.0 + dp**2)*(1.0+dm**2))
 
-            dSig0 = PF*(T1+T2+T3+T4)*jacobian_factor*FF_hydrogen
+            dSig0 = PF*(T1+T2+T3+T4)*jacobian_factor*FF#_hydrogen
 
             if dSig0 < 0.0 or np.isnan(dSig0):
-                print([dSig0, PF, T1, T2, T3, T4, qsq_over_m_electron_sq, jacobian_factor, FF_hydrogen])
+                print([dSig0, PF, T1, T2, T3, T4, qsq_over_m_electron_sq, jacobian_factor, FF])
             dSigs.append(dSig0)
     if len(dSigs) == 1:
         return dSigs[0]

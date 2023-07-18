@@ -269,12 +269,11 @@ class Shower:
         sample_dict=sample_list[process][LU_Key][1]
 
         adaptive_map = sample_dict["adaptive_map"]
-        max_F      = sample_dict["max_F"]*self._maxF_fudge_global
+        max_F      = sample_dict["max_F"][self._target_material]*self._maxF_fudge_global
         neval_vegas= sample_dict["neval"]
         integrand=vg.Integrator(map=adaptive_map, max_nhcube=1, neval=neval_vegas)
 
         event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min, 'Ee_min':self.min_energy}
-        event_info_H={'E_inc': Einc, 'm_e': m_electron, 'Z_T': 1.0, 'A_T':1.0, 'mT':1.0, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min, 'Ee_min':self.min_energy}
         diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                                "Comp"     : dsigma_compton_dCT,
                                "Brem"     : dsigma_brem_dimensionless,
@@ -306,11 +305,9 @@ class Shower:
         while sample_found is False and n_integrators_used < self._max_n_integrators:
             n_integrators_used += 1
             for x,wgt in integrand.random():
-                FF_eval=FF_func(event_info, QSq_func(x, event_info ) )/event_info['Z_T']**2
-                FF_H = FF_func(event_info_H, QSq_func(x, event_info_H) ) 
                 if VB:
                     sampcount += 1  
-                if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x)*FF_eval/FF_H:
+                if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x):
                     sample_found = True
                     break
         if sample_found is False:

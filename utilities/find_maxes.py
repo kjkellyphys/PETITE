@@ -82,30 +82,27 @@ def do_find_max_work(params, process_file):
     event_info_H = event_info
     event_info_H['Z_T'] = 1.0  #Take training information, make event_info for hydrogen target
 
-    max_F = 0
+    max_F_TM = {}
     xSec = {}
     for tm in params['process_targets']:
         xSec[tm] = 0.0
+        max_F_TM[tm] = 0.0
 
     integrand.set(max_nhcube=1, neval=params['neval'])
     for trial_number in range(params['n_trials']):
         for x, wgt in integrand.random(): #scan over integrand
-                
-            #EvtInfo={'E_inc': E_inc, 'm_e': m_electron, 'Z_T': Z_H, 'alpha_FS': alpha_em, 'm_V': 0}
-            MM_H = wgt*diff_xsec(event_info_H, x)
-            if MM_H > max_F:
-                max_F=MM_H
 
-            form_factor_hydrogen = FF_func(event_info_H, QSq_func(x, event_info_H))
-
-            # with nucleus as target
             for tm in params['process_targets']:
-                event_info_target = event_info
-                event_info_target['Z_T'] = target_information[tm]['Z_T'] #Take training information, make event_info for desired target
-                form_factor_target = FF_func(event_info_target, QSq_func(x, event_info_target))
-                xSec[tm] += MM_H*form_factor_target/form_factor_hydrogen/params['n_trials']
+                event_info_target = copy.deepcopy(event_info)
+                event_info_target['Z_T'] = target_information[tm]['Z_T']
+                event_info_target['A_T'] = target_information[tm]['A_T']
+                event_info_target['mT'] = target_information[tm]['mT']
+                MM = wgt*diff_xsec(event_info_target, x)
+                if MM > max_F_TM[tm]:
+                    max_F_TM[tm] = MM
+                xSec[tm] += MM/params['n_trials']
 
-    samp_dict_info = {"neval":params['neval'], "max_F": max_F, "adaptive_map": save_copy}
+    samp_dict_info = {"neval":params['neval'], "max_F": {tm:max_F_TM[tm] for tm in params['process_targets']}, "adaptive_map": save_copy}
     if "Eg_min" in event_info.keys():
         samp_dict_info['Eg_min'] = event_info['Eg_min']
     if 'Ee_min' in event_info.keys():
