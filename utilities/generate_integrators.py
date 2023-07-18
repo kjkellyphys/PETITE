@@ -38,9 +38,9 @@ def make_readme(params, process, process_directory):
         readme_file.write(line)
     readme_file.write("\n\nEnergy/GeV |  Filename\n\n")
     for index, energy in enumerate(params['initial_energy_list']):
-        line = "{en:9.3f}  |  {indx:3d}.p\n".format(en = energy, indx = index)
+        line = "{en:9.3f}  |  {proc}_{indx}.p\n".format(en = energy, indx = index, proc=process)
         readme_file.write(line)
-    readme_file.write(f'Integrators made on {datetime.datetime.now()}')
+    readme_file.write(f'\nIntegrators made on {datetime.datetime.now()}')
     readme_file.close()
     return()
 

@@ -24,7 +24,7 @@ from datetime import datetime
 import vegas
 from tqdm import tqdm
 
-#D ictionary of proceses with corresponding x-secs, form factors and Q**2 functions
+# Dictionary of proceses with corresponding x-secs, form factors and Q**2 functions
 process_info ={    'PairProd' : {'diff_xsection': dsigma_pairprod_dimensionless,   'form_factor': g2_elastic, 'QSq_func': pair_production_q_sq_dimensionless},
                    'Comp'     : {'diff_xsection': dsigma_compton_dCT,     'form_factor': unity,      'QSq_func': dummy},
                     'Brem'     : {'diff_xsection': dsigma_brem_dimensionless,       'form_factor': g2_elastic, 'QSq_func': brem_q_sq_dimensionless},
