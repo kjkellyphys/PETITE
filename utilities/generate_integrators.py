@@ -214,7 +214,8 @@ if __name__ == '__main__':
     #parser.add_argument('-A', type=float, default=12, help='atomic mass number')
     #parser.add_argument('-Z', type=float, action='append', default=[6.0], help='atomic number of targets to save')
     #parser.add_argument('-mT', type=float, default=11.178, help='nuclear target mass in GeV')
-    parser.add_argument('-training_target', type=str, default='hydrogen', help='target on which to train (Dark Brem. Only)')
+    #parser.add_argument('-training_target', type=str, default='hydrogen', help='target on which to train (Dark Brem. Only)')
+    parser.add_argument('-training_target', type=str, default="unspecified", help='target on which to train (Dark Brem. Only)')
     parser.add_argument('-process_targets', nargs='+', type=str, default=['graphite'], help='list of targets to process for shower code')
 
     parser.add_argument('-save_location', type=str, default='../data/VEGAS_backend/SM/', help='directory to save integrators in (path relative to main PETITE directory)')
@@ -235,7 +236,9 @@ if __name__ == '__main__':
     print(args)
 
     #params = {'A_T': args.A, 'Z_T': np.unique(args.Z), 'mT': args.mT, 'save_location': args.save_location, 'run_find_maxes':args.run_find_maxes}
-    training_params = {'training_target':args.training_target, 'save_location':args.save_location, 'verbosity':args.verbosity}
+    training_params = {'save_location':args.save_location, 'verbosity':args.verbosity}
+    if args.training_target != "unspecified":
+        training_params['training_target'] = args.training_target
     processing_params = {'process_targets':args.process_targets, 'save_location':args.save_location, 'verbosity':args.verbosity}
 
     if (args.mV == 0 or not(args.process == ['ExactBrem']) ):# doing SM processes
