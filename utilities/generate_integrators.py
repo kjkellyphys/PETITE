@@ -197,7 +197,7 @@ if __name__ == '__main__':
     parser.add_argument('-mT', type=float, default=11.178, help='nuclear target mass in GeV')
 
 
-    parser.add_argument('-save_location', type=str, default='data/VEGAS_backend/SM/', help='directory to save integrators in (path relative to main PETITE directory)')
+    parser.add_argument('-save_location', type=str, default='../data/VEGAS_backend/SM/', help='directory to save integrators in (path relative to main PETITE directory)')
     parser.add_argument('-process', nargs='+', type=str, default=['ExactBrem'], help='list of processes to be run "all" does whole list, if mV non-zero only DarkBrem \
         (choose from "PairProd", "Brem", "ExactBrem", "Comp", "Ann", "Moller", "Bhabha")')
     parser.add_argument('-mV', nargs='+', type=float, default=[0.05], help='dark vector mass in GeV (can be a space-separated list)')
@@ -232,7 +232,7 @@ if __name__ == '__main__':
             params.update({'initial_energy_list': initial_energy_list})
             make_integrators(params, process)
             # stitch integrators for different energies together
-            stitch_integrators('../' + params['save_location'] + "/" + process, '../' + params['save_location'] + "/" + process + '.npy')
+            stitch_integrators(params['save_location'] + "/" + process + "/")
         call_find_maxes(params, process_list_to_do)
     else:# doing DarkBrem
         for mV in args.mV:
