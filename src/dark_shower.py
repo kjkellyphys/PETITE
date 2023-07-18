@@ -138,7 +138,8 @@ class DarkShower(Shower):
                 self.load_dark_sample(self._dict_dir, process)
             
     def load_dark_cross_section(self, dict_dir, process, target_material):
-        dark_cross_section_file=open( dict_dir + "dark_xsecs.pkl", 'rb')
+        #dark_cross_section_file=open( dict_dir + "dark_xsecs.pkl", 'rb')
+        dark_cross_section_file=open( dict_dir + "dark_xsec.pkl", 'rb')
         outer_dict=pickle.load(dark_cross_section_file)
         dark_cross_section_file.close()
 
@@ -253,7 +254,7 @@ class DarkShower(Shower):
         # this grabs the dictionary part rather than the energy. 
         dark_sample_dict=dark_sample_list[process][LU_Key][1]
 
-        integrand = dark_sample_dict["integrator"]
+        integrand = dark_sample_dict["adaptive_map"]
         max_F      = dark_sample_dict["max_F"][self._target_material]*self._maxF_fudge_global
         neval_vegas= dark_sample_dict["neval"]
         integrand=vg.Integrator(map=integrand, max_nhcube=1, neval=neval_vegas)

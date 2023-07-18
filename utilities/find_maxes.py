@@ -30,7 +30,8 @@ process_info ={    'PairProd' : {'diff_xsection': dsigma_pairprod_dimensionless,
                     'Brem'     : {'diff_xsection': dsigma_brem_dimensionless,       'form_factor': g2_elastic, 'QSq_func': brem_q_sq_dimensionless},
                     'Ann'      : {'diff_xsection': dsigma_annihilation_dCT,'form_factor': unity,      'QSq_func': dummy},
                     'Moller'   : {'diff_xsection': dsigma_moller_dCT, 'form_factor': unity,      'QSq_func': dummy},
-                    'Bhabha'   : {'diff_xsection': dsigma_bhabha_dCT, 'form_factor': unity,      'QSq_func': dummy}}
+                    'Bhabha'   : {'diff_xsection': dsigma_bhabha_dCT, 'form_factor': unity,      'QSq_func': dummy},
+                    'ExactBrem': {'diff_xsection': dsig_etl_helper, 'form_factor':Gelastic_inelastic, "QSq_func":exactbrem_qsq}}
 
 def get_file_names(path):
     ''' Get the names of all the files in a directory.
@@ -79,8 +80,8 @@ def do_find_max_work(params, process_file):
         integrand = vegas.Integrator(map=integrand_or_map, nstrat=nstrat_options[params['process']])
         save_copy = copy.deepcopy(integrand_or_map)
 
-    event_info_H = event_info
-    event_info_H['Z_T'] = 1.0  #Take training information, make event_info for hydrogen target
+    #event_info_H = event_info
+    #event_info_H['Z_T'] = 1.0  #Take training information, make event_info for hydrogen target
 
     max_F_TM = {}
     xSec = {}
@@ -97,6 +98,8 @@ def do_find_max_work(params, process_file):
                 event_info_target['Z_T'] = target_information[tm]['Z_T']
                 event_info_target['A_T'] = target_information[tm]['A_T']
                 event_info_target['mT'] = target_information[tm]['mT']
+                if 'mV' in params:
+                    event_info_target['mV'] = params['mV']
                 MM = wgt*diff_xsec(event_info_target, x)
                 if MM > max_F_TM[tm]:
                     max_F_TM[tm] = MM
@@ -184,6 +187,95 @@ def main(params):
         pickle.dump(final_xsec_dict, f)
     print("Saved cross sections to " + params['save_location'] + "/sm_xsecs.pkl")
     print("Saved samples to " + params['save_location'] + "/sm_maps.pkl")
+    return
+
+def main_dark(params):
+    """ Find the maximum value of the integrand for a given process by looking into the directory containing the adaptive maps.
+    Input:
+        params: dictionary of parameters for the process containing the following keys:
+            'process': list of processes to be run
+            'Z_T': list of target materials to be run
+            'neval': number of evaluations used in VEGAS
+            'save_location': path to the mother directory whose subdirs contain the adaptive maps
+            # add all needed parameters here!
+    """
+    '''
+    Pseudoalgorithm:
+    Loops over all processes in params['process']. 
+    Access each 'process' directory containing the 'process_AdaptiveMaps.npy', and load these files.
+    Runs do_find_max_work function on each of these files for each energy. 
+    All the results are saved in a single file as a dictionary and pickled (sm_maps.pkl).
+    *Later I will create the xsec dictionary and save it in a separate file (sm_xsec.pkl).
+    '''
+
+    # params['process'] should be a list of all processes to be run
+    # available processes are ['PairProd', 'Comp', 'Ann', 'Brem', 'Moller', 'Bhabha']
+    # If a single process is given, convert single process to a list if necessary
+    if isinstance(params['process'], str):
+        params['process'] = [params['process']]
+    # Convert single target to a list if necessary
+    if isinstance(params['process_targets'], str):
+        params['process_targets'] = [params['process_targets']]
+    if isinstance(params['mV_list'], float):
+        params['mV_list'] = [params['mV_list']]
+
+    print('List of processes: ', params['process'])
+    print('List of target materials: ', params['process_targets'])
+    print('List of mV Masses: ', params['mV_list'])
+
+    # Initialise dictionaries to store samples and cross sections
+    final_sampling_dict = {}
+    final_xsec_dict = {}
+    
+    #Loop over all masses
+    for mV in params['mV_list']:
+        final_sampling_dict[mV] = {}
+        final_xsec_dict[mV] = {}
+
+        # Loop over all processes
+        for process in params['process']:
+            # Get the path to the directory containing the adaptive maps
+            if process == "ExactBrem":
+                path = params['save_location'] + '/mV_' + str(int(1000.*mV)) + "MeV/" + process + '/'
+            # Get adaptive map main file (created by stitch_integrators)
+            else:
+                path = params['save_location'] + "/sm_electron/"
+            adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
+            # Load adaptive map file. Format: list of [params, adaptive_map]
+            adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
+
+            final_sampling_dict[mV][process] = []
+            final_xsec_dict[mV][process] = {}
+            # Initialise dictionary to store cross sections for each target material
+            for tm in params['process_targets']:
+                final_xsec_dict[mV][process][tm] = []
+            print('File being processed: ', adaptive_maps_file)
+            # Add relevant info to params
+            fm_params = copy.deepcopy(params)
+            fm_params['process']   = process
+            fm_params['mV']        = mV
+            fm_params['diff_xsec'] = process_info[process]['diff_xsection']
+            fm_params['FF_func']   = process_info[process]['form_factor']
+            fm_params['QSq_func']  = process_info[process]['QSq_func']
+
+            ####=====------ FIND MAX ------=====####
+            # loop over all adaptive_map in adaptive_maps
+            for adaptive_map in adaptive_maps:
+                sampling, cross_section, incoming_energy = do_find_max_work(fm_params, adaptive_map)
+                # Append sampling dictionary to final sampling dictionary
+                final_sampling_dict[mV][process].append(sampling)
+                # Append incoming energy and cross section dictionary to final cross section dictionary for each target material
+                for tm in params['process_targets']:
+                    final_xsec_dict[mV][process][tm].append([incoming_energy, cross_section[tm]])
+            ####=====------ FIND MAX ------=====####
+
+    # Save sampling and cross section dictionaries to mother directory
+    with open(params['save_location'] + '/dark_maps.pkl', 'wb') as f:
+        pickle.dump(final_sampling_dict, f)
+    with open(params['save_location'] + '/dark_xsec.pkl', 'wb') as f:
+        pickle.dump(final_xsec_dict, f)
+    print("Saved cross sections to " + params['save_location'] + "/dark_xsecs.pkl")
+    print("Saved samples to " + params['save_location'] + "/dark_maps.pkl")
     return
 
 

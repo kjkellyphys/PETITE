@@ -169,7 +169,10 @@ def call_find_maxes(params, list_of_processes):
     if 'n_trials' not in find_maxes_params:
         find_maxes_params['n_trials'] = 100
     print('Parameters used in find_maxes: ', find_maxes_params)
-    find_maxes.main(find_maxes_params)
+    if "ExactBrem" in list_of_processes:
+        find_maxes.main_dark(find_maxes_params)
+    else:
+        find_maxes.main(find_maxes_params)
     #else:
     #    print('Not running find_maxes')
     return
@@ -239,7 +242,7 @@ if __name__ == '__main__':
     training_params = {'save_location':args.save_location, 'verbosity':args.verbosity}
     if args.training_target != "unspecified":
         training_params['training_target'] = args.training_target
-    processing_params = {'process_targets':args.process_targets, 'save_location':args.save_location, 'verbosity':args.verbosity}
+    processing_params = {'process_targets':args.process_targets, 'save_location':args.save_location, 'verbosity':args.verbosity, 'mV_list':args.mV}
 
     if (args.mV == 0 or not(args.process == ['ExactBrem']) ):# doing SM processes
         if  "all" in args.process:
@@ -269,13 +272,14 @@ if __name__ == '__main__':
             initial_energy_list = np.logspace(np.log10(min_energy), np.log10(args.max_energy), args.num_energy_pts)
             training_params.update({'mV' : mV})
             training_params.update({'initial_energy_list': initial_energy_list})
+            training_params.update({'save_location': args.save_location + process + '_mV_' + str(int(np.floor(mV*1000.))) + "MeV"})
             make_integrators(training_params, process)
             # stitch integrators for different energies together (add mV to the name of output file)
             stitch_integrators('../' + training_params['save_location'] + "/" + process, '../' + training_params['save_location'] + "/" + process + '_mV_' + str(int(np.floor(mV*1000.))) + 'MeV.npy')
-            if args.run_find_maxes:
-                call_find_maxes(processing_params, process)
-            else:
-                print("Not Running find_maxes")
+        if args.run_find_maxes:
+            call_find_maxes(processing_params, process)
+        else:
+            print("Not Running find_maxes")
 
     print("Goodbye!")
 
