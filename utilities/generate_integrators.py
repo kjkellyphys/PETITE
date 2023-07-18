@@ -32,7 +32,7 @@ def make_readme(params, process, process_directory):
     """
     readme_file = open(process_directory + process + "_readme.txt", 'w')
     readme_file.write("Integrators for " + process)
-    if process == 'ExactBrem':
+    if process == 'DarkBrem':
         line = "\nTarget has (Z, A, mass) = ({atomic_Z}, {atomic_A}, {atomic_mass})\n".\
             format(atomic_Z=params['Z_T'], atomic_A=params['A_T'], atomic_mass=params['mT'])
         readme_file.write(line)
@@ -92,9 +92,9 @@ def make_integrators(params, process):
         mV = 0.0
     else:
         mV = params['mV']
-    if process == 'ExactBrem':
+    if process == 'DarkBrem':
         if 'training_target' not in params:
-            raise ValueError("Training target must be specified when running ExactBrem")
+            raise ValueError("Training target must be specified when running DarkBrem")
         else:
             training_target = params['training_target']
         params['A_T'] = target_information[training_target]['A_T']
@@ -103,6 +103,9 @@ def make_integrators(params, process):
             print("Using specified m_T = " + str(params['mT']))
         else:
             params['mT'] = target_information[params['training_target']]['mT']
+        # Create process specific directory in mother directory for saving VEGAS adaptive maps for dark sector production
+        process_directory = params['save_location'] + '/DarkBrem/mV_' + str(int(np.floor(mV*1000.))) + "MeV/"
+
     else:
         if 'training_target' in params:
             raise ValueError("Training target redundant for SM processes")
@@ -110,6 +113,9 @@ def make_integrators(params, process):
             params['A_T'] = target_information['hydrogen']['A_T']
             params['Z_T'] = target_information['hydrogen']['Z_T']
             params['mT'] = target_information['hydrogen']['mT']
+        # Create process specific directory in mother directory for saving VEGAS adaptive maps
+        process_directory = params['save_location'] + '/' + process + '/'
+
 
     verbosity_mode = params['verbosity']
     params['m_e'] = m_electron
@@ -126,9 +132,6 @@ def make_integrators(params, process):
     
     # energy_index_list = range(len(initial_energy_list))
     # vec_mass_string = generate_vector_mass_string(params['mV'])
-
-    # Create process specific directory in mother directory for saving VEGAS adaptive maps
-    process_directory = params['save_location'] + '/' + process + '/'
     
     # If directory does not exist, create it
     if not(os.path.exists(process_directory)):
@@ -169,7 +172,7 @@ def call_find_maxes(params, list_of_processes):
     if 'n_trials' not in find_maxes_params:
         find_maxes_params['n_trials'] = 100
     print('Parameters used in find_maxes: ', find_maxes_params)
-    if "ExactBrem" in list_of_processes:
+    if "DarkBrem" in list_of_processes:
         find_maxes.main_dark(find_maxes_params)
     else:
         find_maxes.main(find_maxes_params)
@@ -222,8 +225,8 @@ if __name__ == '__main__':
     parser.add_argument('-process_targets', nargs='+', type=str, default=['graphite'], help='list of targets to process for shower code')
 
     parser.add_argument('-save_location', type=str, default='../data/VEGAS_backend/SM/', help='directory to save integrators in (path relative to main PETITE directory)')
-    parser.add_argument('-process', nargs='+', type=str, default=['ExactBrem'], help='list of processes to be run "all" does whole list, if mV non-zero only DarkBrem \
-        (choose from "PairProd", "Brem", "ExactBrem", "Comp", "Ann", "Moller", "Bhabha")')
+    parser.add_argument('-process', nargs='+', type=str, default=['DarkBrem'], help='list of processes to be run "all" does whole list, if mV non-zero only DarkBrem \
+        (choose from "PairProd", "Brem", "DarkBrem", "Comp", "Ann", "Moller", "Bhabha")')
     parser.add_argument('-mV', nargs='+', type=float, default=[0.05], help='dark vector mass in GeV (can be a space-separated list)')
     parser.add_argument('-min_energy', type=float, default=0.01, help='minimum initial energy (in GeV) to evaluate (must be larger than mV)')
     parser.add_argument('-max_energy', type=float, default=100., help='maximum initial energy (in GeV) to evaluate')
@@ -244,12 +247,12 @@ if __name__ == '__main__':
         training_params['training_target'] = args.training_target
     processing_params = {'process_targets':args.process_targets, 'save_location':args.save_location, 'verbosity':args.verbosity, 'mV_list':args.mV}
 
-    if (args.mV == 0 or not(args.process == ['ExactBrem']) ):# doing SM processes
+    if (args.mV == 0 or not(args.process == ['DarkBrem']) ):# doing SM processes
         if  "all" in args.process:
             process_list_to_do = ['Brem','PairProd','Comp','Ann','Moller','Bhabha']
         else:#make sure DarkBrem not accidentally in list
             try:
-                process_list_to_do = args.process.remove('ExactBrem')
+                process_list_to_do = args.process.remove('DarkBrem')
             except:
                 process_list_to_do = args.process
                 pass
@@ -266,16 +269,17 @@ if __name__ == '__main__':
             print("Not Running find_maxes")
     else:# doing DarkBrem
         for mV in args.mV:
-            process = 'ExactBrem'
+            process = 'DarkBrem'
             print("Working on mV = ", mV)
             min_energy = max(args.min_energy, 1.01 * mV)
             initial_energy_list = np.logspace(np.log10(min_energy), np.log10(args.max_energy), args.num_energy_pts)
             training_params.update({'mV' : mV})
             training_params.update({'initial_energy_list': initial_energy_list})
-            training_params.update({'save_location': args.save_location + process + '_mV_' + str(int(np.floor(mV*1000.))) + "MeV"})
             make_integrators(training_params, process)
             # stitch integrators for different energies together (add mV to the name of output file)
-            stitch_integrators('../' + training_params['save_location'] + "/" + process, '../' + training_params['save_location'] + "/" + process + '_mV_' + str(int(np.floor(mV*1000.))) + 'MeV.npy')
+            stitch_integrators(training_params['save_location'] + '/DarkBrem/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
+
+
         if args.run_find_maxes:
             call_find_maxes(processing_params, process)
         else:

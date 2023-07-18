@@ -55,7 +55,7 @@ def brem_q_sq_dimensionless(xx, EI):
     epp = ep - w
     return m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
 
-def exactbrem_qsq(xx, EI):
+def darkbrem_qsq(xx, EI):
     x, l1mct, ttilde = xx
 
     Ebeam = EI['E_inc']
@@ -85,7 +85,7 @@ mp = 0.938
 mup = 2.79
 def Gelastic_inelastic(EI, t):
     """
-    Form factor used for elastic/inelastic contributions to Exact Bremsstrahlung Calculation
+    Form factor used for elastic/inelastic contributions to Dark Bremsstrahlung Calculation
     (Scales like Z^2 in the small-t limit)
     """
     Z = EI['Z_T']
@@ -151,7 +151,7 @@ def dsigma_brem_dimensionless(event_info, phase_space_par_list):
     else:
         return dSigs
 
-def dsigma_darkbrem_dP_T(event_info, phase_space_par_list):
+def dsigma_darkbrem_dP_T(event_info, phase_space_par_list): #FIXME: can we delete this function?
     """Dark Vector Bremsstrahlung in the Small-Angle Approximation
        e (ep) + Z -> e (epp) + V (w) + Z
        Outgoing kinematics given by w, d (delta), dp (delta'), and ph (phi)
@@ -549,28 +549,24 @@ diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                        "Bhabha"   : dsigma_bhabha_dCT,
                        "Brem"     : dsigma_brem_dimensionless,
                        "Ann"      : dsigma_annihilation_dCT, 
-                       "DarkBrem" : dsigma_darkbrem_dP_T,
-                       "ExactBrem" :  dsig_etl_helper}
+                       "DarkBrem" :  dsig_etl_helper}
 nitn_options={"PairProd":10,
               "Brem":10,
-              "DarkBrem":10,
-              "ExactBrem":20,
+              "DarkBrem":20,
               "Comp":20,
               "Moller":20,
               "Bhabha":20,
               "Ann":20}
 nstrat_options={"PairProd":[40, 40, 40, 40],
                 "Brem":[40, 40, 40, 40],
-                "DarkBrem":[15, 25, 25, 15],
-                #"ExactBrem":[100,100,40],
-                "ExactBrem":[20,20,8],
+                "DarkBrem":[20,20,8],
                 "Comp":[1000],
                 "Moller":[1000],
                 "Bhabha":[1000],
                 "Ann":[1000]}
 
-four_dim = {"PairProd", "Brem", "DarkBrem"}
-three_dim = {"ExactBrem"}
+four_dim = {"PairProd", "Brem"}
+three_dim = {"DarkBrem"}
 two_dim = {"Comp", "Ann","Moller","Bhabha"}
 
 def integration_range(event_info, process):

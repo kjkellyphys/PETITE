@@ -252,7 +252,7 @@ class DarkShower(Shower):
                                "ExactBrem": Gelastic_inelastic,
                                "Ann"      : unity }
 
-        QSq_dict             ={"ExactBrem": exactbrem_qsq,
+        QSq_dict             ={"ExactBrem": darkbrem_qsq,
                                 "Comp"    : dummy, 
                                 "Ann"     : dummy }
 

@@ -19,13 +19,13 @@ GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm
 cmtom = 0.01
 mp0 = 1.673e-24 #g
 
-dark_process_codes = ["ExactBrem", "Ann", "Comp", "TwoBody_BSMDecay"]
+dark_process_codes = ["DarkBrem", "Ann", "Comp", "TwoBody_BSMDecay"]
 
-dark_kinematic_function = {"ExactBrem" : e_to_eV_fourvecs,
-                           "Ann"       : annihilation_fourvecs,
-                           "Comp"      : compton_fourvecs}
-diff_xsection_options={"Comp"     : dsigma_compton_dCT,
-                        "ExactBrem": dsig_etl_helper,
+dark_kinematic_function = {"DarkBrem" : e_to_eV_fourvecs,
+                           "Ann"      : annihilation_fourvecs,
+                           "Comp"     : compton_fourvecs}
+diff_xsection_options={"Comp"      : dsigma_compton_dCT,
+                        "DarkBrem" : dsig_etl_helper,
                         "Ann"      : dsigma_annihilation_dCT }
 
 class DarkShower(Shower):
@@ -160,7 +160,7 @@ class DarkShower(Shower):
         """
 
         # These contain only the cross sections for the chosen target material
-        self._dark_brem_cross_section = self.load_dark_cross_section(self._dict_dir, 'ExactBrem', self._target_material)
+        self._dark_brem_cross_section = self.load_dark_cross_section(self._dict_dir, 'DarkBrem', self._target_material)
         self._dark_annihilation_cross_section  = self.load_dark_cross_section(self._dict_dir, 'Ann', self._target_material) 
         self._dark_compton_cross_section = self.load_dark_cross_section(self._dict_dir, 'Comp', self._target_material) 
 
@@ -211,12 +211,12 @@ class DarkShower(Shower):
             else:
                 return (self.g_e**2/(4*np.pi*alpha_em))*self._NSigmaDarkComp(Energy)/(self._NSigmaPP(Energy) + self._NSigmaComp(Energy))
         elif PID == 11:
-            if (np.log10(Energy) < self._logEeMinDarkBrem) or (process != "ExactBrem"):
+            if (np.log10(Energy) < self._logEeMinDarkBrem) or (process != "DarkBrem"):
                 return 0.0
             else:
                 return self._NSigmaDarkBrem(Energy)/(self._NSigmaBrem(Energy) + self._NSigmaMoller(Energy))
         elif PID == -11:
-            if process == "ExactBrem":
+            if process == "DarkBrem":
                 if np.log10(Energy) < self._logEeMinDarkBrem:
                     return 0.0
                 else:
@@ -242,7 +242,7 @@ class DarkShower(Shower):
             return 0.0
 
 
-    def draw_dark_sample(self,Einc,LU_Key=-1,process="ExactBrem",VB=False):
+    def draw_dark_sample(self,Einc,LU_Key=-1,process="DarkBrem",VB=False):
         dark_sample_list=self._loaded_dark_samples 
         if LU_Key<0 or LU_Key > len(dark_sample_list[process]):
             # Get the LU_Key corresponding to the closest incoming energy

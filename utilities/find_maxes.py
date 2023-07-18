@@ -31,7 +31,7 @@ process_info ={    'PairProd' : {'diff_xsection': dsigma_pairprod_dimensionless,
                     'Ann'      : {'diff_xsection': dsigma_annihilation_dCT,'form_factor': unity,      'QSq_func': dummy},
                     'Moller'   : {'diff_xsection': dsigma_moller_dCT, 'form_factor': unity,      'QSq_func': dummy},
                     'Bhabha'   : {'diff_xsection': dsigma_bhabha_dCT, 'form_factor': unity,      'QSq_func': dummy},
-                    'ExactBrem': {'diff_xsection': dsig_etl_helper, 'form_factor':Gelastic_inelastic, "QSq_func":exactbrem_qsq}}
+                    'DarkBrem': {'diff_xsection': dsig_etl_helper, 'form_factor':Gelastic_inelastic, "QSq_func":darkbrem_qsq}}
 
 def get_file_names(path):
     ''' Get the names of all the files in a directory.
@@ -225,10 +225,10 @@ def main_dark(params):
         # Loop over all processes
         for process in params['process']:
             # Get the path to the directory containing the adaptive maps
-            if process == "ExactBrem":
-                path = params['save_location'] + '/mV_' + str(int(1000.*mV)) + "MeV/" + process + '/'
+            if process == "DarkBrem":
+                path = params['save_location'] + '/DarkBrem/mV_' + str(int(1000.*mV)) + "MeV/"
             # Get adaptive map main file (created by stitch_integrators)
-            else:
+            else:# FIXME
                 path = params['save_location'] + "/sm_electron/"
             adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
             # Load adaptive map file. Format: list of [params, adaptive_map]
