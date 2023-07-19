@@ -559,7 +559,7 @@ nitn_options={"PairProd":10,
               "Ann":20}
 nstrat_options={"PairProd":[40, 40, 40, 40],
                 "Brem":[40, 40, 40, 40],
-                "DarkBrem":[20,20,8],
+                "DarkBrem":[100,100,40],
                 "Comp":[1000],
                 "Moller":[1000],
                 "Bhabha":[1000],
