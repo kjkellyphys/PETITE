@@ -201,14 +201,72 @@ def stitch_integrators(dir):
     print('Stitched integrator saved as ' + file_name)
     return
 
+def cleanup(dir):
+    """
+    Cleanup all the unnecessary files (<process>_0.p, <process>_1.p etc) that 
+    are now saved in <process>_AdaptiveMaps.npy 
+    Input:
+        dir: directory where cleanup to be done
+    """
+    print("Cleaning up files in " + dir)
+    os.system("rm " + dir + "*.p")
+    return
 
-# def make_readme(args): #FIXME: add right path, discuss and implement what exatly goes here.
-#     """Writes a short readme file with the details of the pickles generated"""
-#     f = open('README.md', 'w')
-#     f.write('Parameters used for generating integrators on ', datetime.datetime.now(),' :')
-#     f.write(args)
-#     f.close()
-#     return
+def main(args):
+    """
+    Run make_integrators, stitch_integrators, cleanup, and call_find_maxes using the 
+    parameters in args to generate dictionaries of integrators and cross sections.
+    Works for both SM processes and dark processes.  
+    Input:
+        args: see below
+    """
+
+    #params = {'A_T': args.A, 'Z_T': np.unique(args.Z), 'mT': args.mT, 'save_location': args.save_location, 'run_find_maxes':args.run_find_maxes}
+    training_params = {'save_location':args.save_location, 'verbosity':args.verbosity}
+    if args.training_target != "unspecified":
+        training_params['training_target'] = args.training_target
+    processing_params = {'process_targets':args.process_targets, 'save_location':args.save_location, 'verbosity':args.verbosity, 'mV_list':args.mV}
+
+    if (args.mV == 0 or not(args.process == ['DarkBrem']) ):# doing SM processes
+        if  "all" in args.process:
+            process_list_to_do = ['Brem','PairProd','Comp','Ann','Moller','Bhabha']
+        else:#make sure DarkBrem not accidentally in list
+            try:
+                process_list_to_do = args.process.remove('DarkBrem')
+            except:
+                process_list_to_do = args.process
+                pass
+        for process in process_list_to_do:
+            initial_energy_list = np.logspace(np.log10(args.min_energy), np.log10(args.max_energy), args.num_energy_pts)
+            training_params.update({'mV' : 0})
+            training_params.update({'initial_energy_list': initial_energy_list})
+            make_integrators(training_params, process)
+            # stitch integrators for different energies together
+            stitch_integrators(training_params['save_location'] + "/" + process + "/")
+            cleanup(training_params['save_location'] + "/" + process + "/")
+        if args.run_find_maxes:
+            call_find_maxes(processing_params, process_list_to_do)
+        else:
+            print("Not Running find_maxes")
+    else:# doing DarkBrem
+        for mV in args.mV:
+            process = 'DarkBrem'
+            print("Working on mV = ", mV)
+            min_energy = max(args.min_energy, 1.01 * mV)
+            initial_energy_list = np.logspace(np.log10(min_energy), np.log10(args.max_energy), args.num_energy_pts)
+            training_params.update({'mV' : mV})
+            training_params.update({'initial_energy_list': initial_energy_list})
+            make_integrators(training_params, process)
+            # stitch integrators for different energies together (add mV to the name of output file)
+            stitch_integrators(training_params['save_location'] + '/DarkBrem/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
+            cleanup(training_params['save_location'] + '/DarkBrem/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
+
+        if args.run_find_maxes:
+            call_find_maxes(processing_params, process)
+        else:
+            print("Not Running find_maxes")
+
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Produce VEGAS integrators for various production processes', formatter_class = argparse.ArgumentDefaultsHelpFormatter)    
@@ -241,49 +299,9 @@ if __name__ == '__main__':
     print('**** Arguments passed to generate_integrators ****')
     print(args)
 
-    #params = {'A_T': args.A, 'Z_T': np.unique(args.Z), 'mT': args.mT, 'save_location': args.save_location, 'run_find_maxes':args.run_find_maxes}
-    training_params = {'save_location':args.save_location, 'verbosity':args.verbosity}
-    if args.training_target != "unspecified":
-        training_params['training_target'] = args.training_target
-    processing_params = {'process_targets':args.process_targets, 'save_location':args.save_location, 'verbosity':args.verbosity, 'mV_list':args.mV}
 
-    if (args.mV == 0 or not(args.process == ['DarkBrem']) ):# doing SM processes
-        if  "all" in args.process:
-            process_list_to_do = ['Brem','PairProd','Comp','Ann','Moller','Bhabha']
-        else:#make sure DarkBrem not accidentally in list
-            try:
-                process_list_to_do = args.process.remove('DarkBrem')
-            except:
-                process_list_to_do = args.process
-                pass
-        for process in process_list_to_do:
-            initial_energy_list = np.logspace(np.log10(args.min_energy), np.log10(args.max_energy), args.num_energy_pts)
-            training_params.update({'mV' : 0})
-            training_params.update({'initial_energy_list': initial_energy_list})
-            make_integrators(training_params, process)
-            # stitch integrators for different energies together
-            stitch_integrators(training_params['save_location'] + "/" + process + "/")
-        if args.run_find_maxes:
-            call_find_maxes(processing_params, process_list_to_do)
-        else:
-            print("Not Running find_maxes")
-    else:# doing DarkBrem
-        for mV in args.mV:
-            process = 'DarkBrem'
-            print("Working on mV = ", mV)
-            min_energy = max(args.min_energy, 1.01 * mV)
-            initial_energy_list = np.logspace(np.log10(min_energy), np.log10(args.max_energy), args.num_energy_pts)
-            training_params.update({'mV' : mV})
-            training_params.update({'initial_energy_list': initial_energy_list})
-            make_integrators(training_params, process)
-            # stitch integrators for different energies together (add mV to the name of output file)
-            stitch_integrators(training_params['save_location'] + '/DarkBrem/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
+    main(args)
 
-
-        if args.run_find_maxes:
-            call_find_maxes(processing_params, process)
-        else:
-            print("Not Running find_maxes")
 
     print("Goodbye!")
 
