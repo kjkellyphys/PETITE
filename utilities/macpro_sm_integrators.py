@@ -15,7 +15,7 @@ def main():
     # Necessary parameters for generating the integrators, note save_location should be altered as preferred
     training_params = {"verbosity":True,
                     "initial_energy_list":initial_energy_list,
-                    "save_location":"/Users/kjkelly/Dropbox/GitHub/PETITE/macpro_test"}
+                    "save_location":path + '/user_test',}
 
     # Necessary parameters for processing the integrators to determine cross sections
     processing_params = {'process_targets':['graphite','lead'], 'save_location':"/Users/kjkelly/Dropbox/GitHub/PETITE/macpro_test"}
