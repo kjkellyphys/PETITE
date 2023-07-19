@@ -230,7 +230,7 @@ def main(args):
     if (args.mV == 0 or not(args.process == ['DarkBrem']) ):# doing SM processes
         if  "all" in args.process:
             process_list_to_do = ['Brem','PairProd','Comp','Ann','Moller','Bhabha']
-        else:#make sure DarkBrem not accidentally in list
+        else: # make sure DarkBrem not accidentally in list
             try:
                 process_list_to_do = args.process.remove('DarkBrem')
             except:
@@ -248,7 +248,7 @@ def main(args):
             call_find_maxes(processing_params, process_list_to_do)
         else:
             print("Not Running find_maxes")
-    else:# doing DarkBrem
+    else: # doing DarkBrem
         for mV in args.mV:
             process = 'DarkBrem'
             print("Working on mV = ", mV)
