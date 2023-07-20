@@ -1,13 +1,11 @@
-""" Generate samples of Standard Model EM shower events and save them.
+""" Generate samples of Standard Model EM and dark shower events and save them.
 
-    Uses saved VEGAS integrators to generate e+/- pair production and annihilation, 
-    bremstrahlung and compton events for a range of initial particle energies 
+    Uses saved VEGAS adaptive maps to generate the final adaptive maps and cross sections given processes for a range of initial particle energies 
     and target materials.
-    The events are unweighted and saved for use in constructing a realistic shower.
 
     Typical usage:
 
-    python Gen_Samples.py
+    python find_maxes.py -A=12 -Z=6 -mT=12 -process='Comp' -import_directory='/Users/johndoe/PETITE/data/Comp' 
 """
 import os, sys
 #path = os.getcwd()
@@ -138,6 +136,12 @@ def main(params):
     final_sampling_dict = {}
     final_xsec_dict = {}
 
+    # Before starting, check for invalid processes
+    for process in params['process']:
+        # if process is not in list of processes, raise an error
+        if process not in ['PairProd', 'Comp', 'Ann', 'Brem', 'Moller', 'Bhabha']:
+            raise ValueError('Process \'', process ,'\' not in list of available processes for standard model showers.')
+
     # Loop over all processes
     for process in params['process']:
         # Get the path to the directory containing the adaptive maps
@@ -222,14 +226,16 @@ def main_dark(params):
         final_sampling_dict[mV] = {}
         final_xsec_dict[mV] = {}
 
+        # Before starting, check for invalid processes
+        for process in params['process']:
+            # if process is not in list of processes, raise an error
+            if process not in ['DarkBrem']:
+                raise ValueError('Process \'', process ,'\' not in list of available processes for dark showers.')
+
         # Loop over all processes
         for process in params['process']:
             # Get the path to the directory containing the adaptive maps
-            if process == "DarkBrem":
-                path = params['save_location'] + '/DarkBrem/mV_' + str(int(1000.*mV)) + "MeV/"
-            # Get adaptive map main file (created by stitch_integrators)
-            else:# FIXME
-                path = params['save_location'] + "/sm_electron/"
+            path = params['save_location'] + '/DarkBrem/mV_' + str(int(1000.*mV)) + "MeV/"
             adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
             # Load adaptive map file. Format: list of [params, adaptive_map]
             adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
