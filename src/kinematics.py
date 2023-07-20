@@ -160,7 +160,8 @@ def ee_to_ee_fourvecs(p0, sampled_event):
 
     return [outgoing_particle_fourvector, new_electron_fourvector]
 
-def radiative_return_fourvecs(pe, mV, x1):
+#def radiative_return_fourvecs(pe, mV, x1):
+def radiative_return_fourvecs(pe, sampled_event, mV=0.0):
     """
     Reconstruct V four-momentum in the radiative return process e^+ e^- > gamma V working in the 
     collinear emission approximation for the ISR photons. 
@@ -177,7 +178,7 @@ def radiative_return_fourvecs(pe, mV, x1):
     pCM_in_lab = pe + np.array([ml,0.,0.,0.]) 
 
 
-    
+    x1 = sampled_event[0]
     x2 = mV**2/(x1*s)
     
     if x2 > 1.:
@@ -198,7 +199,7 @@ def radiative_return_fourvecs(pe, mV, x1):
     pV_lab = boost(np.array([np.sqrt(s)/2., 0.,0., -np.sqrt(s/4. - ml**2)]), pV) 
     pV3_lab_rotated = np.linalg.norm(pV_lab[1:])*pCM_in_lab[1:]/np.linalg.norm(pCM_in_lab[1:])
     pV_lab_rotated = np.array([pV_lab[0], pV3_lab_rotated[0],pV3_lab_rotated[1],pV3_lab_rotated[2]]) 
-    return(pV_lab_rotated)
+    return(pV_lab, pV_lab_rotated)#returning two four-vectors just for proper handling in dark_shower.py
 
 def annihilation_fourvecs(p0, sampled_event, mV=0.0):
     """Reconstruct final SM/dark photon four vectors from 
