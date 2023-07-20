@@ -4,8 +4,10 @@ import functools
 import random as rnd
 try:
     from .physical_constants import *
+    from .radiative_return import lepton_luminosity_integrand, transformed_lepton_luminosity_integrand
 except:
     from physical_constants import *
+    from radiative_return import lepton_luminosity_integrand, transformed_lepton_luminosity_integrand
 
 #--------------------------------------------------------------------------
 #Functions for atomic form factors for incident photons/electrons/positrons
@@ -296,6 +298,66 @@ def dsig_etl_helper(params, v):
     x, l1mct, t = v
     return dsig_dx_dcostheta_dark_brem_exact_tree_level(x, l1mct, t, params)
 
+def dsigma_radiative_return_dx(event_info, x):
+    """
+    Radiative return cross-section e^+ e^- > V differential with respect to the longitudinal momentum fraction 
+    carried by one of beam particles
+    Args:
+        event_info - dictionary with parameter needed to evaluate the cross-section: 
+            E_inc - incoming positron energy
+            mV - vector mass
+        x - fraction of initial CM momentum carried by one of the beam particles 
+    Returns:
+        radiative return cross-section in GeV^-2
+    """
+    mV = event_info['mV']
+    Ee = event_info['E_inc']
+
+    s = 2.0*m_electron*(Ee+m_electron)
+    betaf = np.sqrt( 1. - 4.*(m_electron**2) / (mV**2) )
+    
+    prefac = (4.*np.pi**2)*alpha_em*betaf*(3./2. - betaf**2 / 2.)/s
+    
+    # this needs to be integrated over x in [y, 1], where y=mV^2/s
+    return prefac*lepton_luminosity_integrand(s, mV**2/s, x) 
+
+def dsigma_radiative_return_du(event_info, phase_space_par_list):
+    """
+    Radiative return cross-section e^+ e^- > V differential with respect to the longitudinal momentum fraction 
+    carried by one of beam particles
+    Args:
+        event_info - dictionary with parameter needed to evaluate the cross-section: 
+            E_inc - incoming positron energy
+            mV - vector mass
+        u - (1-x)^(beta/2) where x is the fraction of initial CM momentum carried by one of the beam particles 
+    Returns:
+        radiative return cross-section in GeV^-2
+    """
+    mV = event_info['mV']
+    Ee = event_info['E_inc']
+
+    s = 2.0*m_electron*(Ee+m_electron)
+    if s < mV**2:
+        if len(np.shape(phase_space_par_list)) <= 1:
+            return 0.
+        else:
+            return np.zeros(shape=len(phase_space_par_list))
+    betaf = np.sqrt( 1. - 4.*(m_electron**2) / (mV**2) )
+    prefac = (4.*np.pi**2)*alpha_em*betaf*(3./2. - betaf**2 / 2.)/s
+
+    if len(np.shape(phase_space_par_list)) == 0:
+        phase_space_par_list = np.array([phase_space_par_list])
+
+    # this needs to be integrated over x in [sqrt(y), 1], where y=mV^2/s and multiplied by 2
+    # the factor of 2 comes from splitting the [y,1] integration into [y,sqrt(y)] + [sqrt(y),1] and using x-> y/x in the first part comes from splitting the [y,1] integration into [y,sqrt(y)] + [sqrt(y),1] and using x-> y/x in the first part 
+    dSigs = []
+    for u in phase_space_par_list:
+        dSigs.append(2.*prefac*transformed_lepton_luminosity_integrand(s, mV**2/s, u))
+    if len(dSigs) == 1:
+        return dSigs[0]
+    else:
+        return dSigs
+    #return 2.*prefac*transformed_lepton_luminosity_integrand(s, mV**2/s, u)
 
 
 def dsigma_annihilation_dCT(event_info, phase_space_par_list):
@@ -549,29 +611,48 @@ diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                        "Bhabha"   : dsigma_bhabha_dCT,
                        "Brem"     : dsigma_brem_dimensionless,
                        "Ann"      : dsigma_annihilation_dCT, 
+                       "DarkAnn"   : dsigma_radiative_return_du, #dsigma_radiative_return_dx,
+                       #"DarkBrem" : dsigma_darkbrem_dP_T,
                        "DarkBrem" :  dsig_etl_helper}
+vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[40, 40, 40, 40]},
+                            "Brem":{"nitn":10, "nstrat":[40, 40, 40, 40]},
+                            #"DarkBrem":{"nitn":10, "nstrat":[15, 25, 25, 15]},
+                            "DarkBrem":{"nitn":20, "nstrat":[100, 100, 40]},
+                            "Comp":{"nitn":20, "nstrat":[1000]},
+                            "Moller":{"nitn":20, "nstrat":[1000]},
+                            "Bhabha":{"nitn":20, "nstrat":[1000]},
+                            "Ann":{"nitn":20, "nstrat":[1000]},
+                            "DarkAnn":{"nitn":10, "neval":10000}
+                            }
+
 nitn_options={"PairProd":10,
               "Brem":10,
               "DarkBrem":20,
               "Comp":20,
               "Moller":20,
               "Bhabha":20,
-              "Ann":20}
+              "Ann":20,
+              "DarkAnn":20
+              }
 nstrat_options={"PairProd":[40, 40, 40, 40],
                 "Brem":[40, 40, 40, 40],
                 "DarkBrem":[100,100,40],
                 "Comp":[1000],
                 "Moller":[1000],
                 "Bhabha":[1000],
-                "Ann":[1000]}
+                "Ann":[1000],
+                "DarkAnn":[100],
+                }
 
 four_dim = {"PairProd", "Brem"}
 three_dim = {"DarkBrem"}
-two_dim = {"Comp", "Ann","Moller","Bhabha"}
+one_dim = {"Comp", "Ann","Moller","Bhabha", "DarkAnn"}
 
 def integration_range(event_info, process):
     EInc=event_info['E_inc']
     mV=event_info['mV']
+    s = 2.0*m_electron*(EInc+m_electron)
+
     if process in four_dim:
         if process == "PairProd" or process == 'Brem':
             return [[0, 1], [0, 2], [-2, 2], [0, 1]]
@@ -592,17 +673,25 @@ def integration_range(event_info, process):
             xmin = 0.
 
         return [[max(xmin, mV/EInc), 1.-m_electron/EInc],[-12.0, l1mct_max], [-20.0, 0.0]]
-    elif process in two_dim:
-        return [[-1., 1.0]]
-        #if process == "Comp" or process == "Ann":
-        #    return [[-1., 1.0]]
-        #else:
-        #    if 'Ee_min' in event_info.keys():
-        #        DE = event_info['Ee_min']
-        #    else:
-        #        DE = 0.005
-        #    delta_ct_limit = 2.0*DE/(event_info['E_inc'] - m_electron)
-        #    return [[-1.0+delta_ct_limit, 1.0-delta_ct_limit]]
+    elif process in one_dim:
+        if process == "Comp" or process == "Ann":
+            return [[-1., 1.0]]
+        elif process == "DarkAnn":
+            # x integration range
+            #return [[mV**2/s,1.]]
+            # u integration range
+            beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
+            if s > mV**2:
+                return [[0., np.power(1.-np.sqrt(mV**2/s),beta/2.)]]
+            else:
+                return [[0.,0.]]
+        else:
+            if 'Ee_min' in event_info.keys():
+                DE = event_info['Ee_min']
+            else:
+                DE = 0.005
+            delta_ct_limit = 2.0*DE/(event_info['E_inc'] - m_electron)
+            return [[-1.0+delta_ct_limit, 1.0-delta_ct_limit]]
 
     else:
         raise Exception("Your process is not in the list")
@@ -617,6 +706,7 @@ def vegas_integration(event_info, process, verbose=False, mode='XSec'):
         -- 'PairProd': SM gamma + Z -> e^+ + e^- + Z
         -- 'Comp': SM/BSM gamma + e -> e + gamma/V
         -- 'Ann': SM/BSM e^+ e^- -> gamma + gamma/V
+        -- 'DarkAnn': e^+ e^- -> V
 
         ('Brem', 'DarkBrem', 'PairProd' calculated in 
          small-angle approximation)
@@ -653,10 +743,12 @@ def vegas_integration(event_info, process, verbose=False, mode='XSec'):
     if mode == 'Pickle' or mode == 'XSec':
         if verbose:
             print("Integrator set up", process, event_info)
-        integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
+        integrand(functools.partial(diff_xsec_func, event_info), **vegas_integrator_options[process])
+        #integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
         if verbose:
             print("Burn-in complete", event_info)
-        result = integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
+        result = integrand(functools.partial(diff_xsec_func, event_info), **vegas_integrator_options[process])
+        #result = integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
         if verbose:
             print("Fully Integrated", event_info, result.mean)
         if mode == 'Pickle':

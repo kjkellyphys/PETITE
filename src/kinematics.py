@@ -1,5 +1,10 @@
 import numpy as np
-from .physical_constants import *
+try:
+    from .physical_constants import *
+    from .radiative_return import boost, invariant_mass
+except:
+    from physical_constants import *
+    from radiative_return import boost, invariant_mass
 
 #def e_to_egamma_fourvecs(ep, me, w, ct, ctp, ph):
 Egamma_min = 0.001
@@ -154,6 +159,46 @@ def ee_to_ee_fourvecs(p0, sampled_event):
     new_electron_fourvector = [g0*Ee0 - b0*g0*pF*ct, pF*np.sqrt(1-ct**2)*np.sin(ph), pF*np.sqrt(1-ct**2)*np.cos(ph), b0*g0*Ee0 - g0*pF*ct]
 
     return [outgoing_particle_fourvector, new_electron_fourvector]
+
+def radiative_return_fourvecs(pe, mV, x1):
+    """
+    Reconstruct V four-momentum in the radiative return process e^+ e^- > gamma V working in the 
+    collinear emission approximation for the ISR photons. 
+    Args:
+        pe : four momentum of the incoming positron in the lab frame
+        mV : vector mass
+        x1 : energy fraction of electron or positron after it radiated (the energy fraction of the other particle is mV^2/(x s) ) 
+    Returns:
+        pV : four momentum
+    """
+    ml = m_electron 
+    s = 2.*ml*(ml + pe[0])
+
+    pCM_in_lab = pe + np.array([ml,0.,0.,0.]) 
+
+
+    
+    x2 = mV**2/(x1*s)
+    
+    if x2 > 1.:
+        print("you're bad and you should feel bad")
+
+    print("x1, x2, x1*x2*s,  mV^2 = ", x1, "\t", x2,"\t",x1*x2*s, "\t", mV**2)
+
+    E1 = x1*np.sqrt(s)/2.
+    E2 = x2*np.sqrt(s)/2.
+    
+    # CM four-momenta after the beam particles have radiated to bring the parton interaction energy on resonance
+    p1 = np.array([E1, 0., 0., E1])
+    #p1 = np.array([E1, 0., 0., np.sqrt(E1**2 - ml**2)])
+    p2 = np.array([E2, 0., 0., -E2])
+    #p2 = np.array([E2, 0., 0., -np.sqrt(E2**2 - ml**2)])
+    pV = p1 + p2
+    # we boost to the "lab frame", which is the frame where the electron (before radiation) is at rest
+    pV_lab = boost(np.array([np.sqrt(s)/2., 0.,0., -np.sqrt(s/4. - ml**2)]), pV) 
+    pV3_lab_rotated = np.linalg.norm(pV_lab[1:])*pCM_in_lab[1:]/np.linalg.norm(pCM_in_lab[1:])
+    pV_lab_rotated = np.array([pV_lab[0], pV3_lab_rotated[0],pV3_lab_rotated[1],pV3_lab_rotated[2]]) 
+    return(pV_lab_rotated)
 
 def annihilation_fourvecs(p0, sampled_event, mV=0.0):
     """Reconstruct final SM/dark photon four vectors from 
