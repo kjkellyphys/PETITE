@@ -30,4 +30,12 @@ Relevant functions:
 This processes the previously generated integrators into a format that is most useful for PETITE, it is automatically called by generate_integrators unless generate_integrators is called with flag "-run_find_maxes=False".
 
 It can also be run independently as e.g.
-python find_maxes.py -A=12 -Z=6 -mT=12 -process='Comp' -import_directory='raw_integrators/Comp'
+python find_maxes.py -A=12 -Z=6 -mT=12 -process='Comp' -import_directory='/Users/johndoe/PETITE/data/Comp'
+
+There is a key dictionary, `process_info`, which contains the cross section, form factor and Q^2 functions used in each process.
+
+Relevant functions:
+- get_file_names: gets the file names of the adaptive maps and readme files in a given `path`.
+- do_find_max_work: main function that finds the maximum value of the integrand (function times VEGAS weight) for a given process file. It outputs a dictionary with the sampled values of the integrand, together with other crucial info that is used to generate showers.
+- main: the main function for standard model showers that is called when find_maxes.py is run. It loops over all processes and calls do_find_max_work for each process. It gathers the output of do_find_max_work for each process and saves all together in `sm_maps.pkl` (adaptive maps) and `sm_xsecs.pkl` (cross sections) files in the directory specified by `params['save_location']`. These are the final dictionaries used by PETITE when generating standard model showers.
+- main_dark: similar to `main`, but for dark sector showers. It loops over all processes and calls do_find_max_work for each process. It gathers the output of do_find_max_work for each process and saves all together in `dark_maps.pkl` (adaptive maps) and `dark_xsecs.pkl` (cross sections) files in the directory specified by `params['save_location']`. These are the final dictionaries used by PETITE when generating dark sector showers.
