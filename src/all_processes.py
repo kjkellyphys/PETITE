@@ -4,7 +4,7 @@ import functools
 import random as rnd
 try:
     from .physical_constants import *
-    from .radiative_return import lepton_luminosity_integrand
+    from .radiative_return import lepton_luminosity_integrand, transformed_lepton_luminosity_integrand
 except:
     from physical_constants import *
     from radiative_return import lepton_luminosity_integrand, transformed_lepton_luminosity_integrand
@@ -321,7 +321,7 @@ def dsigma_radiative_return_dx(event_info, x):
     # this needs to be integrated over x in [y, 1], where y=mV^2/s
     return prefac*lepton_luminosity_integrand(s, mV**2/s, x) 
 
-def dsigma_radiative_return_du(event_info, u):
+def dsigma_radiative_return_du(event_info, phase_space_par_list):
     """
     Radiative return cross-section e^+ e^- > V differential with respect to the longitudinal momentum fraction 
     carried by one of beam particles
@@ -338,14 +338,26 @@ def dsigma_radiative_return_du(event_info, u):
 
     s = 2.0*m_electron*(Ee+m_electron)
     if s < mV**2:
-        return 0.
+        if len(np.shape(phase_space_par_list)) <= 1:
+            return 0.
+        else:
+            return np.zeros(shape=len(phase_space_par_list))
     betaf = np.sqrt( 1. - 4.*(m_electron**2) / (mV**2) )
-    
     prefac = (4.*np.pi**2)*alpha_em*betaf*(3./2. - betaf**2 / 2.)/s
-    
+
+    if len(np.shape(phase_space_par_list)) == 0:
+        phase_space_par_list = np.array([phase_space_par_list])
+
     # this needs to be integrated over x in [sqrt(y), 1], where y=mV^2/s and multiplied by 2
     # the factor of 2 comes from splitting the [y,1] integration into [y,sqrt(y)] + [sqrt(y),1] and using x-> y/x in the first part comes from splitting the [y,1] integration into [y,sqrt(y)] + [sqrt(y),1] and using x-> y/x in the first part 
-    return 2.*prefac*transformed_lepton_luminosity_integrand(s, mV**2/s, u)
+    dSigs = []
+    for u in phase_space_par_list:
+        dSigs.append(2.*prefac*transformed_lepton_luminosity_integrand(s, mV**2/s, u))
+    if len(dSigs) == 1:
+        return dSigs[0]
+    else:
+        return dSigs
+    #return 2.*prefac*transformed_lepton_luminosity_integrand(s, mV**2/s, u)
 
 
 def dsigma_annihilation_dCT(event_info, phase_space_par_list):
@@ -551,8 +563,8 @@ diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                        "Bhabha"   : dsigma_bhabha_dCT,
                        "Brem"     : dsigma_brem_dimensionless,
                        "Ann"      : dsigma_annihilation_dCT, 
-                       "RadRet"   : dsigma_radiative_return_du, #dsigma_radiative_return_dx,
-                       "DarkBrem" : dsigma_darkbrem_dP_T,
+                       "DarkAnn"   : dsigma_radiative_return_du, #dsigma_radiative_return_dx,
+                       #"DarkBrem" : dsigma_darkbrem_dP_T,
                        "ExactBrem" :  dsig_etl_helper}
 vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[40, 40, 40, 40]},
                             "Brem":{"nitn":10, "nstrat":[40, 40, 40, 40]},
@@ -562,7 +574,7 @@ vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[40, 40, 40, 40]},
                             "Moller":{"nitn":20, "nstrat":[1000]},
                             "Bhabha":{"nitn":20, "nstrat":[1000]},
                             "Ann":{"nitn":20, "nstrat":[1000]},
-                            "RadRet":{"nitn":10, "neval":10000}
+                            "DarkAnn":{"nitn":10, "neval":10000}
                             }
 nitn_options={"PairProd":10,
               "Brem":10,
@@ -572,7 +584,7 @@ nitn_options={"PairProd":10,
               "Moller":20,
               "Bhabha":20,
               "Ann":20,
-              "RadRet":20
+              "DarkAnn":20
               }
 nstrat_options={"PairProd":[40, 40, 40, 40],
                 "Brem":[40, 40, 40, 40],
@@ -582,12 +594,12 @@ nstrat_options={"PairProd":[40, 40, 40, 40],
                 "Moller":[1000],
                 "Bhabha":[1000],
                 "Ann":[1000],
-                "RadRet":[100],
+                "DarkAnn":[100],
                 }
 
 four_dim = {"PairProd", "Brem", "DarkBrem"}
 three_dim = {"ExactBrem"}
-one_dim = {"Comp", "Ann","Moller","Bhabha", "RadRet"}
+one_dim = {"Comp", "Ann","Moller","Bhabha", "DarkAnn"}
 
 def integration_range(event_info, process):
     EInc=event_info['E_inc']
@@ -617,7 +629,7 @@ def integration_range(event_info, process):
     elif process in one_dim:
         if process == "Comp" or process == "Ann":
             return [[-1., 1.0]]
-        elif process == "RadRet":
+        elif process == "DarkAnn":
             # x integration range
             #return [[mV**2/s,1.]]
             # u integration range
@@ -647,7 +659,7 @@ def vegas_integration(event_info, process, verbose=False, mode='XSec'):
         -- 'PairProd': SM gamma + Z -> e^+ + e^- + Z
         -- 'Comp': SM/BSM gamma + e -> e + gamma/V
         -- 'Ann': SM/BSM e^+ e^- -> gamma + gamma/V
-        -- 'RadRet': e^+ e^- -> V
+        -- 'DarkAnn': e^+ e^- -> V
 
         ('Brem', 'DarkBrem', 'PairProd' calculated in 
          small-angle approximation)

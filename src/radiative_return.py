@@ -91,7 +91,9 @@ def transformed_lepton_luminosity_integrand(s,y,u):
 
 
 _lumi_int_fill_val = np.nan
-lumi_integral_list = np.loadtxt("/home/nblinov/HEP/PETITE/data/beams/lumi_integral_list.dat")
+import os
+lumi_path = os.getcwd() + "/data/beams/lumi_integral_list.dat"
+lumi_integral_list = np.loadtxt(lumi_path)
 log_lumi_integral_list = np.log10(lumi_integral_list+1e-99)
 log_lumi_integral_interp = LinearNDInterpolator(list(zip(log_lumi_integral_list[:,0], log_lumi_integral_list[:,1])),log_lumi_integral_list[:,2], fill_value=_lumi_int_fill_val)
 
