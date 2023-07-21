@@ -92,7 +92,7 @@ def make_integrators(params, process):
         mV = 0.0
     else:
         mV = params['mV']
-    if process == 'DarkBrem':
+    if process == 'DarkBrem' or process == 'DarkAnn' or process == 'DarkComp':
         if 'training_target' not in params:
             raise ValueError("Training target must be specified when running DarkBrem")
         else:
@@ -104,7 +104,7 @@ def make_integrators(params, process):
         else:
             params['mT'] = target_information[params['training_target']]['mT']
         # Create process specific directory in mother directory for saving VEGAS adaptive maps for dark sector production
-        process_directory = params['save_location'] + '/DarkBrem/mV_' + str(int(np.floor(mV*1000.))) + "MeV/"
+        process_directory = params['save_location'] + '/' + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/"
 
     else:
         if 'training_target' in params:
@@ -172,7 +172,7 @@ def call_find_maxes(params, list_of_processes):
     if 'n_trials' not in find_maxes_params:
         find_maxes_params['n_trials'] = 100
     print('Parameters used in find_maxes: ', find_maxes_params)
-    if "DarkBrem" in list_of_processes:
+    if ("DarkBrem" in list_of_processes) or ('DarkAnn' in list_of_processes) or ('DarkComp' in list_of_processes):
         find_maxes.main_dark(find_maxes_params)
     else:
         find_maxes.main(find_maxes_params)

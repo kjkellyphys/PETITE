@@ -166,25 +166,25 @@ def radiative_return_fourvecs(pe, sampled_event, mV=0.0):
     Reconstruct V four-momentum in the radiative return process e^+ e^- > gamma V working in the 
     collinear emission approximation for the ISR photons. 
     Args:
-        pe : four momentum of the incoming positron in the lab frame
+        pe : Particle() of the incoming positron in the lab frame
         mV : vector mass
         x1 : energy fraction of electron or positron after it radiated (the energy fraction of the other particle is mV^2/(x s) ) 
     Returns:
         pV : four momentum
     """
-    ml = m_electron 
-    s = 2.*ml*(ml + pe[0])
+    #ml = m_electron 
+    s = 2.*m_electron*(m_electron + pe.get_pf()[0])
 
-    pCM_in_lab = pe + np.array([ml,0.,0.,0.]) 
+    pCM_in_lab = pe.get_pf() + np.array([m_electron,0.,0.,0.]) 
+    beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
 
-
-    x1 = sampled_event[0]
+    #x1 = sampled_event[0]
+    x1 = 1.- np.power(sampled_event[0],2./beta)
     x2 = mV**2/(x1*s)
     
     if x2 > 1.:
         print("you're bad and you should feel bad")
-
-    print("x1, x2, x1*x2*s,  mV^2 = ", x1, "\t", x2,"\t",x1*x2*s, "\t", mV**2)
+        print("x1, x2, x1*x2*s,  mV^2 = ", x1, "\t", x2,"\t",x1*x2*s, "\t", mV**2)
 
     E1 = x1*np.sqrt(s)/2.
     E2 = x2*np.sqrt(s)/2.
@@ -196,7 +196,7 @@ def radiative_return_fourvecs(pe, sampled_event, mV=0.0):
     #p2 = np.array([E2, 0., 0., -np.sqrt(E2**2 - ml**2)])
     pV = p1 + p2
     # we boost to the "lab frame", which is the frame where the electron (before radiation) is at rest
-    pV_lab = boost(np.array([np.sqrt(s)/2., 0.,0., -np.sqrt(s/4. - ml**2)]), pV) 
+    pV_lab = boost(np.array([np.sqrt(s)/2., 0.,0., -np.sqrt(s/4. - m_electron**2)]), pV) 
     pV3_lab_rotated = np.linalg.norm(pV_lab[1:])*pCM_in_lab[1:]/np.linalg.norm(pCM_in_lab[1:])
     pV_lab_rotated = np.array([pV_lab[0], pV3_lab_rotated[0],pV3_lab_rotated[1],pV3_lab_rotated[2]]) 
     return(pV_lab, pV_lab_rotated)#returning two four-vectors just for proper handling in dark_shower.py

@@ -20,12 +20,12 @@ cmtom = 0.01
 mp0 = 1.673e-24 #g
 
 #dark_process_codes = ["DarkBrem", "Ann", "Comp", "TwoBody_BSMDecay"]
-dark_process_codes = ["DarkBrem", "DarkAnn", "Comp", "TwoBody_BSMDecay"]
+dark_process_codes = ["DarkBrem", "DarkAnn", "DarkComp", "TwoBody_BSMDecay"]
 
 dark_kinematic_function = {"DarkBrem" : e_to_eV_fourvecs,
                            "DarkAnn"      : radiative_return_fourvecs,
-                           "Comp"     : compton_fourvecs}
-diff_xsection_options={"Comp"      : dsigma_compton_dCT,
+                           "DarkComp"     : compton_fourvecs}
+diff_xsection_options={"DarkComp"      : dsigma_compton_dCT,
                         "DarkBrem" : dsig_etl_helper,
                         "DarkAnn"      : dsigma_radiative_return_du }
 
@@ -162,8 +162,8 @@ class DarkShower(Shower):
 
         # These contain only the cross sections for the chosen target material
         self._dark_brem_cross_section = self.load_dark_cross_section(self._dict_dir, 'DarkBrem', self._target_material)
-        self._dark_annihilation_cross_section  = self.load_dark_cross_section(self._dict_dir, 'Ann', self._target_material) 
-        self._dark_compton_cross_section = self.load_dark_cross_section(self._dict_dir, 'Comp', self._target_material) 
+        self._dark_annihilation_cross_section  = self.load_dark_cross_section(self._dict_dir, 'DarkAnn', self._target_material) 
+        self._dark_compton_cross_section = self.load_dark_cross_section(self._dict_dir, 'DarkComp', self._target_material) 
 
         self._EeVecDarkBrem = np.transpose(self._dark_brem_cross_section)[0] #FIXME: not sure what these are
         self._EeVecDarkAnn = np.transpose(self._dark_annihilation_cross_section)[0]
@@ -191,9 +191,9 @@ class DarkShower(Shower):
         """
         DBS, DAnnS, DCS = self.get_DarkBremXSec(), self.get_DarkAnnXSec(), self.get_DarkCompXSec()
         nZ, ne = self.get_n_targets()
-        self._NSigmaDarkBrem = interp1d(np.transpose(DBS)[0], nZ*GeVsqcm2*np.transpose(DBS)[1])
-        self._NSigmaDarkAnn = interp1d(np.transpose(DAnnS)[0], ne*GeVsqcm2*np.transpose(DAnnS)[1])
-        self._NSigmaDarkComp = interp1d(np.transpose(DCS)[0], ne*GeVsqcm2*np.transpose(DCS)[1])
+        self._NSigmaDarkBrem = interp1d(np.transpose(DBS)[0], nZ*GeVsqcm2*np.transpose(DBS)[1], fill_value=0.0, bounds_error=False)
+        self._NSigmaDarkAnn = interp1d(np.transpose(DAnnS)[0], ne*GeVsqcm2*np.transpose(DAnnS)[1], fill_value=0.0, bounds_error=False)
+        self._NSigmaDarkComp = interp1d(np.transpose(DCS)[0], ne*GeVsqcm2*np.transpose(DCS)[1], fill_value=0.0, bounds_error=False)
 
     def GetBSMWeights(self, particle, process):
         """Compute relative weight of dark photon emission to the available SM processes
@@ -205,9 +205,12 @@ class DarkShower(Shower):
             divided by the probabilities of available SM processes
 
         """
-        PID, Energy = particle.get_ids()["PID"], particle.get_pf()[0]
+        if type(particle) == Particle:
+            PID, Energy = particle.get_ids()["PID"], particle.get_pf()[0]
+        else: #Allow to call this function with just a PID and energy
+            PID, Energy = particle[0], particle[1]
         if PID == 22:
-            if (Energy < self._mV*(1 + self._mV/(2*m_electron))) or (process != "Comp"):
+            if (Energy < self._mV*(1 + self._mV/(2*m_electron))) or (process != "DarkComp"):
                 return 0.0
             else:
                 return (self.g_e**2/(4*np.pi*alpha_em))*self._NSigmaDarkComp(Energy)/(self._NSigmaPP(Energy) + self._NSigmaComp(Energy))
@@ -224,7 +227,7 @@ class DarkShower(Shower):
                     BremPiece = self._NSigmaDarkBrem(Energy)
                     return (self.g_e**2/(4*np.pi*alpha_em))*BremPiece/(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))
             elif process == "DarkAnn":
-                if Energy < (self._mV**2 - m_electron**2)/(2*m_electron) + 2*self._Egamma_min:
+                if Energy < (self._mV**2 - m_electron**2)/(2*m_electron):
                     return 0.0
                 else:
                     AnnPiece = self._NSigmaDarkAnn(Energy)

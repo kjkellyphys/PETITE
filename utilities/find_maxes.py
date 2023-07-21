@@ -29,7 +29,9 @@ process_info ={    'PairProd' : {'diff_xsection': dsigma_pairprod_dimensionless,
                     'Ann'      : {'diff_xsection': dsigma_annihilation_dCT,'form_factor': unity,      'QSq_func': dummy},
                     'Moller'   : {'diff_xsection': dsigma_moller_dCT, 'form_factor': unity,      'QSq_func': dummy},
                     'Bhabha'   : {'diff_xsection': dsigma_bhabha_dCT, 'form_factor': unity,      'QSq_func': dummy},
-                    'DarkBrem': {'diff_xsection': dsig_etl_helper, 'form_factor':Gelastic_inelastic, "QSq_func":darkbrem_qsq}}
+                    'DarkBrem': {'diff_xsection': dsig_etl_helper, 'form_factor':Gelastic_inelastic, "QSq_func":darkbrem_qsq},
+                    'DarkAnn':  {'diff_xsection': dsigma_radiative_return_du, 'form_factor':unity, "QSq_func":dummy},
+                    'DarkComp': {'diff_xsection':dsigma_compton_dCT, 'form_factor':unity, "QSq_func":dummy}}
 
 def get_file_names(path):
     ''' Get the names of all the files in a directory.
@@ -229,13 +231,13 @@ def main_dark(params):
         # Before starting, check for invalid processes
         for process in params['process']:
             # if process is not in list of processes, raise an error
-            if process not in ['DarkBrem']:
+            if process not in ['DarkBrem', 'DarkAnn', 'DarkComp']:
                 raise ValueError('Process \'', process ,'\' not in list of available processes for dark showers.')
 
         # Loop over all processes
         for process in params['process']:
             # Get the path to the directory containing the adaptive maps
-            path = params['save_location'] + '/DarkBrem/mV_' + str(int(1000.*mV)) + "MeV/"
+            path = params['save_location'] + '/' + process + '/mV_' + str(int(1000.*mV)) + "MeV/"
             adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
             # Load adaptive map file. Format: list of [params, adaptive_map]
             adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)

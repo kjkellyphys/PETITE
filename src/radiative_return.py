@@ -94,8 +94,12 @@ _lumi_int_fill_val = np.nan
 import os
 #load in file from src/lumi_integral_list.txt no matter where this package is being called from
 #find the path to the PETITE installation
-lumi_path = os.path.dirname(os.path.realpath(__file__)) + "/beams/lumi_integral_list.dat"
-lumi_integral_list = np.loadtxt(lumi_path)
+#lumi_path = os.path.dirname(os.path.realpath(__file__)) + "/beams/lumi_integral_list.dat"
+#lumi_integral_list = np.loadtxt(lumi_path)
+try:
+    from .lumi_integral_data import *
+except:
+    from lumi_integral_data import *
 log_lumi_integral_list = np.log10(lumi_integral_list+1e-99)
 log_lumi_integral_interp = LinearNDInterpolator(list(zip(log_lumi_integral_list[:,0], log_lumi_integral_list[:,1])),log_lumi_integral_list[:,2], fill_value=_lumi_int_fill_val)
 

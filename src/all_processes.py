@@ -612,18 +612,29 @@ diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                        "Brem"     : dsigma_brem_dimensionless,
                        "Ann"      : dsigma_annihilation_dCT, 
                        "DarkAnn"   : dsigma_radiative_return_du, #dsigma_radiative_return_dx,
+                       "DarkComp" : dsigma_compton_dCT,
                        #"DarkBrem" : dsigma_darkbrem_dP_T,
                        "DarkBrem" :  dsig_etl_helper}
-vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[40, 40, 40, 40]},
-                            "Brem":{"nitn":10, "nstrat":[40, 40, 40, 40]},
-                            #"DarkBrem":{"nitn":10, "nstrat":[15, 25, 25, 15]},
-                            "DarkBrem":{"nitn":20, "nstrat":[100, 100, 40]},
+#vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[40, 40, 40, 40]},
+#                            "Brem":{"nitn":10, "nstrat":[40, 40, 40, 40]},
+#                            "DarkBrem":{"nitn":20, "nstrat":[100, 100, 40]},
+#                            "Comp":{"nitn":20, "nstrat":[1000]},
+#                            "Moller":{"nitn":20, "nstrat":[1000]},
+#                            "Bhabha":{"nitn":20, "nstrat":[1000]},
+#                            "Ann":{"nitn":20, "nstrat":[1000]},
+#                            "DarkAnn":{"nitn":10, "neval":10000}
+#                            }
+vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[10, 10, 10, 10]},
+                            "Brem":{"nitn":10, "nstrat":[10, 10, 10, 10]},
+                            "DarkBrem":{"nitn":20, "nstrat":[40, 40, 16]},
                             "Comp":{"nitn":20, "nstrat":[1000]},
                             "Moller":{"nitn":20, "nstrat":[1000]},
                             "Bhabha":{"nitn":20, "nstrat":[1000]},
                             "Ann":{"nitn":20, "nstrat":[1000]},
-                            "DarkAnn":{"nitn":10, "neval":10000}
+                            "DarkAnn":{"nitn":10, "neval":10000},
+                            "DarkComp":{"nitn":20, "nstrat":[1000]}
                             }
+
 
 nitn_options={"PairProd":10,
               "Brem":10,
@@ -632,7 +643,8 @@ nitn_options={"PairProd":10,
               "Moller":20,
               "Bhabha":20,
               "Ann":20,
-              "DarkAnn":20
+              "DarkAnn":20,
+              "DarkComp":20
               }
 nstrat_options={"PairProd":[40, 40, 40, 40],
                 "Brem":[40, 40, 40, 40],
@@ -642,11 +654,12 @@ nstrat_options={"PairProd":[40, 40, 40, 40],
                 "Bhabha":[1000],
                 "Ann":[1000],
                 "DarkAnn":[100],
+                "DarkComp":[1000]
                 }
 
 four_dim = {"PairProd", "Brem"}
 three_dim = {"DarkBrem"}
-one_dim = {"Comp", "Ann","Moller","Bhabha", "DarkAnn"}
+one_dim = {"Comp", "Ann","Moller","Bhabha", "DarkAnn", "DarkComp"}
 
 def integration_range(event_info, process):
     EInc=event_info['E_inc']
@@ -674,7 +687,7 @@ def integration_range(event_info, process):
 
         return [[max(xmin, mV/EInc), 1.-m_electron/EInc],[-12.0, l1mct_max], [-20.0, 0.0]]
     elif process in one_dim:
-        if process == "Comp" or process == "Ann":
+        if process == "Comp" or process == "Ann" or process == "DarkComp":
             return [[-1., 1.0]]
         elif process == "DarkAnn":
             # x integration range
