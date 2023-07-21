@@ -613,49 +613,28 @@ diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                        "Ann"      : dsigma_annihilation_dCT, 
                        "DarkAnn"   : dsigma_radiative_return_du, #dsigma_radiative_return_dx,
                        "DarkComp" : dsigma_compton_dCT,
-                       #"DarkBrem" : dsigma_darkbrem_dP_T,
                        "DarkBrem" :  dsig_etl_helper}
-#vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[40, 40, 40, 40]},
-#                            "Brem":{"nitn":10, "nstrat":[40, 40, 40, 40]},
-#                            "DarkBrem":{"nitn":20, "nstrat":[100, 100, 40]},
-#                            "Comp":{"nitn":20, "nstrat":[1000]},
-#                            "Moller":{"nitn":20, "nstrat":[1000]},
-#                            "Bhabha":{"nitn":20, "nstrat":[1000]},
-#                            "Ann":{"nitn":20, "nstrat":[1000]},
-#                            "DarkAnn":{"nitn":10, "neval":10000}
-#                            }
-vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[10, 10, 10, 10]},
-                            "Brem":{"nitn":10, "nstrat":[10, 10, 10, 10]},
-                            "DarkBrem":{"nitn":20, "nstrat":[40, 40, 16]},
+
+vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[60, 50, 40, 50]},
+                            "Brem":{"nitn":10, "nstrat":[60, 50, 50, 50]},
+                            "DarkBrem":{"nitn":20, "nstrat":[100, 100, 40]},
                             "Comp":{"nitn":20, "nstrat":[1000]},
                             "Moller":{"nitn":20, "nstrat":[1000]},
                             "Bhabha":{"nitn":20, "nstrat":[1000]},
                             "Ann":{"nitn":20, "nstrat":[1000]},
-                            "DarkAnn":{"nitn":10, "neval":10000},
-                            "DarkComp":{"nitn":20, "nstrat":[1000]}
+                            "DarkAnn":{"nitn":10, "neval":10000,
+                            "DarkComp":{"nitn":20, "nstrat":[1000]}}
                             }
-
-
-nitn_options={"PairProd":10,
-              "Brem":10,
-              "DarkBrem":20,
-              "Comp":20,
-              "Moller":20,
-              "Bhabha":20,
-              "Ann":20,
-              "DarkAnn":20,
-              "DarkComp":20
-              }
-nstrat_options={"PairProd":[40, 40, 40, 40],
-                "Brem":[40, 40, 40, 40],
-                "DarkBrem":[100,100,40],
-                "Comp":[1000],
-                "Moller":[1000],
-                "Bhabha":[1000],
-                "Ann":[1000],
-                "DarkAnn":[100],
-                "DarkComp":[1000]
-                }
+#vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[10, 10, 10, 10]},
+#                            "Brem":{"nitn":10, "nstrat":[10, 10, 10, 10]},
+#                            "DarkBrem":{"nitn":20, "nstrat":[40, 40, 16]},
+#                            "Comp":{"nitn":20, "nstrat":[1000]},
+#                            "Moller":{"nitn":20, "nstrat":[1000]},
+#                            "Bhabha":{"nitn":20, "nstrat":[1000]},
+#                            "Ann":{"nitn":20, "nstrat":[1000]},
+#                            "DarkAnn":{"nitn":10, "neval":10000},
+#                            "DarkComp":{"nitn":20, "nstrat":[1000]}
+#                            }
 
 four_dim = {"PairProd", "Brem"}
 three_dim = {"DarkBrem"}
@@ -757,11 +736,9 @@ def vegas_integration(event_info, process, verbose=False, mode='XSec'):
         if verbose:
             print("Integrator set up", process, event_info)
         integrand(functools.partial(diff_xsec_func, event_info), **vegas_integrator_options[process])
-        #integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
         if verbose:
             print("Burn-in complete", event_info)
         result = integrand(functools.partial(diff_xsec_func, event_info), **vegas_integrator_options[process])
-        #result = integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
         if verbose:
             print("Fully Integrated", event_info, result.mean)
         if mode == 'Pickle':
@@ -769,8 +746,8 @@ def vegas_integration(event_info, process, verbose=False, mode='XSec'):
         else:
             return result.mean
     elif mode == 'Sample' or mode == 'UnweightedSample':
-        integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
-        result = integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
+        integrand(functools.partial(diff_xsec_func, event_info), **vegas_integrator_options[process])
+        result = integrand(functools.partial(diff_xsec_func, event_info), **vegas_integrator_options[process])
 
         integral, pts = 0.0, []
         for x, wgt in integrand.random_batch():
