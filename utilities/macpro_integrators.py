@@ -21,13 +21,13 @@ def main(doSM=True, doDark=True):
     processing_params = {'process_targets':['graphite','lead'], 'save_location':path + '/macpro_test'}
     #args = training_params.update(processing_params)
     # List of processes to do
-    processes_to_do = ['Brem', 'PairProd', 'Comp', 'Ann', 'Moller', 'Bhabha']
+    processes_to_do = ['Comp', 'Ann', 'Moller', 'Bhabha', 'Brem', 'PairProd']
     # Loop over processes, carrying out each step of the calculation, they can also be called in one command generate_integrators
     if doSM:
-        for process in processes_to_do:
-            generate_integrators.make_integrators(training_params, process)
-            generate_integrators.stitch_integrators(training_params['save_location'] + '/' + process + '/')
-            generate_integrators.cleanup(training_params['save_location'] + "/" + process + "/")
+        #for process in processes_to_do:
+        #    generate_integrators.make_integrators(training_params, process)
+        #    generate_integrators.stitch_integrators(training_params['save_location'] + '/' + process + '/')
+        #    generate_integrators.cleanup(training_params['save_location'] + "/" + process + "/")
         # List of processes to run find_maxes on, need not be the same as list above
         find_maxes_processes_to_do = ['Brem', 'PairProd', 'Comp', 'Ann', 'Moller', 'Bhabha']
         generate_integrators.call_find_maxes(processing_params, find_maxes_processes_to_do)
@@ -42,7 +42,7 @@ def main(doSM=True, doDark=True):
     training_params = {'verbosity':True, 'initial_energy_list':initial_energy_list_general,
                     'save_location':save_location,
                     'run_find_maxes':True, 'mV_list':mV_list, 'training_target':'hydrogen', 'mT':200.0}
-    processes_to_do = ['DarkBrem', 'DarkAnn', 'DarkComp']
+    processes_to_do = ['DarkAnn', 'DarkComp', 'DarkBrem']
 
     if doDark:
         for mV in mV_list:
@@ -61,12 +61,16 @@ def main(doSM=True, doDark=True):
                         energy_list = np.logspace(np.log10(Eg0), np.log10(energy_list[-1]), len(energy_list))
                 training_params.update({'initial_energy_list':energy_list})
                 training_params.update({"mV":mV})
-                generate_integrators.make_integrators(training_params, process)
-                generate_integrators.stitch_integrators(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
-                generate_integrators.cleanup(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
+                if os.path.exists(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/" + process + "_AdaptiveMaps.npy"):
+                    print("Already finished this whole process, skipping")
+                    continue
+                else:
+                    generate_integrators.make_integrators(training_params, process)
+                    generate_integrators.stitch_integrators(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
+                    generate_integrators.cleanup(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
 
         processing_params = {'process_targets':['graphite','lead'], 'save_location':save_location, 'mV_list':mV_list}
         generate_integrators.call_find_maxes(processing_params, processes_to_do)
 
 if __name__ == "__main__":
-    main(doSM=True, doDark=True)
+    main(doSM=False, doDark=True)

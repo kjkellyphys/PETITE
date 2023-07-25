@@ -70,7 +70,7 @@ def do_find_max_work(params, process_file):
     diff_xsec = params['diff_xsec']
     event_info, integrand_or_map = process_file
 
-    integrand = vegas.Integrator(map=integrand_or_map, nstrat=nstrat_options[params['process']])
+    integrand = vegas.Integrator(map=integrand_or_map, **vegas_integrator_options[event_info['process']])#nstrat=nstrat_options[params['process']])
     save_copy = copy.deepcopy(integrand_or_map)
 
     max_F_TM = {}

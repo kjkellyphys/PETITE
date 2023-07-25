@@ -622,9 +622,9 @@ vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[60, 50, 40, 50]},
                             "Moller":{"nitn":20, "nstrat":[1000]},
                             "Bhabha":{"nitn":20, "nstrat":[1000]},
                             "Ann":{"nitn":20, "nstrat":[1000]},
-                            "DarkAnn":{"nitn":10, "neval":10000,
+                            "DarkAnn":{"nitn":10, "neval":10000},
                             "DarkComp":{"nitn":20, "nstrat":[1000]}}
-                            }
+                            
 #vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[10, 10, 10, 10]},
 #                            "Brem":{"nitn":10, "nstrat":[10, 10, 10, 10]},
 #                            "DarkBrem":{"nitn":20, "nstrat":[40, 40, 16]},
