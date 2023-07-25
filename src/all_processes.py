@@ -4,8 +4,10 @@ import functools
 import random as rnd
 try:
     from .physical_constants import *
+    from .radiative_return import lepton_luminosity_integrand, transformed_lepton_luminosity_integrand
 except:
     from physical_constants import *
+    from radiative_return import lepton_luminosity_integrand, transformed_lepton_luminosity_integrand
 
 #--------------------------------------------------------------------------
 #Functions for atomic form factors for incident photons/electrons/positrons
@@ -55,7 +57,7 @@ def brem_q_sq_dimensionless(xx, EI):
     epp = ep - w
     return m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
 
-def exactbrem_qsq(xx, EI):
+def darkbrem_qsq(xx, EI):
     x, l1mct, ttilde = xx
 
     Ebeam = EI['E_inc']
@@ -85,7 +87,7 @@ mp = 0.938
 mup = 2.79
 def Gelastic_inelastic(EI, t):
     """
-    Form factor used for elastic/inelastic contributions to Exact Bremsstrahlung Calculation
+    Form factor used for elastic/inelastic contributions to Dark Bremsstrahlung Calculation
     (Scales like Z^2 in the small-t limit)
     """
     Z = EI['Z_T']
@@ -113,9 +115,8 @@ def dsigma_brem_dimensionless(event_info, phase_space_par_list):
             Z (Target Atomic Number)
     """
     ep=event_info['E_inc']
-    Z =event_info['Z_T']
-    event_info_H = event_info
-    event_info_H['Z_T'] = 1.0
+    #event_info_H = event_info
+    #event_info_H['Z_T'] = 1.0
     Egamma_min = event_info['Eg_min']
     mV=0
 
@@ -133,15 +134,16 @@ def dsigma_brem_dimensionless(event_info, phase_space_par_list):
             qsq = m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
             PF = 8.0/np.pi*alpha_em*(alpha_em/m_electron)**2*(epp*m_electron**4)/(w*ep*qsq**2)*d*dp
             jacobian_factor = np.pi*ep**2*(ep - m_electron - Egamma_min)/m_electron**2
-            FF_hydrogen = g2_elastic(event_info_H, qsq)
+            #FF_hydrogen = g2_elastic(event_info_H, qsq)
+            FF = g2_elastic(event_info, qsq)
             T1 = d**2/(1 + d**2)**2
             T2 = dp**2/(1 + dp**2)**2
             T3 = w**2/(2*ep*epp)*(d**2 + dp**2)/((1 + d**2)*(1 + dp**2))
             T4 = -(epp/ep + ep/epp)*(d*dp*np.cos(ph))/((1 + d**2)*(1 + dp**2))
-            dSig0 = PF*(T1+T2+T3+T4)*jacobian_factor*FF_hydrogen
+            dSig0 = PF*(T1+T2+T3+T4)*jacobian_factor*FF
 
             if dSig0 < 0.0 or np.isnan(dSig0):
-                print([dSig0, PF, T1, T2, T3, T4, qsq, jacobian_factor, FF_hydrogen])
+                print([dSig0, PF, T1, T2, T3, T4, qsq, jacobian_factor, FF])
                 print([x1,x2,x3,x4])
                 print([w,d,dp,ph])
             dSigs.append(dSig0)
@@ -151,7 +153,7 @@ def dsigma_brem_dimensionless(event_info, phase_space_par_list):
     else:
         return dSigs
 
-def dsigma_darkbrem_dP_T(event_info, phase_space_par_list):
+def dsigma_darkbrem_dP_T(event_info, phase_space_par_list): #FIXME: can we delete this function?
     """Dark Vector Bremsstrahlung in the Small-Angle Approximation
        e (ep) + Z -> e (epp) + V (w) + Z
        Outgoing kinematics given by w, d (delta), dp (delta'), and ph (phi)
@@ -296,6 +298,68 @@ def dsig_etl_helper(params, v):
     x, l1mct, t = v
     return dsig_dx_dcostheta_dark_brem_exact_tree_level(x, l1mct, t, params)
 
+def dsigma_radiative_return_dx(event_info, x):
+    """
+    Radiative return cross-section e^+ e^- > V differential with respect to the longitudinal momentum fraction 
+    carried by one of beam particles
+    Args:
+        event_info - dictionary with parameter needed to evaluate the cross-section: 
+            E_inc - incoming positron energy
+            mV - vector mass
+        x - fraction of initial CM momentum carried by one of the beam particles 
+    Returns:
+        radiative return cross-section in GeV^-2
+    """
+    mV = event_info['mV']
+    Ee = event_info['E_inc']
+
+    s = 2.0*m_electron*(Ee+m_electron)
+    betaf = np.sqrt( 1. - 4.*(m_electron**2) / (mV**2) )
+    
+    prefac = (4.*np.pi**2)*alpha_em*betaf*(3./2. - betaf**2 / 2.)/s
+    
+    # this needs to be integrated over x in [y, 1], where y=mV^2/s
+    return prefac*lepton_luminosity_integrand(s, mV**2/s, x) 
+
+def dsigma_radiative_return_du(event_info, phase_space_par_list):
+    """
+    Radiative return cross-section e^+ e^- > V differential with respect to the longitudinal momentum fraction 
+    carried by one of beam particles
+    Args:
+        event_info - dictionary with parameter needed to evaluate the cross-section: 
+            E_inc - incoming positron energy
+            mV - vector mass
+        u - (1-x)^(beta/2) where x is the fraction of initial CM momentum carried by one of the beam particles 
+    Returns:
+        radiative return cross-section in GeV^-2
+    """
+    mV = event_info['mV']
+    Ee = event_info['E_inc']
+
+    s = 2.0*m_electron*(Ee+m_electron)
+    if s < mV**2:
+        if len(np.shape(phase_space_par_list)) <= 1:
+            return 0.
+        else:
+            return np.zeros(shape=len(phase_space_par_list))
+    betaf = np.sqrt( 1. - 4.*(m_electron**2) / (mV**2) )
+    prefac = (4.*np.pi**2)*alpha_em*betaf*(3./2. - betaf**2 / 2.)/s
+
+    if len(np.shape(phase_space_par_list)) == 0:
+        phase_space_par_list = np.array([phase_space_par_list])
+
+    # this needs to be integrated over x in [sqrt(y), 1], where y=mV^2/s and multiplied by 2
+    # the factor of 2 comes from splitting the [y,1] integration into [y,sqrt(y)] + [sqrt(y),1] and using x-> y/x in the first part comes from splitting the [y,1] integration into [y,sqrt(y)] + [sqrt(y),1] and using x-> y/x in the first part 
+    dSigs = []
+    for u in phase_space_par_list:
+        dSigs.append(2.*prefac*transformed_lepton_luminosity_integrand(s, mV**2/s, u))
+    if len(dSigs) == 1:
+        return dSigs[0]
+    else:
+        return dSigs
+    #return 2.*prefac*transformed_lepton_luminosity_integrand(s, mV**2/s, u)
+
+
 def dsigma_annihilation_dCT(event_info, phase_space_par_list):
     """Annihilation of a Positron and Electron into a Photon and a (Dark) Photon
        e+ (Ee) + e- (me) -> gamma + gamma/V
@@ -307,8 +371,18 @@ def dsigma_annihilation_dCT(event_info, phase_space_par_list):
             al (electro-weak fine-structure constant)
     """
     Ee=event_info['E_inc']
-    mV=event_info['mV']
+    if 'mV' in event_info.keys():
+        mV=event_info['mV']
+    else:
+        mV = 0.0
     s = 2.0*m_electron*(Ee+m_electron)
+
+    if 'Eg_min' in event_info.keys():
+        EgMin = event_info['Eg_min']
+    else:
+        EgMin = 0.0
+    ctMax = np.sqrt((Ee+m_electron)/(Ee-m_electron))*(2*m_electron*(Ee-2*EgMin+m_electron)-mV**2)/(2*m_electron*(Ee+m_electron)-mV**2)
+
     if s < mV**2:
         if len(np.shape(phase_space_par_list)) == 1:
             return 0.0
@@ -322,7 +396,10 @@ def dsigma_annihilation_dCT(event_info, phase_space_par_list):
 
     for varth in phase_space_par_list:
         ct = varth[0]
-        dSigs.append(4.0*np.pi*alpha_em**2/(s*(1 - b**2*ct**2))*((s-mV**2)/(2*s)*(1+ct**2) + 2.0*mV**2/(s-mV**2)))
+        if ct > ctMax:
+            dSigs.append(0.0)
+        else:
+            dSigs.append(4.0*np.pi*alpha_em**2/(s*(1 - b**2*ct**2))*((s-mV**2)/(2*s)*(1+ct**2) + 2.0*mV**2/(s-mV**2)))
     if len(dSigs) == 1:
         return dSigs[0]
     else:
@@ -338,9 +415,8 @@ def dsigma_pairprod_dimensionless(event_info, phase_space_par_list):
             Z (Target Atomic Number)
     """
     w=event_info['E_inc']
-    Z =event_info['Z_T']
-    event_info_H = event_info
-    event_info_H['Z_T'] = 1.0
+    #event_info_H = event_info
+    #event_info_H['Z_T'] = 1.0
 
     mV=0
     
@@ -358,17 +434,18 @@ def dsigma_pairprod_dimensionless(event_info, phase_space_par_list):
             qsq_over_m_electron_sq = (dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + m_electron**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2
             PF = 8.0/np.pi*alpha_em*(alpha_em/m_electron)**2*epp*epm/(w**3*qsq_over_m_electron_sq**2)*dp*dm
             jacobian_factor = np.pi*w**2*(w-2*m_electron)/m_electron**2
-            FF_hydrogen = g2_elastic(event_info_H, m_electron**2*qsq_over_m_electron_sq)
+            #FF_hydrogen = g2_elastic(event_info_H, m_electron**2*qsq_over_m_electron_sq)
+            FF = g2_elastic(event_info, m_electron**2*qsq_over_m_electron_sq)
 
             T1 = -1.0*dp**2/(1.0 + dp**2)**2
             T2 = -1.0*dm**2/(1.0 + dm**2)**2
             T3 = w**2/(2.0*epp*epm)*(dp**2 + dm**2)/((1.0 + dp**2)*(1.0 + dm**2))
             T4 = (epp/epm + epm/epp)*(dp*dm*np.cos(ph))/((1.0 + dp**2)*(1.0+dm**2))
 
-            dSig0 = PF*(T1+T2+T3+T4)*jacobian_factor*FF_hydrogen
+            dSig0 = PF*(T1+T2+T3+T4)*jacobian_factor*FF#_hydrogen
 
             if dSig0 < 0.0 or np.isnan(dSig0):
-                print([dSig0, PF, T1, T2, T3, T4, qsq_over_m_electron_sq, jacobian_factor, FF_hydrogen])
+                print([dSig0, PF, T1, T2, T3, T4, qsq_over_m_electron_sq, jacobian_factor, FF])
             dSigs.append(dSig0)
     if len(dSigs) == 1:
         return dSigs[0]
@@ -384,7 +461,10 @@ def dsigma_compton_dCT(event_info, phase_space_par_list):
             MV (Dark Vector Mass -- can be set to zero for SM Case)
     """
     Eg=event_info['E_inc']
-    mV=event_info['mV']
+    if 'mV' in event_info.keys():
+        mV=event_info['mV']
+    else:
+        mV = 0.0
 
     s = m_electron**2 + 2*Eg*m_electron
     if s < (m_electron + mV)**2:
@@ -431,18 +511,39 @@ def dsigma_moller_dCT(event_info, phase_space_par_list):
             Einc (incident electron energy)
     """
     Ee = event_info['E_inc']
+    if 'Ee_min' in event_info.keys():
+        DE = event_info['Ee_min']
+    else:
+        DE = 0.010
+    delta_ct_limit = 2.0*DE/(Ee - m_electron)
     if len(np.shape(phase_space_par_list)) == 1:
         phase_space_par_list = np.array([phase_space_par_list])
     dSigs = []
     for varth in phase_space_par_list:
         ct = varth[0]
-        s = m_electron**2 + 2*Ee*m_electron
-
-        dSigs.append(16*np.pi**2*alpha_em**2*(s**2*(3+ct**2)**2 - 8*m_electron**2*s*(7+ct**4)+16*m_electron**4*(6-3*ct**2+ct**4))/(8*np.pi*s*(s-4*m_electron**2)**2*(1-ct)**2*(1+ct)**2))
+        if (ct < -1 + delta_ct_limit) or (ct > 1.0 - delta_ct_limit):
+            dSigs.append(0.0)
+        else:
+            s = m_electron**2 + 2*Ee*m_electron
+            dSigs.append(16*np.pi**2*alpha_em**2*(s**2*(3+ct**2)**2 - 8*m_electron**2*s*(7+ct**4)+16*m_electron**4*(6-3*ct**2+ct**4))/(8*np.pi*s*(s-4*m_electron**2)**2*(1-ct)**2*(1+ct)**2))
     if len(dSigs) == 1:
         return dSigs[0]
     else:
         return dSigs
+    
+def sigma_moller(event_info):
+    """Total cross section for Moller scattering
+    """
+
+    Ee = event_info['E_inc']
+    TeMIN = event_info['Ee_min'] - m_electron
+    threshold = 3*m_electron + 4*TeMIN
+
+    PF = 2*np.pi*alpha_em**2/(m_electron*(Ee**2 - m_electron**2))
+    T1 = Ee - 3*m_electron - 4*TeMIN + 2*Ee**2*(-2/(Ee - 3*m_electron - 2*TeMIN) + 1/TeMIN + 1/(-Ee+m_electron+TeMIN) + 2/(Ee + m_electron + 2*TeMIN))
+    T2 = 2*m_electron*(m_electron-2*Ee)/(Ee-m_electron)* np.log(((-Ee+m_electron+TeMIN)*(-Ee+3*m_electron+2*TeMIN)/(TeMIN*(Ee+m_electron+2*TeMIN)))*np.heaviside(Ee-threshold,1) + np.heaviside(threshold-Ee,1))
+
+    return PF*(T1+T2)*np.heaviside(Ee-threshold, 1)
 
 def dsigma_bhabha_dCT(event_info, phase_space_par_list):
     """Bhabha Scattering of a Positron off an at-rest Electron
@@ -452,19 +553,40 @@ def dsigma_bhabha_dCT(event_info, phase_space_par_list):
             Einc (incident positron energy)
     """
     Ee = event_info['E_inc']
+    if 'Ee_min' in event_info.keys():
+        DE = event_info['Ee_min']
+    else:
+        DE = 0.010    
+    delta_ct_limit = 2.0*DE/(Ee - m_electron)
     if len(np.shape(phase_space_par_list)) == 1:
         phase_space_par_list = np.array([phase_space_par_list])
     dSigs = []
     for varth in phase_space_par_list:
         ct = varth[0]
-        s = m_electron**2 + 2*Ee*m_electron 
-        dSigs.append((alpha_em**2*np.pi*(256*(-1 + ct)**2*ct**2*m_electron**8 - 128*(-1 + ct)*(1 + ct*(1 + ct)*(-3 + 2*ct))*m_electron**6*s + 16*(7 + ct*(2 + ct*(-5 + 6*(-1 + ct)*ct)))\
+        if (ct < -1 + delta_ct_limit) or (ct > 1.0 - delta_ct_limit):
+            dSigs.append(0.0)
+        else:
+            s = m_electron**2 + 2*Ee*m_electron 
+            dSigs.append((alpha_em**2*np.pi*(256*(-1 + ct)**2*ct**2*m_electron**8 - 128*(-1 + ct)*(1 + ct*(1 + ct)*(-3 + 2*ct))*m_electron**6*s + 16*(7 + ct*(2 + ct*(-5 + 6*(-1 + ct)*ct)))\
                             *m_electron**4*s**2 - 8*(7 + ct*(-3 + ct*(3 + ct*(-1 + 2*ct))))*m_electron**2*s**3 + (3 + ct**2)**2*s**4))/(2*(-1 + ct)**2*s**3*(-4*m_electron**2 + s)**2))
     if len(dSigs) == 1:
         return dSigs[0]
     else:
         return dSigs
     
+def sigma_bhabha(event_info):
+    """Total cross section for Bhabha scattering"""
+
+    Ee = event_info['E_inc']
+    TeMIN = event_info['Ee_min'] - m_electron
+    threshold = 3*m_electron + 4*TeMIN
+
+    PF = np.pi*alpha_em**2/(12*(Ee-m_electron)*m_electron*(Ee+m_electron)**3*(Ee-3*m_electron-2*TeMIN)*TeMIN)
+    T1 = (Ee-3*m_electron-4*TeMIN)*(24*Ee**2*(Ee+m_electron)**2 + (Ee-3*m_electron)*(31*Ee**2+84*Ee*m_electron+57*m_electron**2)*TeMIN-4*(16*Ee**2+39*Ee*m_electron+33*m_electron**2)*TeMIN**2 + 8*(Ee-3*m_electron)*TeMIN**3-8*TeMIN**4)
+    T2 = 24*(Ee+m_electron)*(2*Ee**2+4*Ee*m_electron+m_electron**2)*(Ee-3*m_electron-2*TeMIN)*TeMIN*np.log((2*TeMIN/(Ee-3*m_electron-2*TeMIN))*np.heaviside(Ee-threshold,1) + np.heaviside(threshold-Ee,1))
+
+    return PF*(T1+T2)*np.heaviside(Ee-threshold, 1)
+
 #Function for drawing unweighted events from a weighted distribution
 def get_points(distribution, npts):
     """If weights are too cumbersome, this function returns a properly-weighted sample from Dist"""
@@ -489,32 +611,40 @@ diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                        "Bhabha"   : dsigma_bhabha_dCT,
                        "Brem"     : dsigma_brem_dimensionless,
                        "Ann"      : dsigma_annihilation_dCT, 
-                       "DarkBrem" : dsigma_darkbrem_dP_T,
-                       "ExactBrem" :  dsig_etl_helper}
-nitn_options={"PairProd":10,
-              "Brem":10,
-              "DarkBrem":10,
-              "ExactBrem":20,
-              "Comp":20,
-              "Moller":20,
-              "Bhabha":20,
-              "Ann":20}
-nstrat_options={"PairProd":[40, 40, 40, 40],
-                "Brem":[40, 40, 40, 40],
-                "DarkBrem":[15, 25, 25, 15],
-                "ExactBrem":[100,100,40],
-                "Comp":[1000],
-                "Moller":[1000],
-                "Bhabha":[1000],
-                "Ann":[1000]}
+                       "DarkAnn"   : dsigma_radiative_return_du, #dsigma_radiative_return_dx,
+                       "DarkComp" : dsigma_compton_dCT,
+                       "DarkBrem" :  dsig_etl_helper}
 
-four_dim = {"PairProd", "Brem", "DarkBrem"}
-three_dim = {"ExactBrem"}
-two_dim = {"Comp", "Ann","Moller","Bhabha"}
+vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[60, 50, 40, 50]},
+                            "Brem":{"nitn":10, "nstrat":[60, 50, 50, 50]},
+                            "DarkBrem":{"nitn":20, "nstrat":[100, 100, 40]},
+                            "Comp":{"nitn":20, "nstrat":[1000]},
+                            "Moller":{"nitn":20, "nstrat":[1000]},
+                            "Bhabha":{"nitn":20, "nstrat":[1000]},
+                            "Ann":{"nitn":20, "nstrat":[1000]},
+                            "DarkAnn":{"nitn":10, "neval":10000},
+                            "DarkComp":{"nitn":20, "nstrat":[1000]}}
+                            
+#vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[10, 10, 10, 10]},
+#                            "Brem":{"nitn":10, "nstrat":[10, 10, 10, 10]},
+#                            "DarkBrem":{"nitn":20, "nstrat":[40, 40, 16]},
+#                            "Comp":{"nitn":20, "nstrat":[1000]},
+#                            "Moller":{"nitn":20, "nstrat":[1000]},
+#                            "Bhabha":{"nitn":20, "nstrat":[1000]},
+#                            "Ann":{"nitn":20, "nstrat":[1000]},
+#                            "DarkAnn":{"nitn":10, "neval":10000},
+#                            "DarkComp":{"nitn":20, "nstrat":[1000]}
+#                            }
+
+four_dim = {"PairProd", "Brem"}
+three_dim = {"DarkBrem"}
+one_dim = {"Comp", "Ann","Moller","Bhabha", "DarkAnn", "DarkComp"}
 
 def integration_range(event_info, process):
     EInc=event_info['E_inc']
     mV=event_info['mV']
+    s = 2.0*m_electron*(EInc+m_electron)
+
     if process in four_dim:
         if process == "PairProd" or process == 'Brem':
             return [[0, 1], [0, 2], [-2, 2], [0, 1]]
@@ -535,9 +665,18 @@ def integration_range(event_info, process):
             xmin = 0.
 
         return [[max(xmin, mV/EInc), 1.-m_electron/EInc],[-12.0, l1mct_max], [-20.0, 0.0]]
-    elif process in two_dim:
-        if process == "Comp" or process == "Ann":
+    elif process in one_dim:
+        if process == "Comp" or process == "Ann" or process == "DarkComp":
             return [[-1., 1.0]]
+        elif process == "DarkAnn":
+            # x integration range
+            #return [[mV**2/s,1.]]
+            # u integration range
+            beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
+            if s > mV**2:
+                return [[0., np.power(1.-np.sqrt(mV**2/s),beta/2.)]]
+            else:
+                return [[0.,0.]]
         else:
             if 'Ee_min' in event_info.keys():
                 DE = event_info['Ee_min']
@@ -559,6 +698,7 @@ def vegas_integration(event_info, process, verbose=False, mode='XSec'):
         -- 'PairProd': SM gamma + Z -> e^+ + e^- + Z
         -- 'Comp': SM/BSM gamma + e -> e + gamma/V
         -- 'Ann': SM/BSM e^+ e^- -> gamma + gamma/V
+        -- 'DarkAnn': e^+ e^- -> V
 
         ('Brem', 'DarkBrem', 'PairProd' calculated in 
          small-angle approximation)
@@ -595,10 +735,10 @@ def vegas_integration(event_info, process, verbose=False, mode='XSec'):
     if mode == 'Pickle' or mode == 'XSec':
         if verbose:
             print("Integrator set up", process, event_info)
-        integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
+        integrand(functools.partial(diff_xsec_func, event_info), **vegas_integrator_options[process])
         if verbose:
             print("Burn-in complete", event_info)
-        result = integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
+        result = integrand(functools.partial(diff_xsec_func, event_info), **vegas_integrator_options[process])
         if verbose:
             print("Fully Integrated", event_info, result.mean)
         if mode == 'Pickle':
@@ -606,8 +746,8 @@ def vegas_integration(event_info, process, verbose=False, mode='XSec'):
         else:
             return result.mean
     elif mode == 'Sample' or mode == 'UnweightedSample':
-        integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
-        result = integrand(functools.partial(diff_xsec_func, event_info), nitn=nitn_options[process], nstrat=nstrat_options[process])
+        integrand(functools.partial(diff_xsec_func, event_info), **vegas_integrator_options[process])
+        result = integrand(functools.partial(diff_xsec_func, event_info), **vegas_integrator_options[process])
 
         integral, pts = 0.0, []
         for x, wgt in integrand.random_batch():
