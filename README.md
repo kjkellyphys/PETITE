@@ -9,9 +9,29 @@ To install, from the top directory run
 
 ## Running PETITE
 TBD
-We first describe how to run PETITE using the pre-generated VEGAS integrator files.  It is also possible to generate new files for both SM and dark processes.  The scripts necessary for this are in the utilities directory and we describe their use below, as well as in utilities/README.md.  Jupyter notebook examples of how to run PETITE using pre-generated files are given in examples/shower_SM.ipynb and examples/dark_shower.ipynb.
+
+We first describe how to run PETITE using the pre-generated VEGAS integrator files.  It is also possible to generate new files for both SM and dark processes.  The tools necessary for this are in the utilities directory and we describe their use below, as well as in utilities/README.md.  Jupyter notebook examples of how to run PETITE using pre-generated files are given in the examples directory.
 
 First one must import the VEGAS integrators and other infrastructure for the physicsal processes in the relevant material.  This is done using Shower and DarkShower.  With these loaded one may then generate a full shower by calling generate_(dark_)shower, or investigate individual physical processes using draw_(dark_)sample.
+
+Reorder tutorial to have running order -- event display, validation, then individual processes/messign with VEGAS.  
+FIXME: Why does shower not work if run twice in a row??
+
+
+
+# Generating a full SM shower:
+    - Define initial particle that seeds shower eg an electron with 4-momentum [E0,px,py,pz] entering at position [0,0,0] `Particle([E0,px,py,pz], [0,0,0], {"PID":11})`
+    - Setup the necessary infrastructure for a shower sGraphite = Shower(<directory containing dictionaries>, <material>, <min energy down to which particles are trcked, in GeV>) eg 
+    `sGraphite = Shower(dictionary_dir_TEMP, "graphite", 0.010)`
+    - Generate a shower `standard_shower = sGraphite.generate_shower(p0, VB=True)`
+
+    
+
+
+
+
+
+
 # Pre-generated VEGAS integrators
 PETITE comes with pre-generated VEGAS integrators (both before and after processing) for standard showers in graphite and lead.
 You can find them in the ./data/
