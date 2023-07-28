@@ -574,3 +574,99 @@ class Shower:
                             all_particles.append(dp)
                     
         return all_particles
+
+def event_display(all_particles):
+    '''Draws event display for a list of particles'''
+    import matplotlib
+    from matplotlib import pyplot as plt
+    from matplotlib.font_manager import FontProperties
+    from matplotlib.ticker import FixedLocator, MaxNLocator
+
+    # Set up fonts and figure specs
+    font0 = FontProperties()
+    font = font0.copy()
+    font.set_size(24)
+    font.set_family('serif')
+    labelfont=font0.copy()
+    labelfont.set_size(20)
+    labelfont.set_weight('bold')
+    legfont=font0.copy()
+    legfont.set_size(18)
+    legfont.set_weight('bold')
+
+    figwid = 6.0*2.0
+    fighei = 6.0*0.5
+    lside = 3.0
+    rside = 3.5
+    wwspace = 1.25
+
+    ncol = 1
+    nrow = 2
+
+    wid = lside + ncol*figwid + (ncol-1)*wwspace + rside
+
+    bot = 3.77
+    top = 3.5
+    hhspace = 0.25
+
+    hei = bot + nrow*fighei + (nrow-1)*hhspace + top
+
+    lfactor = lside/wid
+    rfactor = rside/wid
+    bfactor = bot/hei
+    tfactor = top/hei
+    wfactor = wwspace/figwid
+    hfactor = hhspace/fighei
+
+    matplotlib.rcParams['axes.linewidth'] = 2.0
+    fig, axes = plt.subplots(nrow, ncol, figsize=(wid, hei), facecolor='1.0');
+    fig.subplots_adjust(left = lfactor, bottom=bfactor, right=(1.0-rfactor), top=(1.0-tfactor), wspace=wfactor, hspace=hfactor);
+
+    # get max z and x or y values in all particles in the shower
+    zmin = -0.02
+    zmax = np.max([p.get_rf()[2] for p in all_particles])
+    ymax = np.max([np.max([np.abs(p.get_rf()[0]) for p in all_particles]), np.max([np.abs(p.get_rf()[1]) for p in all_particles])])
+    ymin = -ymax
+
+    ax = axes[0]
+    ax.axis([zmin, zmax, ymin, ymax])
+    ax.plot([zmin, zmin, zmax, zmax, zmin], [ymin, ymax, ymax, ymin, ymin], ls='-', color='k', lw=4, zorder=50)
+    ax.set_ylabel(r'$x\ [\mathrm{m}]$', fontproperties=font)        
+
+    ax.tick_params(direction='in', zorder=30, length=20, width=2)
+    ax.tick_params(direction='in', which='minor', zorder=30, length=15, width=1.5)
+    [l.set_position((0.5, -0.015)) for l in ax.get_xticklabels()]
+    [l.set_size((0)) for l in ax.get_xticklabels()]
+    [l.set_size((labelfont.get_size())) for l in ax.get_yticklabels()]
+
+    for ki0 in all_particles:
+        ki = np.concatenate([ki0.get_r0(), ki0.get_rf()])
+        if ki0.get_pid() == 22:
+            with matplotlib.rc_context({'path.sketch': (5, 15, 1)}):
+                ax.plot([ki[2], ki[5]], [ki[0], ki[3]], lw=1, ls='-', color='g', alpha=0.5)
+        if ki0.get_pid() == 11:
+            ax.plot([ki[2], ki[5]], [ki[0], ki[3]], lw=1, ls='-', color='r', alpha=0.5)
+        if ki0.get_pid() == -11:
+            ax.plot([ki[2], ki[5]], [ki[0], ki[3]], lw=1, ls='-', color='b', alpha=0.5)
+
+    ax = axes[1]
+    ax.axis([zmin, zmax, ymin, ymax])
+    ax.plot([zmin, zmin, zmax, zmax, zmin], [ymin, ymax, ymax, ymin, ymin], ls='-', color='k', lw=4, zorder=50)
+    ax.set_xlabel(r'$z\ [\mathrm{m}]$', fontproperties=font)        
+    ax.set_ylabel(r'$y\ [\mathrm{m}]$', fontproperties=font)        
+
+    ax.tick_params(direction='in', zorder=30, length=20, width=2)
+    ax.tick_params(direction='in', which='minor', zorder=30, length=15, width=1.5)
+    [l.set_position((0.5, -0.015)) for l in ax.get_xticklabels()]
+    [l.set_size((labelfont.get_size())) for l in ax.get_xticklabels()]
+    [l.set_size((labelfont.get_size())) for l in ax.get_yticklabels()]
+
+    for ki0 in all_particles:
+        ki = np.concatenate([ki0.get_r0(), ki0.get_rf()])
+        if ki0.get_pid() == 22:
+            with matplotlib.rc_context({'path.sketch': (5, 15, 1)}):
+                ax.plot([ki[2], ki[5]], [ki[1], ki[4]], lw=1, ls='-', color='g', alpha=0.5)
+        if ki0.get_pid() == 11:
+            ax.plot([ki[2], ki[5]], [ki[1], ki[4]], lw=1, ls='-', color='r', alpha=0.5)
+        if ki0.get_pid() == -11:
+            ax.plot([ki[2], ki[5]], [ki[1], ki[4]], lw=1, ls='-', color='b', alpha=0.5)
