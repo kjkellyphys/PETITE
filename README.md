@@ -12,7 +12,7 @@ TBD
 
 We first describe how to run PETITE using the pre-generated VEGAS integrator files.  It is also possible to generate new files for both SM and dark processes.  The tools necessary for this are in the utilities directory and we describe their use below, as well as in utilities/README.md.  Jupyter notebook examples of how to run PETITE using pre-generated files are given in the examples directory.
 
-First one must import the VEGAS integrators and other infrastructure for the physicsal processes in the relevant material.  This is done using Shower and DarkShower.  With these loaded one may then generate a full shower by calling generate_(dark_)shower, or investigate individual physical processes using draw_(dark_)sample.
+First one must import the VEGAS integrators and other infrastructure for the physicsal processes in the relevant material.  This is done using the classes `Shower` and `DarkShower`.  With these loaded one may then generate a full shower by calling `generate_(dark_)shower`, or investigate individual physical processes using `draw_(dark_)sample`.
 
 Reorder tutorial to have running order -- event display, validation, then individual processes/messign with VEGAS.  
 FIXME: Why does shower not work if run twice in a row??
