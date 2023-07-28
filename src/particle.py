@@ -65,6 +65,7 @@ class Particle:
             r0 = np.array(r0)
         self.set_r0(r0)
 
+        # the ended key is used to determine whether the particle is an intermediate particle in the shower (False) or a final particle (True)
         self.set_ended(False)
 
         self.set_pf(p0)
@@ -113,6 +114,10 @@ class Particle:
         self._pf = value
     def get_pf(self):
         return self._pf
+    
+    def get_angle_to_z_0(self):
+        E0, px0, py0, pz0 = self.get_p0()
+        return np.arccos(pz0/np.sqrt(px0**2 + py0**2 + pz0**2))
 
     def lose_energy(self, value):
         E0, px0, py0, pz0 = self.get_pf()
@@ -134,9 +139,11 @@ class Particle:
         return self._rf
 
     def set_ended(self, value):    
+        '''Sets the ended property of the particle. If True, the particle is a final particle in the shower.'''
         if value != True and value != False:
             raise ValueError("Ended property must be a boolean.")
         self._Ended = value
+
     def get_ended(self):
         return self._Ended
 
