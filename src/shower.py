@@ -13,6 +13,7 @@ np.random.seed(int(datetime.now().timestamp()))
 
 import sys
 from numpy.random import random as draw_U
+import copy
 
 
 Z = {'hydrogen':1.0, 'graphite':6.0, 'lead':82.0} #atomic number of different targets
@@ -500,7 +501,8 @@ class Shower:
             print("Initial four-momenta:")
             print(p0.get_p0())
         p0.set_ended(False)
-        all_particles = [p0]
+        p0copy = copy.deepcopy(p0)
+        all_particles = [p0copy]
 
         if GlobalMS==True:
             MS_e=True
