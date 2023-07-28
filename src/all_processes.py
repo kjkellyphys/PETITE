@@ -23,8 +23,7 @@ def pair_production_q_sq_dimensionless(xx, EI):
     Args:
         xx: tuple consisting of kinematic rescaled kinematic variables 
             epsilon_plus, delta_plus, delta_minus, phi (see ... for definitions) 
-        me: electron mass 
-        w:  frequency of emitted virtual photon, equal to sum of energies of outgoing e+- pair
+        EI: dictionary with incident energy 'E_inc'
     Returns:
         nuclear momentum transfer squared
     """
@@ -38,14 +37,8 @@ def pair_production_q_sq_dimensionless(xx, EI):
 def brem_q_sq_dimensionless(xx, EI):
     """Momentum Transfer Squared for electron/positron bremsstrahlung
     Args:
-        w: frequency of radiated photon 
-        d: rescaled emission angle, equal to theta * epsilon/m, 
-           where epsilon energy of incoming lepton
-        dp: rescaled emission angle, equal to theta * epsilon'/m, 
-           where epsilon' energy of outgoing lepton
-        ph: angle phi
-        me: electron mass
-        ep: epsilon', e+/e- energy after radiation
+        xx: tuple consisting of kinematic rescaled kinematic variables
+        EI: dictionary with incident energy 'E_inc' and minimum photon energy 'Eg_min'
     Returns:
         nuclear momentum transfer squared
     """
@@ -68,16 +61,20 @@ def darkbrem_qsq(xx, EI):
 
 
 def aa(Z, me):
+    '''Support function for atomic form factors'''
     return 184.15*(2.718)**-0.5*Z**(-1./3.)/me
 def aap(Z, me):
+    '''Support function for atomic form factors'''
     return 1194*(2.718)**-0.5*Z**(-2./3.)/me
 
 def g2_elastic(EI, t):
+    '''Elastic form factor'''
     Z = EI['Z_T']
     a0 = aa(Z, m_electron)
     return Z**2*a0**4*t**2/(1 + a0**2*t)**2
 
 def g2_inelastic(EI, t):
+    '''Inelastic form factor'''
     Z = EI['Z_T']
     ap0 = aap(Z, m_electron)
     return Z*ap0**4*t**2/(1 + ap0**2*t)**2
