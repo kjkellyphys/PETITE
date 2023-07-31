@@ -4,8 +4,11 @@ PETITE generates electromagnetic showers for incoming electron, positron or phot
 
 ## Installation
 To install, from the top directory run
+ > pip install .
 
-    >> pip install .
+### Dependencies
+PETITE, its tutorials and tools require the following packages: numpy 1.24, vegas (>= 5.4.2), cProfile, pickle, matplotlib, scipy, datetime, tqdm, copy, sys, random and functools. Using `pip install .` should install all requirements, but if needed, you can manually install these packages with
+ > pip install <package_name>==<version>
 
 ## Running PETITE
 *The notebook `./examples/tutorial.ipynb` offers an alternative to this readme.*
@@ -58,6 +61,8 @@ Particles are stored in PETITE as `Particle` objects, (see `./src/particle.py`).
     - `stability`: whether the particle is stable or not (PETITE can perform isotropic 2-body decays of unstable particles such as pi0s)
 
 These attributes can be used for analyzing the shower, see `./examples/tutorial.ipynb` for examples.
+
+*This concludes the minimum information needed to run PETITE.  The following sections are intended for advanced users.*
 
 # Advanced usage
 The following is intended for advanced users who wish to generate their own VEGAS integrators for a given material and/or dark sector model, to understand better the VEGAS sampling procedure, or to understand the file structure of the integrators.
