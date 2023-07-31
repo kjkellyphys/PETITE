@@ -43,6 +43,22 @@ We can plot event displays for both standard and dark shower with
 
 FIXME: Add how it translates to a number of events in a detector
 
+### The `Particle` object
+Particles are stored in PETITE as `Particle` objects, (see `./src/particle.py`). The `Particle` class has the following attributes:
+- `p0`: 4-momentum of the particle at the start of the shower. If given a scalar, it is assumed to be the energy of a particle propagating in the z-axis.
+- `r0`: 3-position of the particle at the start of the shower. 
+- `id_dictionary`: dictionary of particle properties, including
+    - `PID`: particle ID number
+    - `ID`: ID for shower development (unique for each particle)
+    - `parent_ID`: shower ID of parent particle
+    - `generation number`: number of generations from initial particle
+    - `mass`: particle mass
+    - `generation_process`: process that generated the particle
+    - `weight`: weight of the particle, used only for dark showers
+    - `stability`: whether the particle is stable or not (PETITE can perform isotropic 2-body decays of unstable particles such as pi0s)
+
+These attributes can be used for analyzing the shower, see `./examples/tutorial.ipynb` for examples.
+
 # Advanced usage
 The following is intended for advanced users who wish to generate their own VEGAS integrators for a given material and/or dark sector model, to understand better the VEGAS sampling procedure, or to understand the file structure of the integrators.
 
