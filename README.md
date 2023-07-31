@@ -26,7 +26,7 @@ Key functions:
  > sGraphite = Shower("./data/VEGAS_dictionaries/", "graphite", 0.010)
 
 (3) Generate the shower 
- > standard_shower = sGraphite.generate_shower(p0, VB=True)
+ > standard_shower = sGraphite.generate_shower(incoming_electron, VB=True)
 
 The output of `generate_shower` is a list of `Particle` objects generated through the development of the shower.
 
@@ -37,7 +37,7 @@ The output of `generate_shower` is a list of `Particle` objects generated throug
  > sGraphite = DarkShower("./data/VEGAS_dictionaries/", "graphite", 0.010, 0.001)
 
 (3) Generate the shower 
- > dark_shower = sGraphite.generate_dark_shower(p0, VB=True)
+ > dark_shower = sGraphite.generate_dark_shower(incoming_electron, VB=True)
 
 The output of `generate_dark_shower` is a list of `Particle` objects generated through the development of the shower, which includes dark photons.
 
