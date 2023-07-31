@@ -51,6 +51,13 @@ def brem_q_sq_dimensionless(xx, EI):
     return m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
 
 def darkbrem_qsq(xx, EI):
+    '''Momentum Transfer Squared for dark photon bremsstrahlung
+    Args:
+        xx: tuple consisting of kinematic rescaled kinematic variables
+        EI: dictionary with incident energy 'E_inc' and dark photon mass 'mV'
+    Returns:
+        q^2 (dimensionful)
+    '''
     x, l1mct, ttilde = xx
 
     Ebeam = EI['E_inc']
@@ -79,9 +86,7 @@ def g2_inelastic(EI, t):
     ap0 = aap(Z, m_electron)
     return Z*ap0**4*t**2/(1 + ap0**2*t)**2
 
-GeV = 1.
-mp = 0.938
-mup = 2.79
+mu_p = 2.79 # https://journals.aps.org/prd/pdf/10.1103/PhysRevD.8.3109
 def Gelastic_inelastic(EI, t):
     """
     Form factor used for elastic/inelastic contributions to Dark Bremsstrahlung Calculation
@@ -94,7 +99,7 @@ def Gelastic_inelastic(EI, t):
     Gel =  (1./(1. + c1*t))**2 * (1+t/c2)**(-2)
     
     ap2 = (773.*Z**(-2./3) / m_electron)**2
-    Ginel = Z/((c1**2 * Z**2)) * np.power((1/(1. + ap2*t))*((1. + (mup**2-1.)*t/(4.*mp**2))/(1. + t/0.71)**4), 2.)
+    Ginel = Z/((c1**2 * Z**2)) * np.power((1/(1. + ap2*t))*((1. + (mu_p**2-1.)*t/(4.*m_proton**2))/(1. + t/0.71)**4), 2.)
     
     return Z**2*c1**2*(Gel+Ginel)
 
@@ -638,6 +643,19 @@ three_dim = {"DarkBrem"}
 one_dim = {"Comp", "Ann","Moller","Bhabha", "DarkAnn", "DarkComp"}
 
 def integration_range(event_info, process):
+    '''Defines the integration range for the VEGAS integrator given a specific process
+    Args:
+        event_info - dictionary with parameter needed to evaluate the cross-section:
+            E_inc - incident positron energy
+            mV - vector mass
+            Eg_min - minimum lab-frame energy (GeV) of outgoing photons
+            Ee_min - minimum lab-frame energy (GeV) of outgoing electrons
+            costheta_min - minimum lab-frame cosine of the angle between outgoing electrons
+            xmin - minimum value of x (fraction of initial CM momentum carried by one of the beam particles) FIXME: check me
+        process - process to be integrated over
+    Returns:
+        list of integration ranges for each dimension (note that number of dimensions depend on process)
+    '''
     EInc=event_info['E_inc']
     mV=event_info['mV']
     s = 2.0*m_electron*(EInc+m_electron)
