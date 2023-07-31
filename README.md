@@ -8,7 +8,7 @@ To install, from the top directory run
 
 ### Dependencies
 PETITE, its tutorials and tools require the following packages: numpy 1.24, vegas (>= 5.4.2), cProfile, pickle, matplotlib, scipy, datetime, tqdm, copy, sys, random and functools. Using `pip install .` should install all requirements, but if needed, you can manually install these packages with
- > pip install <package_name>==<version>
+ > pip install <package_name>==<version_required>
 
 ## Running PETITE
 *The notebook `./examples/tutorial.ipynb` offers an alternative to this readme.*
