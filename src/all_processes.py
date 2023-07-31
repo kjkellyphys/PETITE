@@ -155,45 +155,6 @@ def dsigma_brem_dimensionless(event_info, phase_space_par_list):
     else:
         return dSigs
 
-def dsigma_darkbrem_dP_T(event_info, phase_space_par_list): #FIXME: can we delete this function?
-    """Dark Vector Bremsstrahlung in the Small-Angle Approximation
-       e (ep) + Z -> e (epp) + V (w) + Z
-       Outgoing kinematics given by w, d (delta), dp (delta'), and ph (phi)
-
-       Input parameters needed:
-            ep (incident electron energy)
-            me (electron mass)
-            MV (Dark Vector Mass)
-            Z (Target Atomic Number)
-            al (electro-weak fine-structure constant)
-    """
-    ep=event_info['E_inc']
-    Z =event_info['Z_T']
-    mV=event_info['mV']
-
-    if len(np.shape(phase_space_par_list)) == 1:
-        phase_space_par_list = np.array([phase_space_par_list])
-    dSigs = []
-    for varth in phase_space_par_list:
-        w, d, dp, ph = varth
-
-        epp = ep - w
-
-        xsq = (d**2 + dp**2 - 2.0*d*dp*np.cos(ph)) + mV**2/(4.0*ep*epp)*(1 + 0.5*(d**2 + dp**2))**2
-        PF = 1#+4.0*alpha_em**3*Z**2/(np.pi*mV**2)*w**3/ep**3*1/(xsq**2*epp)*(d*dp)/((1+d**2)*(1+dp**2)) #FIXME
-        T1 = (ep**2+epp**2)/w**2*xsq
-        T2 = -(d**2 - dp**2)**2/((1+d**2)*(1+dp**2))
-        T3 = -mV**2/(4.0*w**2)*(ep/epp*(1+dp**2) + epp/ep*(1+d**2))
-        dSig0 = PF*(T1+T2+T3)
-        if dSig0 < 0.0 or np.isnan(dSig0):
-            print(dSig0, varth, ep, epp, PF, T1, T2, T3)
-        dSigs.append(dSig0)
-    if len(dSigs) == 1:
-        return dSigs[0]
-    else:
-        return dSigs
-
-#def dsig_dx_dcostheta_dark_brem_exact_tree_level(x, l1mct, lttilde, params):
 def dsig_dx_dcostheta_dark_brem_exact_tree_level(x0, x1, x2, params):
     """Exact Tree-Level Dark Photon Bremsstrahlung  
        e (ep) + Z -> e (epp) + V (w) + Z
@@ -651,7 +612,7 @@ def integration_range(event_info, process):
             Eg_min - minimum lab-frame energy (GeV) of outgoing photons
             Ee_min - minimum lab-frame energy (GeV) of outgoing electrons
             costheta_min - minimum lab-frame cosine of the angle between outgoing electrons
-            xmin - minimum value of x (fraction of initial CM momentum carried by one of the beam particles) FIXME: check me
+            xmin - optional minimum value of x (dimensionless variable related to energy) for DarkBrem if only interested in higher energy part of phase space
         process - process to be integrated over
     Returns:
         list of integration ranges for each dimension (note that number of dimensions depend on process)
@@ -674,11 +635,10 @@ def integration_range(event_info, process):
         else:
             l1mct_max = np.log10(2.0)
 
-        if 'xmin' in event_info:
+        if 'xmin' in event_info: # DarkBrem
             xmin = event_info['xmin']
         else:
             xmin = 0.
-
         return [[max(xmin, mV/EInc), 1.-m_electron/EInc],[-12.0, l1mct_max], [-20.0, 0.0]]
     elif process in one_dim:
         if process == "Comp" or process == "Ann" or process == "DarkComp":
