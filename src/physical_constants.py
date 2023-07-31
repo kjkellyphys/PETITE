@@ -1,3 +1,7 @@
+'''For internal consistency, all physical units and constants are defined here.
+FIXME: describe target_information dictionary
+'''
+
 GeV = 1
 MeV = 1E-3
 keV = 1E-6
