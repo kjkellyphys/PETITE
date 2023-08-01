@@ -100,11 +100,11 @@ class Particle:
         self._mass = value
     def set_p0(self, value):
         self._p0 = value
-        invariant_mass = round(np.sqrt(round(value[0]**2 - value[1]**2 - value[2]**2 - value[3]**2, 12)),6)
+        invariant_mass = round(np.sqrt(round(value[0]**2 - value[1]**2 - value[2]**2 - value[3]**2, 6)),3)
         if self._mass is not None: #Check for proper definition of invariant mass
-            if invariant_mass != round(self._mass,6):
+            if invariant_mass != round(self._mass,3):
                 print("Error setting mass of new particle")
-                print(self._mass, invariant_mass)
+                print(self._mass, invariant_mass, self._p0)
         else: #If mass is not provided, set it here
             self._mass = invariant_mass
             self._IDs["mass"] = invariant_mass
