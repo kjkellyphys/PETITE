@@ -236,7 +236,7 @@ class DarkShower(Shower):
                 return 0.0
         elif PID == 111 or PID == 221 or PID == 331:
             if process == "TwoBody_BSMDecay":
-                mass_ratio = self._mV_estimator/particle.get_ids()["mass"]
+                mass_ratio = self._mV/particle.get_ids()["mass"]
                 if mass_ratio >= 1.0:
                     return 0.0
                 return 2*(self.kinetic_mixing)**2*(1.0 - mass_ratio**2)**3*meson_twobody_branchingratios[particle.get_ids()["PID"]]
@@ -393,7 +393,8 @@ class DarkShower(Shower):
         sample_event = self.draw_dark_sample(E0, process=process, VB=VB)
 
         #dark-production is estabilished such that the last particle returned corresponds to the dark vector
-        EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV_estimator)[-1]
+        #EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV_estimator)[-1]
+        EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1] #FIXME Make sure we can use the input mV in "approx" mode
         pV4LF = np.concatenate([[EVf], np.dot(RM, [pVxfZF, pVyfZF, pVzfZF])])
 
         wg = self.GetBSMWeights(p0, process)
