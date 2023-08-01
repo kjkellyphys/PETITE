@@ -18,7 +18,7 @@ def main(doSM=True, doDark=True):
                     'save_location':path + '/macpro_test',
                     'run_find_maxes':True}
     # Necessary parameters for processing the integrators to determine cross sections
-    processing_params = {'process_targets':['graphite','lead'], 'save_location':path + '/macpro_test'}
+    processing_params = {'process_targets':['graphite','lead','iron'], 'save_location':path + '/macpro_test'}
     #args = training_params.update(processing_params)
     # List of processes to do
     processes_to_do = ['Comp', 'Ann', 'Moller', 'Bhabha', 'Brem', 'PairProd']
@@ -64,13 +64,13 @@ def main(doSM=True, doDark=True):
                 if os.path.exists(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/" + process + "_AdaptiveMaps.npy"):
                     print("Already finished this whole process, skipping")
                     continue
-                else:
-                    generate_integrators.make_integrators(training_params, process)
-                    generate_integrators.stitch_integrators(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
-                    generate_integrators.cleanup(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
+                #else:
+                #    generate_integrators.make_integrators(training_params, process)
+                #    generate_integrators.stitch_integrators(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
+                #    generate_integrators.cleanup(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
 
-        processing_params = {'process_targets':['graphite','lead'], 'save_location':save_location, 'mV_list':mV_list}
+        processing_params = {'process_targets':['graphite','lead','iron'], 'save_location':save_location, 'mV_list':mV_list}
         generate_integrators.call_find_maxes(processing_params, processes_to_do)
 
 if __name__ == "__main__":
-    main(doSM=False, doDark=True)
+    main(doSM=True, doDark=True)

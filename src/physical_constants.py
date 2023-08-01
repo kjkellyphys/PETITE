@@ -26,4 +26,5 @@ m_eta_prime, Gamma_eta_prime = 957.78*MeV, 0.188*MeV
 
 target_information = {"graphite": {"Z_T":6,  "A_T":12, "mT":11.178},
                       "lead"    : {"Z_T":82, "A_T":207, "mT":207.2},
+                      "iron"    : {"Z_T":26, "A_T":56,  "mT":55.845},
                       "hydrogen": {"Z_T":1,  "A_T":1,   "mT":1.0}}

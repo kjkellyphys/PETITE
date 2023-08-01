@@ -442,7 +442,8 @@ class DarkShower(Shower):
                 if self.GetBSMWeights(ap, process=process_code) > 0.0:
                     if process_code == "TwoBody_BSMDecay":
                         gamma_dict = {"mass":0, "PID":22}
-                        V_dict = {"mass":self._mV_estimator, "PID":4900022,
+                        #V_dict = {"mass":self._mV_estimator, "PID":4900022,
+                        V_dict = {"mass":self._mV, "PID":4900022,
                                   "weight":ap.get_ids()["weight"]*self.GetBSMWeights(ap, process=process_code),
                                   "parent_PID":ap.get_ids()["PID"], "parent_ID":ap.get_ids()["ID"],
                                   "ID":2*(ap.get_ids()["ID"])+1, "generation_number":ap.get_ids()["generation_number"]+1,
