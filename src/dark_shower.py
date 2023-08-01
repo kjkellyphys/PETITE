@@ -12,8 +12,8 @@ from .all_processes import *
 import sys
 from numpy.random import random as draw_U
         
-Z = {'hydrogen':1.0, 'graphite':6.0, 'lead':82.0} #atomic number of different targets
-A = {'hydrogen':1.0, 'graphite':12.0, 'lead':207.2} #atomic mass of different targets
+Z = {'hydrogen':1.0, 'graphite':6.0, 'lead':82.0, 'iron':26.0} #atomic number of different targets
+A = {'hydrogen':1.0, 'graphite':12.0, 'lead':207.2, 'iron':56.0} #atomic mass of different targets
 
 GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm^2
 cmtom = 0.01

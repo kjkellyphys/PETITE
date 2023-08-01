@@ -37,8 +37,8 @@ def main(doSM=True, doDark=True):
     ##################################
     initial_energy_list_general = np.logspace(np.log10(0.0016), np.log10(100), 100)
     # Dark vector masses in GeV
-    mV_list = [0.003, 0.010, 0.030, 0.100, 0.300, 1.00]
-    save_location = path + '/macpro_test/'
+    mV_list = np.logspace(np.log10(0.003), np.log10(1.000), 30)
+    save_location = path + '/macpro2_test/'
     training_params = {'verbosity':True, 'initial_energy_list':initial_energy_list_general,
                     'save_location':save_location,
                     'run_find_maxes':True, 'mV_list':mV_list, 'training_target':'hydrogen', 'mT':200.0}

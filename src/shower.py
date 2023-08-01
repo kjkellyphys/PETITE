@@ -16,10 +16,10 @@ from numpy.random import random as draw_U
 import copy
 
 
-Z = {'hydrogen':1.0, 'graphite':6.0, 'lead':82.0} #atomic number of different targets
-A = {'hydrogen':1.0, 'graphite':12.0, 'lead':207.2} #atomic mass of different targets
-rho = {'hydrogen':1.0, 'graphite':2.210, 'lead':11.35} #g/cm^3
-dEdx = {'hydrogen':2.0*rho['hydrogen'], 'graphite':2.0*rho['graphite'], 'lead':2.0*rho['lead']} #MeV per cm
+Z = {'hydrogen':1.0, 'graphite':6.0, 'lead':82.0, 'iron':26.0} #atomic number of different targets
+A = {'hydrogen':1.0, 'graphite':12.0, 'lead':207.2, 'iron':56.0} #atomic mass of different targets
+rho = {'hydrogen':1.0, 'graphite':2.210, 'lead':11.35, 'iron':8.00} #g/cm^3
+dEdx = {'hydrogen':2.0*rho['hydrogen'], 'graphite':2.0*rho['graphite'], 'lead':2.0*rho['lead'], 'iron':2.0*rho['iron']} #MeV per cm
 
 # GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm^2
 GeVsqcm2 = hbarc**2 #Conversion between cross sections in GeV^{-2} to cm^2
