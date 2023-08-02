@@ -165,14 +165,18 @@ class DarkShower(Shower):
         self._dark_annihilation_cross_section  = self.load_dark_cross_section(self._dict_dir, 'DarkAnn', self._target_material) 
         self._dark_compton_cross_section = self.load_dark_cross_section(self._dict_dir, 'DarkComp', self._target_material) 
 
-        self._EeVecDarkBrem = np.transpose(self._dark_brem_cross_section)[0] #FIXME: not sure what these are
-        self._EeVecDarkAnn = np.transpose(self._dark_annihilation_cross_section)[0]
-        self._EgVecDarkComp = np.transpose(self._dark_compton_cross_section)[0]
+        self._minimum_calculable_dark_energy = {11:self._dark_brem_cross_section[0][0],
+                                                -11:np.min([self._dark_brem_cross_section[0][0], self._dark_annihilation_cross_section[0][0]]),
+                                                22:self._dark_compton_cross_section[0][0]}
+
+        #self._EeVecDarkBrem = np.transpose(self._dark_brem_cross_section)[0] #FIXME: not sure what these are
+        #self._EeVecDarkAnn = np.transpose(self._dark_annihilation_cross_section)[0]
+        #self._EgVecDarkComp = np.transpose(self._dark_compton_cross_section)[0]
 
         # log10s of minimum energes, energy spacing for the cross-section tables  
-        self._logEeMinDarkBrem, self._logEeSSDarkBrem = np.log10(self._EeVecDarkBrem[0]), np.log10(self._EeVecDarkBrem[1]) - np.log10(self._EeVecDarkBrem[0])
-        self._logEeMinDarkAnn, self._logEeSSDarkAnn = np.log10(self._EeVecDarkAnn[0]), np.log10(self._EeVecDarkAnn[1]) - np.log10(self._EeVecDarkAnn[0])
-        self._logEgMinDarkComp, self._logEgSSDarkComp= np.log10(self._EgVecDarkComp[0]), np.log10(self._EgVecDarkComp[1]) - np.log10(self._EgVecDarkComp[0])
+        #self._logEeMinDarkBrem, self._logEeSSDarkBrem = np.log10(self._EeVecDarkBrem[0]), np.log10(self._EeVecDarkBrem[1]) - np.log10(self._EeVecDarkBrem[0])
+        #self._logEeMinDarkAnn, self._logEeSSDarkAnn = np.log10(self._EeVecDarkAnn[0]), np.log10(self._EeVecDarkAnn[1]) - np.log10(self._EeVecDarkAnn[0])
+        #self._logEgMinDarkComp, self._logEgSSDarkComp= np.log10(self._EgVecDarkComp[0]), np.log10(self._EgVecDarkComp[1]) - np.log10(self._EgVecDarkComp[0])
 
 
     def get_DarkBremXSec(self):
@@ -209,23 +213,24 @@ class DarkShower(Shower):
             PID, Energy = particle.get_ids()["PID"], particle.get_pf()[0]
         else: #Allow to call this function with just a PID and energy
             PID, Energy = particle[0], particle[1]
+        if Energy < self._minimum_calculable_dark_energy[PID]:
+            return 0.0
         if PID == 22:
-            if (Energy < self._mV*(1 + self._mV/(2*m_electron))) or (process != "DarkComp"):
+            if process != "DarkComp":
+            #if (Energy < self._mV*(1 + self._mV/(2*m_electron))) or (process != "DarkComp"):
                 return 0.0
             else:
                 return (self.g_e**2/(4*np.pi*alpha_em))*self._NSigmaDarkComp(Energy)/(self._NSigmaPP(Energy) + self._NSigmaComp(Energy))
         elif PID == 11:
-            if (np.log10(Energy) < self._logEeMinDarkBrem) or (process != "DarkBrem"):
+            #if (np.log10(Energy) < self._logEeMinDarkBrem) or (process != "DarkBrem"):
+            if process != "DarkBrem":
                 return 0.0
             else:
                 return self._NSigmaDarkBrem(Energy)/(self._NSigmaBrem(Energy) + self._NSigmaMoller(Energy))
         elif PID == -11:
             if process == "DarkBrem":
-                if np.log10(Energy) < self._logEeMinDarkBrem:
-                    return 0.0
-                else:
-                    BremPiece = self._NSigmaDarkBrem(Energy)
-                    return (self.g_e**2/(4*np.pi*alpha_em))*BremPiece/(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))
+                BremPiece = self._NSigmaDarkBrem(Energy)
+                return (self.g_e**2/(4*np.pi*alpha_em))*BremPiece/(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))
             elif process == "DarkAnn":
                 if Energy < (self._mV**2 - m_electron**2)/(2*m_electron):
                     return 0.0
