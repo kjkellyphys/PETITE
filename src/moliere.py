@@ -131,6 +131,7 @@ def get_capital_B(t, beta, A, Z, z):
     #print("number of iterations = ", it)
     return B
 
+#FIXME: do we need all these get_chics?
 def get_chic_squared(t, beta, A, Z, z):
     """
     squared critical angle for Rutherford scattering, eq. 10 in Bethe, 1953
@@ -156,9 +157,7 @@ def get_chic_squared_alt(t, beta, A, Z, z):
     Z - nuclear charge number
     z - particle charge (+/- 1 for electrons/positrons)
     """
-#    me_in_MeV = 0.511
     me_in_MeV = m_electron/MeV # FIXME - check - why MeV?
-    #print(beta**2, "\t", 1. - beta**2)
     p = me_in_MeV * beta / np.sqrt(1. - beta**2)
     return 0.157 * Z * (Z+1)*(t/A)*np.power(z/(p*beta),2.)
 

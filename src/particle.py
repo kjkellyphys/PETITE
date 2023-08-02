@@ -46,7 +46,6 @@ class Particle:
                 --stability (string identifying whether particle is stable/short-lived/long-lived) -- default:"stable"
         """
 
-        #self.set_ids(np.array([PID, ID, ParPID, ParID, GenID, GenProcess, Weight]))
         if id_dictionary is None:
             id_dictionary = {}
         self.set_ids(id_dictionary)
@@ -78,8 +77,6 @@ class Particle:
                 self._IDs[key] = value[key]
             else:
                 self._IDs[key] = default_ids[key]
-    #def set_ids(self, value):
-    #    self._IDs = value
     def get_ids(self):
         return self._IDs
 

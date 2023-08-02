@@ -183,7 +183,7 @@ def radiative_return_fourvecs(pe, sampled_event, mV=0.0):
     x2 = mV**2/(x1*s)
     
     if x2 > 1.:
-        print("you're bad and you should feel bad")
+        print("you're bad and you should feel bad, wrong kinematics...")
         print("x1, x2, x1*x2*s,  mV^2 = ", x1, "\t", x2,"\t",x1*x2*s, "\t", mV**2)
 
     E1 = x1*np.sqrt(s)/2.

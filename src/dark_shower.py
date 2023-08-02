@@ -169,16 +169,6 @@ class DarkShower(Shower):
                                                 -11:np.min([self._dark_brem_cross_section[0][0], self._dark_annihilation_cross_section[0][0]]),
                                                 22:self._dark_compton_cross_section[0][0]}
 
-        #self._EeVecDarkBrem = np.transpose(self._dark_brem_cross_section)[0] #FIXME: not sure what these are
-        #self._EeVecDarkAnn = np.transpose(self._dark_annihilation_cross_section)[0]
-        #self._EgVecDarkComp = np.transpose(self._dark_compton_cross_section)[0]
-
-        # log10s of minimum energes, energy spacing for the cross-section tables  
-        #self._logEeMinDarkBrem, self._logEeSSDarkBrem = np.log10(self._EeVecDarkBrem[0]), np.log10(self._EeVecDarkBrem[1]) - np.log10(self._EeVecDarkBrem[0])
-        #self._logEeMinDarkAnn, self._logEeSSDarkAnn = np.log10(self._EeVecDarkAnn[0]), np.log10(self._EeVecDarkAnn[1]) - np.log10(self._EeVecDarkAnn[0])
-        #self._logEgMinDarkComp, self._logEgSSDarkComp= np.log10(self._EgVecDarkComp[0]), np.log10(self._EgVecDarkComp[1]) - np.log10(self._EgVecDarkComp[0])
-
-
     def get_DarkBremXSec(self):
         """ Returns array of [energy,cross-section] values for brem """ 
         return self._dark_brem_cross_section 
@@ -288,9 +278,7 @@ class DarkShower(Shower):
                     sample_found = True
                     break
         if sample_found is False:
-            print("No Sample Found")
-            print(process, Einc, LU_Key)
-            #FIXME What to do when we end up here?
+            raise Exception("No Sample Found", process, Einc, LU_Key)
             #Coordinate with SM solution
         if VB:
             return np.concatenate([list(x), [sampcount]])
@@ -305,101 +293,13 @@ class DarkShower(Shower):
         else:
             return self._NSigmaDarkBrem(Energy)/(self._NSigmaDarkBrem(Energy) + self._NSigmaDarkAnn(Energy))
 
-    #def DarkElecBremSample(self, Elec0, VB=False, relative_weight=1.0):
-    #    """Generate a brem event from an initial electron/positron
-    #        Args:
-    #            Elec0: incoming electron/positron (instance of) Particle 
-    #            in lab frame
-    #            relative_weight (optional): a reweighting factor relative
-    #            to the overall BSM weight
-    #        Returns:
-    #            NewV: outgoing dark photon (instance of) Particle 
-    #            in lab frame
-    #    """
-    #    Ee0, pex0, pey0, pez0 = Elec0.get_pf()
-    #
-    #    ThZ = np.arccos(pez0/np.sqrt(pex0**2 + pey0**2 + pez0**2))
-    #    PhiZ = np.arctan2(pey0, pex0)
-    #    RM = [[np.cos(ThZ)*np.cos(PhiZ), -np.sin(PhiZ), np.sin(ThZ)*np.cos(PhiZ)],
-    #        [np.cos(ThZ)*np.sin(PhiZ), np.cos(PhiZ), np.sin(ThZ)*np.sin(PhiZ)],
-    #        [-np.sin(ThZ), 0, np.cos(ThZ)]]
-    #
-    #    try:
-    #        LUKey = int((np.log10(Ee0) - self._logEeMinDarkBrem)/self._logEeSSDarkBrem)
-    #    except:
-    #        print(Ee0, self._logEeMinDarkBrem, self._logEeSSDarkBrem, (np.log10(Ee0) - self._logEeMinDarkBrem)/self._logEeSSDarkBrem)
-    #    LUKey = LUKey + 1
-    #    
-    #    ## FIXME Need right key name
-    #    sample_event = self.draw_dark_sample(Ee0, LUKey, 'ExactBrem', VB=VB)
-    #    EV = sample_event[0]*Ee0
-    #    ct = (1 - 10**sample_event[1])
-    #    EVf, pVxfZF, pVyfZF, pVzfZF = e_to_eV_fourvecs(Ee0, m_electron, EV, self.get_mV(), ct, 0, 0)[2]
-    #    pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
-    #    pV3LF = np.dot(RM, pV3ZF)
-    #
-    #    if EVf > Ee0:
-    #        print("---------------------------------------------")
-    #        print("High Energy V Found from Electron Samples:")
-    #        print(Elec0.get_pf())
-    #        print(EVf)
-    #        print(sample_event)
-    #        print(LUKey)
-    #        print(Ee0)
-    #        print("---------------------------------------------")
-    #
-    #    wg = self.GetBSMWeights(11, Ee0)*relative_weight
-    #
-    #    GenType = dark_process_code['ExactBrem']
-    #
-    #    NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_ids()[1])+1, Elec0.get_ids()[1], Elec0.get_ids()[0], Elec0.get_ids()[4]+1, GenType, wg)
-    #    return NewV
-    #
-    #def dark_radiative_return_sample(self, Elec0, VB=False, relative_weight=1.0):
-    #    pe = Elec0.get_pf()
-    #    sample_event = self.draw_dark_sample(pe[0], LUKey, 'RadRet', VB=VB)
-    #    pV = radiative_return_fourvecs(pe, self.get_mV(), sample_event[0])
-    #    GenType = dark_process_code['Ann']
-    #    EVf, pVxfZF, pVyfZF, pVzfZF = NFVs
-    #    pV3ZF = [pVxfZF, pVyfZF, pVzfZF]    
-    #    pV3LF = np.dot(RM, pV3ZF)
-    #    wg = self.GetBSMWeights(-11, Ee0)*relative_weight
-    #
-    #    if EVf > Ee0+m_electron/2+(2*Ee0-m_electron)*self.get_mV()**2/(8*Ee0**2):
-    #        print("---------------------------------------------")
-    #        print("High Energy V Found from Positron Samples:")
-    #        print(Elec0.get_pf())
-    #        print(EVf)
-    #        print(sample_event)
-    #        print(LUKey)
-    #        print(wg)
-    #        print("---------------------------------------------")
-    #
-    #    NewV = Particle(4900022, EVf, pV3LF[0], pV3LF[1], pV3LF[2], Elec0.get_rf()[0], Elec0.get_rf()[1], Elec0.get_rf()[2], 2*(Elec0.get_ids()[1])+1, Elec0.get_ids()[1], Elec0.get_ids()[0], Elec0.get_ids()[4]+1, GenType, wg)
-    #    return NewV
-
-
-#    def DarkAnnihilationSample(self, Elec0, VB=False, relative_weight=1.0):
-#        """Generate an annihilation event from an initial positron
-#            Args:
-#                Elec0: incoming positron (instance of) Particle in lab frame
-#                relative_weight (optional): a reweighting factor relative 
-#                to the overall BSM weight
-#        Returns:
-#                NewV: outgoing dark photon (instances of) Particle 
-#                in lab frame
-#        """
-#
-#        Ee0, pex0, pey0, pez0 = Elec0.get_pf()
-
     def produce_bsm_particle(self, p0, process, VB=False):
         E0 = p0.get_pf()[0]
         RM = p0.rotation_matrix()
         sample_event = self.draw_dark_sample(E0, process=process, VB=VB)
 
         #dark-production is estabilished such that the last particle returned corresponds to the dark vector
-        #EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV_estimator)[-1]
-        EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1] #FIXME Make sure we can use the input mV in "approx" mode
+        EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1] 
         pV4LF = np.concatenate([[EVf], np.dot(RM, [pVxfZF, pVyfZF, pVzfZF])])
 
         wg = self.GetBSMWeights(p0, process)
@@ -447,7 +347,6 @@ class DarkShower(Shower):
                 if self.GetBSMWeights(ap, process=process_code) > 0.0:
                     if process_code == "TwoBody_BSMDecay":
                         gamma_dict = {"mass":0, "PID":22}
-                        #V_dict = {"mass":self._mV_estimator, "PID":4900022,
                         V_dict = {"mass":self._mV, "PID":4900022,
                                   "weight":ap.get_ids()["weight"]*self.GetBSMWeights(ap, process=process_code),
                                   "parent_PID":ap.get_ids()["PID"], "parent_ID":ap.get_ids()["ID"],

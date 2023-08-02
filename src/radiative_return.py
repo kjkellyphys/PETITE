@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate import LinearNDInterpolator
 
+#FIXME: make it uniform with the rest of the code
 def lor_prod(p,v):
     return p[0]*v[0] - p[1]*v[1] - p[2]*v[2] - p[3]*v[3]
 

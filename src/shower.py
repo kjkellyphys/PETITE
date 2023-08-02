@@ -15,7 +15,7 @@ import sys
 from numpy.random import random as draw_U
 import copy
 
-
+#FIXME: refer to physical constants intead of duplicating information!
 Z = {'hydrogen':1.0, 'graphite':6.0, 'lead':82.0, 'iron':26.0} #atomic number of different targets
 A = {'hydrogen':1.0, 'graphite':12.0, 'lead':207.2, 'iron':56.0} #atomic mass of different targets
 rho = {'hydrogen':1.0, 'graphite':2.210, 'lead':11.35, 'iron':8.00} #g/cm^3
@@ -60,9 +60,6 @@ process_PIDS         ={"PairProd" : [-11, 11],
                        "Ann"      : [22, 22],
                        "Moller"   : [0, 11],
                        "Bhabha"   : [0, 11]}
-
-#Egamma_min = 0.001
-#FIXME incorporate the minimum brem-photon energy used in training into stored, dictionary information somewhere
 
 class Shower:
     """ Representation of a shower
@@ -312,8 +309,7 @@ class Shower:
                     sample_found = True
                     break
         if sample_found is False:
-            print("No Sample Found")
-            #FIXME What to do when we end up here?
+            raise Exception("No Sample Found", process, Einc, LU_Key)
         if VB:
             return np.concatenate([list(x), [sampcount]])
         else:
@@ -325,10 +321,6 @@ class Shower:
             return None
         RM = p0.rotation_matrix()
         sample_event = self.draw_sample(E0, process=process, VB=VB)
-        #FIXME
-        #Check if new particle(s) have energy above threshold or not.
-        #If not, return "None" for efficiency.
-        #For Bhabha/Moller scattering, return "None" and reset incoming particle to "not ended" to re-propagate it
 
         NFVs = kinematic_function[process](p0, sample_event)
 
