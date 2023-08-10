@@ -166,10 +166,10 @@ class DarkShower(Shower):
         self._dark_annihilation_cross_section  = self.load_dark_cross_section(self._dict_dir, 'DarkAnn', self._target_material) 
         self._dark_compton_cross_section = self.load_dark_cross_section(self._dict_dir, 'DarkComp', self._target_material) 
 
-        self._minimum_calculable_dark_energy = {11:self._dark_brem_cross_section[0][0],
-                                                -11:np.min([self._dark_brem_cross_section[0][0], self._dark_annihilation_cross_section[0][0]]),
-                                                22:self._dark_compton_cross_section[0][0],
-                                                111:-1}
+        self._minimum_calculable_dark_energy = {11:{"DarkBrem":self._dark_brem_cross_section[0][0]},
+                                                -11:{"DarkBrem":self._dark_brem_cross_section[0][0], "DarkAnn":self._dark_annihilation_cross_section[0][0]},
+                                                22:{"DarkComp":self._dark_compton_cross_section[0][0]},
+                                                111:{"TwoBody_BSMDecay":-1}}
 
     def get_DarkBremXSec(self):
         """ Returns array of [energy,cross-section] values for brem """ 
@@ -210,8 +210,12 @@ class DarkShower(Shower):
 
         """
         PID, energy_final, energy_initial = particle.get_ids()["PID"], particle.get_pf()[0], particle.get_p0()[0]
-        if energy_initial < self._minimum_calculable_dark_energy[PID]:
+        if process not in (self._minimum_calculable_dark_energy[PID]).keys():
             return 0.0
+        if energy_initial < self._minimum_calculable_dark_energy[PID][process]:
+            return 0.0
+        if energy_final < self._minimum_calculable_dark_energy[PID][process]:
+            particle.lose_energy((energy_final - 1.1*self._minimum_calculable_dark_energy[PID][process]))
 
         if PID == 22:
             if process != "DarkComp":
@@ -233,19 +237,11 @@ class DarkShower(Shower):
                 return (self.g_e**2/(4*np.pi*alpha_em))*numerator/(denominator1+denominator2+denominator3)
 
             elif process == "DarkAnn":
-                if self._NSigmaDarkAnn(energy_initial) == 0.0:
-                    return 0.0
-                else:
-                    numerator = (self._interaction_integral_DarkAnn(energy_initial) - self._interaction_integral_DarkAnn(energy_final))
-                    denominator1 = (self._interaction_integral_Brem(energy_initial) - self._interaction_integral_Brem(energy_final))
-                    denominator2 = (self._interaction_integral_Bhabha(energy_initial) - self._interaction_integral_Bhabha(energy_final))
-                    denominator3 = (self._interaction_integral_Ann(energy_initial) - self._interaction_integral_Ann(energy_final))
-                
-                    E_res = (self._mV**2 - 2*m_electron**2)/(2*m_electron)
-                    if energy_final < E_res:
-                        particle.lose_energy((energy_final - 1.1*E_res))
-
-                    return (self.g_e**2/(4*np.pi*alpha_em))*numerator/(denominator1+denominator2+denominator3)                
+                numerator = (self._interaction_integral_DarkAnn(energy_initial) - self._interaction_integral_DarkAnn(energy_final))
+                denominator1 = (self._interaction_integral_Brem(energy_initial) - self._interaction_integral_Brem(energy_final))
+                denominator2 = (self._interaction_integral_Bhabha(energy_initial) - self._interaction_integral_Bhabha(energy_final))
+                denominator3 = (self._interaction_integral_Ann(energy_initial) - self._interaction_integral_Ann(energy_final))
+                return (self.g_e**2/(4*np.pi*alpha_em))*numerator/(denominator1+denominator2+denominator3)                
             else:
                 return 0.0
         elif PID == 111 or PID == 221 or PID == 331:
