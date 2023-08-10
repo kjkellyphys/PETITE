@@ -2,6 +2,7 @@ import numpy as np
 import pickle 
 
 from scipy.interpolate import interp1d
+from scipy.integrate import quad
 
 from .moliere import get_scattered_momentum 
 from .particle import Particle
@@ -215,10 +216,25 @@ class Shower:
         bhabha_moller_energies = np.logspace(np.log10(3*m_electron + self.min_energy), 2, 101)
         self._NSigmaMoller = interp1d(bhabha_moller_energies, ne*GeVsqcm2*sigma_moller({"E_inc":bhabha_moller_energies, "Ee_min":self.min_energy}), fill_value=0.0, bounds_error=False)
         self._NSigmaBhabha = interp1d(bhabha_moller_energies, ne*GeVsqcm2*sigma_bhabha({"E_inc":bhabha_moller_energies, "Ee_min":self.min_energy}), fill_value=0.0, bounds_error=False)
-        #self._NSigmaMoller = interp1d(np.transpose(MS)[0], ne*GeVsqcm2*np.transpose(MS)[1], fill_value=0.0, bounds_error=False)
-        #self._NSigmaBhabha = interp1d(np.transpose(BhS)[0], ne*GeVsqcm2*np.transpose(BhS)[1], fill_value=0.0, bounds_error=False)
-        #self._NSigmaMoller = ne*GeVsqcm2*sigma_moller
-        #self._NSigmaBhabha = ne*GeVsqcm2*sigma_bhabha
+
+        II_y_Brem = np.array([quad(self._NSigmaBrem, BS[0][0],   BS[i][0], full_output=1)[0]   for i in range(len(BS))])
+        self._interaction_integral_Brem = interp1d(np.transpose(BS)[0],   II_y_Brem, fill_value=0.0, bounds_error=False)
+
+        II_y_PP = np.array([quad(self._NSigmaPP, PPS[0][0],   PPS[i][0], full_output=1)[0]   for i in range(len(PPS))])
+        self._interaction_integral_PP = interp1d(np.transpose(PPS)[0],   II_y_PP, fill_value=0.0, bounds_error=False)
+
+        II_y_Ann = np.array([quad(self._NSigmaAnn, AnnS[0][0],   AnnS[i][0], full_output=1)[0]   for i in range(len(AnnS))])
+        self._interaction_integral_Ann = interp1d(np.transpose(AnnS)[0],   II_y_Ann, fill_value=0.0, bounds_error=False)
+
+        II_y_Comp = np.array([quad(self._NSigmaComp, CS[0][0],   CS[i][0], full_output=1)[0]   for i in range(len(CS))])
+        self._interaction_integral_Comp = interp1d(np.transpose(CS)[0],   II_y_Comp, fill_value=0.0, bounds_error=False)
+
+        II_y_Moller = np.array([quad(self._NSigmaMoller, bhabha_moller_energies[0], bhabha_moller_energies[i], full_output=1)[0] for i in range(len(bhabha_moller_energies))])
+        self._interaction_integral_Moller = interp1d(bhabha_moller_energies, II_y_Moller, fill_value=0.0, bounds_error=False)
+        
+        II_y_Bhabha = np.array([quad(self._NSigmaBhabha, bhabha_moller_energies[0], bhabha_moller_energies[i], full_output=1)[0] for i in range(len(bhabha_moller_energies))])
+        self._interaction_integral_Bhabha = interp1d(bhabha_moller_energies, II_y_Bhabha, fill_value=0.0, bounds_error=False)
+        
 
     def get_mfp(self, particle): 
         """Returns particle mean free path in meters for PID=22 (photons), 

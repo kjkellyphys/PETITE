@@ -2,6 +2,7 @@ import numpy as np
 import pickle 
 
 from scipy.interpolate import interp1d
+from scipy.integrate import quad
 
 from .moliere import get_scattered_momentum 
 from .particle import Particle, meson_twobody_branchingratios
@@ -167,7 +168,8 @@ class DarkShower(Shower):
 
         self._minimum_calculable_dark_energy = {11:self._dark_brem_cross_section[0][0],
                                                 -11:np.min([self._dark_brem_cross_section[0][0], self._dark_annihilation_cross_section[0][0]]),
-                                                22:self._dark_compton_cross_section[0][0]}
+                                                22:self._dark_compton_cross_section[0][0],
+                                                111:-1}
 
     def get_DarkBremXSec(self):
         """ Returns array of [energy,cross-section] values for brem """ 
@@ -189,6 +191,14 @@ class DarkShower(Shower):
         self._NSigmaDarkAnn = interp1d(np.transpose(DAnnS)[0], ne*GeVsqcm2*np.transpose(DAnnS)[1], fill_value=0.0, bounds_error=False)
         self._NSigmaDarkComp = interp1d(np.transpose(DCS)[0], ne*GeVsqcm2*np.transpose(DCS)[1], fill_value=0.0, bounds_error=False)
 
+        II_y_DarkBrem = np.array([quad(self._NSigmaDarkBrem, DBS[0][0],   DBS[i][0], full_output=1)[0]   for i in range(len(DBS))])
+        II_y_DarkAnn  = np.array([quad(self._NSigmaDarkAnn,  DAnnS[0][0], DAnnS[i][0], full_output=1)[0] for i in range(len(DAnnS))])
+        II_y_DarkComp = np.array([quad(self._NSigmaDarkComp, DCS[0][0],   DCS[i][0], full_output=1)[0]   for i in range(len(DCS))])
+
+        self._interaction_integral_DarkBrem = interp1d(np.transpose(DBS)[0],   II_y_DarkBrem, fill_value=0.0, bounds_error=False)
+        self._interaction_integral_DarkAnn  = interp1d(np.transpose(DAnnS)[0], II_y_DarkAnn, fill_value=0.0, bounds_error=False)
+        self._interaction_integral_DarkComp = interp1d(np.transpose(DCS)[0],   II_y_DarkComp, fill_value=0.0, bounds_error=False)
+
     def GetBSMWeights(self, particle, process):
         """Compute relative weight of dark photon emission to the available SM processes
         Args: 
@@ -199,34 +209,43 @@ class DarkShower(Shower):
             divided by the probabilities of available SM processes
 
         """
-        if type(particle) == Particle:
-            PID, Energy = particle.get_ids()["PID"], particle.get_pf()[0]
-        else: #Allow to call this function with just a PID and energy
-            PID, Energy = particle[0], particle[1]
-        if Energy < self._minimum_calculable_dark_energy[PID]:
+        PID, energy_final, energy_initial = particle.get_ids()["PID"], particle.get_pf()[0], particle.get_p0()[0]
+        if energy_initial < self._minimum_calculable_dark_energy[PID]:
             return 0.0
+
         if PID == 22:
             if process != "DarkComp":
-            #if (Energy < self._mV*(1 + self._mV/(2*m_electron))) or (process != "DarkComp"):
                 return 0.0
-            else:
-                return (self.g_e**2/(4*np.pi*alpha_em))*self._NSigmaDarkComp(Energy)/(self._NSigmaPP(Energy) + self._NSigmaComp(Energy))
+            return (self.g_e**2/(4*np.pi*alpha_em))*self._NSigmaDarkComp(energy_final)/(self._NSigmaPP(energy_final) + self._NSigmaComp(energy_final))
         elif PID == 11:
-            #if (np.log10(Energy) < self._logEeMinDarkBrem) or (process != "DarkBrem"):
             if process != "DarkBrem":
                 return 0.0
-            else:
-                return self._NSigmaDarkBrem(Energy)/(self._NSigmaBrem(Energy) + self._NSigmaMoller(Energy))
+            numerator = (self._interaction_integral_DarkBrem(energy_initial) - self._interaction_integral_DarkBrem(energy_final))
+            denominator1 = (self._interaction_integral_Brem(energy_initial) - self._interaction_integral_Brem(energy_final))
+            denominator2 = (self._interaction_integral_Moller(energy_initial) - self._interaction_integral_Moller(energy_final))
+            return (self.g_e**2/(4*np.pi*alpha_em))*numerator/(denominator1 + denominator2)
         elif PID == -11:
             if process == "DarkBrem":
-                BremPiece = self._NSigmaDarkBrem(Energy)
-                return (self.g_e**2/(4*np.pi*alpha_em))*BremPiece/(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))
+                numerator = (self._interaction_integral_DarkBrem(energy_initial) - self._interaction_integral_DarkBrem(energy_final))
+                denominator1 = (self._interaction_integral_Brem(energy_initial) - self._interaction_integral_Brem(energy_final))
+                denominator2 = (self._interaction_integral_Bhabha(energy_initial) - self._interaction_integral_Bhabha(energy_final))
+                denominator3 = (self._interaction_integral_Ann(energy_initial) - self._interaction_integral_Ann(energy_final))
+                return (self.g_e**2/(4*np.pi*alpha_em))*numerator/(denominator1+denominator2+denominator3)
+
             elif process == "DarkAnn":
-                if Energy < (self._mV**2 - m_electron**2)/(2*m_electron):
+                if self._NSigmaDarkAnn(energy_initial) == 0.0:
                     return 0.0
                 else:
-                    AnnPiece = self._NSigmaDarkAnn(Energy)
-                    return (self.g_e**2/(4*np.pi*alpha_em))*AnnPiece/(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))
+                    numerator = (self._interaction_integral_DarkAnn(energy_initial) - self._interaction_integral_DarkAnn(energy_final))
+                    denominator1 = (self._interaction_integral_Brem(energy_initial) - self._interaction_integral_Brem(energy_final))
+                    denominator2 = (self._interaction_integral_Bhabha(energy_initial) - self._interaction_integral_Bhabha(energy_final))
+                    denominator3 = (self._interaction_integral_Ann(energy_initial) - self._interaction_integral_Ann(energy_final))
+                
+                    E_res = (self._mV**2 - 2*m_electron**2)/(2*m_electron)
+                    if energy_final < E_res:
+                        particle.lose_energy((energy_final - 1.1*E_res))
+
+                    return (self.g_e**2/(4*np.pi*alpha_em))*numerator/(denominator1+denominator2+denominator3)                
             else:
                 return 0.0
         elif PID == 111 or PID == 221 or PID == 331:
@@ -279,7 +298,6 @@ class DarkShower(Shower):
                     break
         if sample_found is False:
             raise Exception("No Sample Found", process, Einc, LU_Key)
-            #Coordinate with SM solution
         if VB:
             return np.concatenate([list(x), [sampcount]])
         else:
