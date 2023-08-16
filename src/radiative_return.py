@@ -1,5 +1,9 @@
 import numpy as np
 from scipy.interpolate import LinearNDInterpolator
+try:
+    from .physical_constants import *
+except:
+    from physical_constants import *
 
 #FIXME: make it uniform with the rest of the code
 def lor_prod(p,v):
@@ -27,10 +31,10 @@ def fl_kf(x,s):
     Kuraev-Fadin lepton structure function from appendix of https://arxiv.org/abs/1607.03210v2
     More reliable places are Nicrosini and Trentadue in their Eq. 7
     """
-    alpha = 1./137.035999084
-    ml = 0.51099895 * 1e-3
+    #alpha = 1./137.035999084
+    #ml = 0.51099895 * 1e-3
     
-    beta = (2.*alpha/np.pi) * (np.log(s/ml**2) - 1.)
+    beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
     """
     if x == 1.:
         return(0.)
@@ -45,10 +49,10 @@ def fl_kf_scaled(x,s):
     This is meant to be used with transformed integration variables that absorb the singularity into the 
     measure
     """
-    alpha = 1./137.035999084
-    ml = 0.51099895 * 1e-3
+    #alpha = 1./137.035999084
+    #ml = 0.51099895 * 1e-3
     
-    beta = (2.*alpha/np.pi) * (np.log(s/ml**2) - 1.)
+    beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
     
     return (beta/16.)*((8. + 3.*beta) - 4.*(1. + x)*np.power(1. - x,1.-beta/2.))
 
@@ -79,10 +83,10 @@ def transformed_lepton_luminosity_integrand(s,y,u):
     Returns:
         lepton luminosity integrand to be integrated over u
     """
-    alpha = 1./137.035999084
-    ml = 0.51099895 * 1e-3
+    #alpha = 1./137.035999084
+    #ml = 0.51099895 * 1e-3
     
-    beta = (2.*alpha/np.pi) * (np.log(s/ml**2) - 1.)
+    beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
     
     x = 1.- np.power(u,2./beta)
     
@@ -114,12 +118,12 @@ def lumi_integral_interp(s, x):
 def radiative_return_cross_section(s, mA):
     eps = 1.
 
-    alpha = 1./137.035999084
-    ml = 0.51099895 * 1e-3
-    betaf = np.sqrt( 1. - 4.*(ml**2) / (mA**2) )
+    #alpha = 1./137.035999084
+    #ml = 0.51099895 * 1e-3
+    betaf = np.sqrt( 1. - 4.*(m_electron**2) / (mA**2) )
     
     # this factor should be equal to 12pi^2 Gamma(A'->ee)/(mA * s)
-    prefac = (4.*np.pi**2)*(alpha*eps**2)*betaf*(3./2. - betaf**2 / 2.)/s
+    prefac = (4.*np.pi**2)*(alpha_em*eps**2)*betaf*(3./2. - betaf**2 / 2.)/s
     
     lumi_factor = lumi_integral_interp(s, mA**2 / s)
 

@@ -10,6 +10,23 @@ from .kinematics import e_to_egamma_fourvecs, e_to_eV_fourvecs, gamma_to_epem_fo
 from .shower import Shower
 from .all_processes import *
 
+class interpolate1d(interp1d):
+    """Extend scipy interp1d to interpolate/extrapolate per axis in log space"""
+    
+    def __init__(self, x, y, *args, xspace='linear', yspace='linear', **kwargs):
+        self.xspace = xspace
+        self.yspace = yspace
+        if self.xspace == 'log': x = np.log10(x + 1e-20)
+        if self.yspace == 'log': y = np.log10(y + 1e-20)
+        super().__init__(x, y, *args, **kwargs)
+        
+    def __call__(self, x, *args, **kwargs):
+        if self.xspace == 'log': x = np.log10(x)
+        if self.yspace == 'log':
+            return 10**super().__call__(x, *args, **kwargs)
+        else:
+            return super().__call__(x, *args, **kwargs)
+        
 import sys
 from numpy.random import random as draw_U
         
@@ -166,8 +183,10 @@ class DarkShower(Shower):
         self._dark_annihilation_cross_section  = self.load_dark_cross_section(self._dict_dir, 'DarkAnn', self._target_material) 
         self._dark_compton_cross_section = self.load_dark_cross_section(self._dict_dir, 'DarkComp', self._target_material) 
 
+        self._resonant_annihilation_energy = (self._mV**2-2*m_electron**2)/(2*m_electron)
         self._minimum_calculable_dark_energy = {11:{"DarkBrem":self._dark_brem_cross_section[0][0]},
-                                                -11:{"DarkBrem":self._dark_brem_cross_section[0][0], "DarkAnn":self._dark_annihilation_cross_section[0][0]},
+                                                #-11:{"DarkBrem":self._dark_brem_cross_section[0][0], "DarkAnn":self._dark_annihilation_cross_section[0][0]},
+                                                -11:{"DarkBrem":self._dark_brem_cross_section[0][0], "DarkAnn":self._resonant_annihilation_energy},
                                                 22:{"DarkComp":self._dark_compton_cross_section[0][0]},
                                                 111:{"TwoBody_BSMDecay":-1}}
 
@@ -187,17 +206,24 @@ class DarkShower(Shower):
         """
         DBS, DAnnS, DCS = self.get_DarkBremXSec(), self.get_DarkAnnXSec(), self.get_DarkCompXSec()
         nZ, ne = self.get_n_targets()
-        self._NSigmaDarkBrem = interp1d(np.transpose(DBS)[0], nZ*GeVsqcm2*np.transpose(DBS)[1], fill_value=0.0, bounds_error=False)
-        self._NSigmaDarkAnn = interp1d(np.transpose(DAnnS)[0], ne*GeVsqcm2*np.transpose(DAnnS)[1], fill_value=0.0, bounds_error=False)
-        self._NSigmaDarkComp = interp1d(np.transpose(DCS)[0], ne*GeVsqcm2*np.transpose(DCS)[1], fill_value=0.0, bounds_error=False)
+        #self._NSigmaDarkBrem = interp1d(np.transpose(DBS)[0], nZ*GeVsqcm2*np.transpose(DBS)[1], fill_value=0.0, bounds_error=False)
+        #self._NSigmaDarkAnn = interp1d(np.transpose(DAnnS)[0]- self._resonant_annihilation_energy, ne*GeVsqcm2*np.transpose(DAnnS)[1], fill_value=0.0, bounds_error=False)
+        #self._NSigmaDarkComp = interp1d(np.transpose(DCS)[0], ne*GeVsqcm2*np.transpose(DCS)[1], fill_value=0.0, bounds_error=False)
 
-        II_y_DarkBrem = np.array([quad(self._NSigmaDarkBrem, DBS[0][0],   DBS[i][0], full_output=1)[0]   for i in range(len(DBS))])
-        II_y_DarkAnn  = np.array([quad(self._NSigmaDarkAnn,  DAnnS[0][0], DAnnS[i][0], full_output=1)[0] for i in range(len(DAnnS))])
-        II_y_DarkComp = np.array([quad(self._NSigmaDarkComp, DCS[0][0],   DCS[i][0], full_output=1)[0]   for i in range(len(DCS))])
+        self._NSigmaDarkBrem = interpolate1d(np.transpose(DBS)[0], nZ*GeVsqcm2*np.transpose(DBS)[1], xspace='log', yspace='log', fill_value=-20.0, bounds_error=False)
+        self._NSigmaDarkAnn = interpolate1d(np.transpose(DAnnS)[0] - self._resonant_annihilation_energy, ne*GeVsqcm2*np.transpose(DAnnS)[1], xspace='log', yspace='log', fill_value=-20.0, bounds_error=False)
+        self._NSigmaDarkComp = interpolate1d(np.transpose(DCS)[0], ne*GeVsqcm2*np.transpose(DCS)[1], xspace='log', yspace='log', fill_value=-20.0, bounds_error=False)
 
-        self._interaction_integral_DarkBrem = interp1d(np.transpose(DBS)[0],   II_y_DarkBrem, fill_value=0.0, bounds_error=False)
-        self._interaction_integral_DarkAnn  = interp1d(np.transpose(DAnnS)[0], II_y_DarkAnn, fill_value=0.0, bounds_error=False)
-        self._interaction_integral_DarkComp = interp1d(np.transpose(DCS)[0],   II_y_DarkComp, fill_value=0.0, bounds_error=False)
+        #self._II_y_DarkBrem = np.array([quad(self._NSigmaDarkBrem, DBS[0][0],   DBS[i][0], full_output=1)[0]   for i in range(len(DBS))])
+        #self._II_y_DarkAnn  = np.array([quad(self._NSigmaDarkAnn,  DAnnS[0][0] - self._resonant_annihilation_energy, DAnnS[i][0] - self._resonant_annihilation_energy, full_output=1)[0] for i in range(len(DAnnS))])
+        #self._II_y_DarkComp = np.array([quad(self._NSigmaDarkComp, DCS[0][0],   DCS[i][0], full_output=1)[0]   for i in range(len(DCS))])
+        self._II_y_DarkBrem = np.cumsum(np.concatenate([[0], [quad(self._NSigmaDarkBrem, DBS[i][0], DBS[i+1][0], full_output=1)[0] for i in range(len(DBS)-1)]]))
+        self._II_y_DarkAnn = np.cumsum(np.concatenate([[0], [quad(self._NSigmaDarkAnn, DAnnS[i][0] - self._resonant_annihilation_energy, DAnnS[i+1][0] - self._resonant_annihilation_energy, full_output=1)[0] for i in range(len(DAnnS)-1)]]))
+        self._II_y_DarkComp = np.cumsum(np.concatenate([[0], [quad(self._NSigmaDarkComp, DCS[i][0], DCS[i+1][0], full_output=1)[0] for i in range(len(DCS)-1)]]))
+
+        self._interaction_integral_DarkBrem = interp1d(np.transpose(DBS)[0],   self._II_y_DarkBrem, fill_value=0.0, bounds_error=False)
+        self._interaction_integral_DarkAnn  = interp1d(np.transpose(DAnnS)[0], self._II_y_DarkAnn, fill_value=0.0, bounds_error=False)
+        self._interaction_integral_DarkComp = interp1d(np.transpose(DCS)[0],   self._II_y_DarkComp, fill_value=0.0, bounds_error=False)
 
     def GetBSMWeights(self, particle, process):
         """Compute relative weight of dark photon emission to the available SM processes
@@ -237,7 +263,23 @@ class DarkShower(Shower):
                 return (self.g_e**2/(4*np.pi*alpha_em))*numerator/(denominator1+denominator2+denominator3)
 
             elif process == "DarkAnn":
-                numerator = (self._interaction_integral_DarkAnn(energy_initial) - self._interaction_integral_DarkAnn(energy_final))
+                minimum_saved_energy = self.get_DarkAnnXSec()[0][0]
+                if energy_final > minimum_saved_energy:
+                    numerator = (self._interaction_integral_DarkAnn(energy_initial) - self._interaction_integral_DarkAnn(energy_final))
+                else:
+                    numerator_interp = (self._interaction_integral_DarkAnn(np.min([energy_initial, minimum_saved_energy])) - self._interaction_integral_DarkAnn(minimum_saved_energy))
+
+                    sMIN = np.max([2*m_electron*(energy_final + m_electron), self._mV**2])
+                    #sMIN = 2*(m_electron*np.max([energy_final, self._resonant_annihilation_energy]) + m_electron**2)
+                    sMAX = 2*(m_electron*np.min([minimum_saved_energy, energy_initial]) + m_electron**2)
+                    if sMIN < self._mV**2 or sMAX < self._mV**2:
+                        print(energy_initial, energy_final, minimum_saved_energy, self._resonant_annihilation_energy)
+                        print(sMAX, sMIN, self._mV**2)
+                        raise ValueError("sMIN or sMAX is less than mV^2")
+                    beta = (2.*alpha_em/np.pi) * (np.log(sMAX/m_electron**2) - 1.)
+                    n_e = self.get_n_targets()[1]
+                    numerator_analytic = (2*np.pi**2*alpha_em/m_electron)*n_e*GeVsqcm2*((sMAX - self._mV**2)**beta - (sMIN - self._mV**2)**beta)
+                    numerator = numerator_interp + numerator_analytic
                 denominator1 = (self._interaction_integral_Brem(energy_initial) - self._interaction_integral_Brem(energy_final))
                 denominator2 = (self._interaction_integral_Bhabha(energy_initial) - self._interaction_integral_Bhabha(energy_final))
                 denominator3 = (self._interaction_integral_Ann(energy_initial) - self._interaction_integral_Ann(energy_final))
