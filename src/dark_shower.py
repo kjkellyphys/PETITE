@@ -9,6 +9,7 @@ from .particle import Particle, meson_twobody_branchingratios
 from .kinematics import e_to_egamma_fourvecs, e_to_eV_fourvecs, gamma_to_epem_fourvecs, compton_fourvecs, radiative_return_fourvecs
 from .shower import Shower
 from .all_processes import *
+from copy import deepcopy
 
 class interpolate1d(interp1d):
     """Extend scipy interp1d to interpolate/extrapolate per axis in log space"""
@@ -53,7 +54,7 @@ class DarkShower(Shower):
 
     def __init__(self, dict_dir, target_material, min_energy, mV_in_GeV , \
                           mode="exact", maxF_fudge_global=1,max_n_integrators=int(1e4), \
-                          kinetic_mixing=1.0, g_e=None, active_processes=None):
+                          kinetic_mixing=1.0, g_e=None, active_processes=None, sampling_location="final", annihilation_method='radret'):
         super().__init__(dict_dir, target_material, min_energy)
         """Initializes the shower object.
         Args:
@@ -79,6 +80,8 @@ class DarkShower(Shower):
         if self.g_e is None:
             self.g_e = self.kinetic_mixing*np.sqrt(4*np.pi*alpha_em)
 
+        self._sampling_location = sampling_location
+        self._annihilation_method = annihilation_method
         self.set_material_properties()
         self.set_n_targets()
         self.set_mV_list(dict_dir)
@@ -240,8 +243,8 @@ class DarkShower(Shower):
             return 0.0
         if energy_initial < self._minimum_calculable_dark_energy[PID][process]:
             return 0.0
-        if energy_final < self._minimum_calculable_dark_energy[PID][process]:
-            particle.lose_energy((energy_final - 1.1*self._minimum_calculable_dark_energy[PID][process]))
+        #if energy_final < self._minimum_calculable_dark_energy[PID][process]:
+        #    particle.lose_energy((energy_final - 1.1*self._minimum_calculable_dark_energy[PID][process]))
 
         if PID == 22:
             if process != "DarkComp":
@@ -263,27 +266,36 @@ class DarkShower(Shower):
                 return (self.g_e**2/(4*np.pi*alpha_em))*numerator/(denominator1+denominator2+denominator3)
 
             elif process == "DarkAnn":
-                minimum_saved_energy = self.get_DarkAnnXSec()[0][0]
-                if energy_final > minimum_saved_energy:
-                    numerator = (self._interaction_integral_DarkAnn(energy_initial) - self._interaction_integral_DarkAnn(energy_final))
-                else:
-                    numerator_interp = (self._interaction_integral_DarkAnn(np.min([energy_initial, minimum_saved_energy])) - self._interaction_integral_DarkAnn(minimum_saved_energy))
+                if self._annihilation_method == 'delta':
+                    if (energy_final < self._resonant_annihilation_energy) and (energy_initial > self._resonant_annihilation_energy):
+                        numerator = (2*np.pi**2*alpha_em/m_electron)*(self.get_n_targets()[1])*GeVsqcm2
+                        denominator1 = (self._interaction_integral_Brem(energy_initial) - self._interaction_integral_Brem(energy_final))
+                        denominator2 = (self._interaction_integral_Bhabha(energy_initial) - self._interaction_integral_Bhabha(energy_final))
+                        denominator3 = (self._interaction_integral_Ann(energy_initial) - self._interaction_integral_Ann(energy_final))
+                        return (self.g_e**2/(4*np.pi*alpha_em))*numerator/(denominator1+denominator2+denominator3)  
+                    else:
+                        return 0.0
+                elif self._annihilation_method == 'radret':
+                    minimum_saved_energy = self.get_DarkAnnXSec()[0][0]
+                    if energy_final > minimum_saved_energy:
+                        numerator = (self._interaction_integral_DarkAnn(energy_initial) - self._interaction_integral_DarkAnn(energy_final))
+                    else:
+                        numerator_interp = (self._interaction_integral_DarkAnn(np.min([energy_initial, minimum_saved_energy])) - self._interaction_integral_DarkAnn(minimum_saved_energy))
 
-                    sMIN = np.max([2*m_electron*(energy_final + m_electron), self._mV**2])
-                    #sMIN = 2*(m_electron*np.max([energy_final, self._resonant_annihilation_energy]) + m_electron**2)
-                    sMAX = 2*(m_electron*np.min([minimum_saved_energy, energy_initial]) + m_electron**2)
-                    if sMIN < self._mV**2 or sMAX < self._mV**2:
-                        print(energy_initial, energy_final, minimum_saved_energy, self._resonant_annihilation_energy)
-                        print(sMAX, sMIN, self._mV**2)
-                        raise ValueError("sMIN or sMAX is less than mV^2")
-                    beta = (2.*alpha_em/np.pi) * (np.log(sMAX/m_electron**2) - 1.)
-                    n_e = self.get_n_targets()[1]
-                    numerator_analytic = (2*np.pi**2*alpha_em/m_electron)*n_e*GeVsqcm2*((sMAX - self._mV**2)**beta - (sMIN - self._mV**2)**beta)
-                    numerator = numerator_interp + numerator_analytic
-                denominator1 = (self._interaction_integral_Brem(energy_initial) - self._interaction_integral_Brem(energy_final))
-                denominator2 = (self._interaction_integral_Bhabha(energy_initial) - self._interaction_integral_Bhabha(energy_final))
-                denominator3 = (self._interaction_integral_Ann(energy_initial) - self._interaction_integral_Ann(energy_final))
-                return (self.g_e**2/(4*np.pi*alpha_em))*numerator/(denominator1+denominator2+denominator3)                
+                        sMIN = np.max([2*m_electron*(energy_final + m_electron), self._mV**2])
+                        #sMIN = 2*(m_electron*np.max([energy_final, self._resonant_annihilation_energy]) + m_electron**2)
+                        sMAX = 2*(m_electron*np.min([minimum_saved_energy, energy_initial]) + m_electron**2)
+                        if sMIN < self._mV**2 or sMAX < self._mV**2:
+                            print(energy_initial, energy_final, minimum_saved_energy, self._resonant_annihilation_energy)
+                            print(sMAX, sMIN, self._mV**2)
+                            raise ValueError("sMIN or sMAX is less than mV^2")
+                        beta = (2.*alpha_em/np.pi) * (np.log(sMAX/m_electron**2) - 1.)
+                        numerator_analytic = (2*np.pi**2*alpha_em/m_electron)*(self.get_n_targets()[1])*GeVsqcm2*((sMAX - self._mV**2)**beta - (sMIN - self._mV**2)**beta)
+                        numerator = numerator_interp + numerator_analytic
+                    denominator1 = (self._interaction_integral_Brem(energy_initial) - self._interaction_integral_Brem(energy_final))
+                    denominator2 = (self._interaction_integral_Bhabha(energy_initial) - self._interaction_integral_Bhabha(energy_final))
+                    denominator3 = (self._interaction_integral_Ann(energy_initial) - self._interaction_integral_Ann(energy_final))
+                    return (self.g_e**2/(4*np.pi*alpha_em))*numerator/(denominator1+denominator2+denominator3)                
             else:
                 return 0.0
         elif PID == 111 or PID == 221 or PID == 331:
@@ -349,7 +361,46 @@ class DarkShower(Shower):
         else:
             return self._NSigmaDarkBrem(Energy)/(self._NSigmaDarkBrem(Energy) + self._NSigmaDarkAnn(Energy))
 
-    def produce_bsm_particle(self, p0, process, VB=False):
+    def produce_bsm_particle(self, p_original, process, VB=False):
+        p0 = deepcopy(p_original)
+        wg = self.GetBSMWeights(p0, process)
+        E0 = p0.get_pf()[0]
+        
+        if (self._sampling_location == "final") and (E0 < self._minimum_calculable_dark_energy[p0.get_ids()["PID"]][process]):
+            pf = p0.get_pf()[1:]
+            Eset = 1.1*self._minimum_calculable_dark_energy[p0.get_ids()["PID"]][process]
+            p0.set_pf(np.concatenate([[Eset], (Eset/E0)*pf]))
+        if (self._sampling_location == "initial"):
+            p0.set_pf(p0.get_p0())
+            E0 = p0.get_pf()[0]
+            RM = p0.rotation_matrix()            
+        elif (process == "DarkAnn") and (self._sampling_location == "peak") and (p0.get_pf()[0] < self._resonant_annihilation_energy):
+            Eres = self._resonant_annihilation_energy
+            dEdxT = self.get_material_properties()[3]*(0.1) #conversion of units
+            dist = (p0.get_p0()[0] - Eres)/dEdxT
+            p_scat = get_scattered_momentum(p0.get_p0(), self._rhoTarget*(dist/cmtom), self._ATarget, self._ZTarget)
+            p0.set_pf(p_scat)
+            E0 = p0.get_pf()[0]
+            RM = p0.rotation_matrix()
+
+        if (process == "DarkAnn") and (self._annihilation_method == 'delta'):
+            ERes = self._resonant_annihilation_energy
+            p3 = np.sqrt(ERes**2 - self._mV**2)
+            phat = p0.get_pf()[1:] / np.linalg.norm(p0.get_pf()[1:])
+            pV4LF = np.concatenate([[ERes], p3*phat])
+
+            init_IDs = p0.get_ids()
+            V_dict = {}
+            V_dict["PID"] = 4900022
+            V_dict["parent_PID"] = init_IDs["PID"]
+            V_dict["ID"] = 2*(init_IDs["ID"]) + 0
+            V_dict["parent_ID"] = init_IDs["ID"]
+            V_dict["generation_number"] = init_IDs["generation_number"] + 1
+            V_dict["generation_process"] = process
+            V_dict["weight"] = wg*init_IDs["weight"]
+
+            return Particle(pV4LF, p0.get_rf(), V_dict)
+
         E0 = p0.get_pf()[0]
         RM = p0.rotation_matrix()
         sample_event = self.draw_dark_sample(E0, process=process, VB=VB)
@@ -357,8 +408,6 @@ class DarkShower(Shower):
         #dark-production is estabilished such that the last particle returned corresponds to the dark vector
         EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1] 
         pV4LF = np.concatenate([[EVf], np.dot(RM, [pVxfZF, pVyfZF, pVzfZF])])
-
-        wg = self.GetBSMWeights(p0, process)
 
         init_IDs = p0.get_ids()
         V_dict = {}
