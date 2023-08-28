@@ -5,18 +5,27 @@ import random
 import sys
 from .physical_constants import *
 
+"""
+Below we need to be careful to distinguish between "space" and "plane"/projected angles (https://pdg.lbl.gov/2019/reviews/rpp2018-rev-passage-particles-matter.pdf)
+the "space" angle is the usual polar angle in 3D with respect to the direction of motion
+there are two "plane" angles that measure deflections into x and y directions; these are identically distributed
+either variables can be used to calculate multiple scattering deflections, but these 
+random variables have different probability distributions associated with them and also different standard deviations to account 
+for the fact that one angle is 3D angle and the others are a pair of "2D" angles 
+(in the "space" formulation there is also an azimuthal angle phi which is assumed to be uniformly distributed).
+The Bethe-Moliere distributions are all for "space" angles
+The PDG "theta0" parameter gives the standard deviation for the "plane" angle
+The Lynch and Dahl paper also deals with the projected/"plane" angles
 
-# Below we need to be careful to distinguish between "space" and "plane"/projected angles (https://pdg.lbl.gov/2019/reviews/rpp2018-rev-passage-particles-matter.pdf)
-# the "space" angle is the usual polar angle in 3D with respect to the direction of motion
-# there are two "plane" angles that measure deflections into x and y directions; these are identically distributed
-# either variables can be used to calculate multiple scattering deflections, but these 
-# random variables have different probability distributions associated with them and also different standard deviations to account 
-# for the fact that one angle is 3D angle and the others are a pair of "2D" angles 
-# (in the "space" formulation there is also an azimuthal angle phi which is assumed to be uniformly distributed).
-# The Bethe-moliere distributions are all for "space" angles
-# The PDG "theta0" parameter gives the standard deviation for the "plane" angle
-# The Lynch and Dahl pap    m_electron = 511. * 1e-6er also deals with the projected/"plane" angles
-# We will stick to the "space" formulation.
+Three different multiple scattering formalisms are implemented below. They can 
+be exchanged by manually changing get_scattered_momentum function to use 
+different versions of generate_moliere_angle which returns a space angle.
+The different possibilities are: 
+    1) generate_moliere_angle_simplified_alt - Gaussian approximation to Moliere scattering given in Lynch and Dahl '91 (fast, and allegedly most accurate) 
+    2) generate_moliere_angle_simplified - Gaussian approximation to Moliere scattering given in the PDG (fast)
+    3) generate_moliere_angle - Bethe theory of Moliere scattering that includes rare large angle scatters (slowest, but most accurate)
+These functions call various auxialiary functions, which is why there are multiple implementations of, e.g.,  get_chic_squared etc 
+"""
 
 def moliere_f0(x):
     """
@@ -26,7 +35,7 @@ def moliere_f0(x):
     return 2.*np.exp(-x)
 def moliere_f1(x):
     """
-    Next-to-lLeading order multiple scattering distribution in x = theta^2 / (chi_c^2 B)
+    Next-to-leading order multiple scattering distribution in x = theta^2 / (chi_c^2 B)
     Eq. 28 in Bethe 1952
     """
     if x <= 100.:
@@ -107,9 +116,9 @@ def get_b(t, beta, A, Z, z):
     Z - charge of target nucleus
     z - charge of beam particle
     """
-    alpha_EM = 1./137. # = e^2 in Gaussian units
+    alpha_EM = alpha_em # = e^2 in Gaussian units
     alpha = z*Z*alpha_EM/beta 
-    N0 = 6.0221409e+23
+    N0 = n_avogadro
     expb = 6700. * t * (Z+1.)*np.power(Z,1./3.)*np.power(z,2.) / (np.power(beta,2) * A * (1. + 3.34*alpha**2))
     return np.log(expb)
 
@@ -131,7 +140,7 @@ def get_capital_B(t, beta, A, Z, z):
     #print("number of iterations = ", it)
     return B
 
-#FIXME: do we need all these get_chics?
+# Different versions of chic implemented below are called by different versions of generate_moliere_angle
 def get_chic_squared(t, beta, A, Z, z):
     """
     squared critical angle for Rutherford scattering, eq. 10 in Bethe, 1953
@@ -142,8 +151,7 @@ def get_chic_squared(t, beta, A, Z, z):
     z - charge of beam particle
     """
     
-    me_in_inv_cm = 2.58961e+10 # 511 keV in 1/cm #FIXME
-#    me_in_inv_cm = m_electron/hbarc # 511 keV in 1/cm #FIXME - this is 3 orders of magnitude off from the upper line!
+    me_in_inv_cm = m_electron/hbarc # 511 keV in 1/cm
 
     p = me_in_inv_cm * beta / np.sqrt(1. - beta**2)
     return 4.*np.pi*n_avogadro * alpha_em**2 * t * Z * (Z+1.) * z**2 / (A * p**2 * beta**2)
@@ -157,8 +165,8 @@ def get_chic_squared_alt(t, beta, A, Z, z):
     Z - nuclear charge number
     z - particle charge (+/- 1 for electrons/positrons)
     """
-    me_in_MeV = m_electron/MeV # FIXME - check - why MeV?
-    p = me_in_MeV * beta / np.sqrt(1. - beta**2)
+    me_in_MeV = m_electron/MeV
+    p = me_in_MeV * beta / np.sqrt(1. - beta**2) # momentum has to be in MeV, see below Eq. 2 in Lynch & Dahl, 1991
     return 0.157 * Z * (Z+1)*(t/A)*np.power(z/(p*beta),2.)
 
 def get_chia_squared_alt(beta, A, Z, z):
@@ -169,9 +177,8 @@ def get_chia_squared_alt(beta, A, Z, z):
     Z - nuclear charge number
     z - particle charge (+/- 1 for electrons/positrons)
     """
-    # me_in_MeV = 0.511
-    me_in_MeV = m_electron/MeV # FIXME - check - why MeV?
-    p = me_in_MeV * beta / np.sqrt(1. - beta**2)
+    me_in_MeV = m_electron/MeV 
+    p = me_in_MeV * beta / np.sqrt(1. - beta**2) # momentum has to be in MeV, see below Eq. 2 in Lynch & Dahl, 1991
     return 2.007e-5 * np.power(Z,2./3.) * (1. + 3.34*np.power(Z*z*alpha_em/beta,2.))/p**2
 
 def generate_moliere_angle(t, beta, A, Z, z):
@@ -186,9 +193,7 @@ def generate_moliere_angle(t, beta, A, Z, z):
     """
     B = get_capital_B(t, beta, A, Z, z)
     x = generate_moliere_x(B)
-    
 
-    
     # squared critical angle for Rutherford scattering, eq. 10 in Bethe, 1953
     chic2 = get_chic_squared(t, beta, A, Z, z)
 
@@ -203,7 +208,7 @@ def generate_moliere_angle_simplified(t_over_X0, beta, z):
     t_over_X0 is the target thickness in radiation lengths
     """
     p = m_electron * beta / np.sqrt(1.-beta**2)
-    theta0 = (13.6 * 1e-3) * np.fabs(z) * np.sqrt(t_over_X0)*(1. + 0.038*np.log(t_over_X0)) / (beta * p)
+    theta0 = (13.6 * MeV) * np.fabs(z) * np.sqrt(t_over_X0)*(1. + 0.038*np.log(t_over_X0)) / (beta * p)
     #return random.gauss(0.,theta0)
     # theta0 is the standard deviation for the plane angle, but we want to generate the space angle
     # we rewrite the space distribution: exp(-theta^2/(2theta_0^2)) d (theta^2/2) -> exp(-x lambda) d x, x=theta^2/2, lambda = 1/theta0^2
@@ -265,9 +270,6 @@ def get_rotation_matrix(v):
         
     Ra = np.array([[ca, -sa, 0.],[sa,ca,0.],[0.,0.,1.]])
 
-    #sa = 0.
-    #ca = 1.
-    
     # Find second rotation to set x component to 0
     vxp = vx*ca - vy*sa
     if np.fabs(vz) > 0. and np.fabs(vxp) > 0.:
@@ -296,10 +298,6 @@ def get_rotation_matrix(v):
         sb = 0.
         
     Rb = np.array([[cb, 0., sb],[0., 1., 0.],[-sb, 0., cb]])
-    
-    #return Rb
-    
-    #print "Rb v = ", np.matmul(Rb,v)
     
     return np.matmul(Rb,Ra)
    
