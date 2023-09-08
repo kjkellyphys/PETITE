@@ -235,11 +235,44 @@ class Shower:
         II_y_Bhabha = np.array([quad(self._NSigmaBhabha, bhabha_moller_energies[0], bhabha_moller_energies[i], full_output=1)[0] for i in range(len(bhabha_moller_energies))])
         self._interaction_integral_Bhabha = interp1d(bhabha_moller_energies, II_y_Bhabha, fill_value=0.0, bounds_error=False)
         
+    def _positron_exponential_factor(self, E, Ei):
+        """Returns the exponential factor for positron non-interaction probability
+        over an energy interval [E, Ei]"""
+        #this quantity has units of GeV/cm (assuming E, Ei given in GeV)
+        n_sigma_diff = (self._interaction_integral_Brem(Ei) - self._interaction_integral_Brem(E)) \
+                     + (self._interaction_integral_Ann(Ei) - self._interaction_integral_Ann(E))   \
+                     + (self._interaction_integral_Bhabha(Ei) - self._interaction_integral_Bhabha(E))
+        #dEdxT has units of GeV/m
+        dEdxT = self.get_material_properties()[3]*(0.1) #Converting MeV/cm to GeV/m
+        #the ratio n_sigma_diff/dEdxT has units of (GeV/cm)/(GeV/m) = m/cm = 100
+        return np.exp(-n_sigma_diff/dEdxT/cmtom)
+
+    def _electron_exponential_factor(self, E, Ei):
+        """Returns the exponential factor for electron non-interaction probability
+        over an energy interval [E, Ei]"""
+        n_sigma_diff = (self._interaction_integral_Brem(Ei) - self._interaction_integral_Brem(E)) \
+                     + (self._interaction_integral_Moller(Ei) - self._interaction_integral_Moller(E))
+        dEdxT = self.get_material_properties()[3]*(0.1) #Converting MeV/cm to GeV/m
+        return np.exp(-n_sigma_diff/dEdxT/cmtom)
+
+    def _NSigmaElectron(self, E):
+        """Returns n sigma for electrons as a function of energy in GeV"""
+        return self._NSigmaBrem(E) + self._NSigmaMoller(E)
+    def _NSigmaPhoton(self, E):
+        """Returns n sigma for photons as a function of energy in GeV"""
+        return self._NSigmaPP(E) + self._NSigmaComp(E)
+    def _NSigmaPositron(self, E):
+        """Returns n sigma for positrons as a function of energy in GeV"""
+        return self._NSigmaBrem(E) + self._NSigmaBhabha(E) + self._NSigmaAnn(E)
+    
 
     def get_mfp(self, particle): 
         """Returns particle mean free path in meters for PID=22 (photons), 
         11 (electrons) or -11 (positrons) as a function of energy in GeV"""
-        PID, Energy = particle.get_ids()["PID"], particle.get_pf()[0]
+        if type(particle) is not Particle and (type(particle) is list or type(particle) is np.ndarray):
+            PID, Energy = particle
+        else:
+            PID, Energy = particle.get_ids()["PID"], particle.get_pf()[0]
         if PID == 22:
             return cmtom*(self._NSigmaPP(Energy) + self._NSigmaComp(Energy))**-1
         elif PID == 11:
@@ -278,6 +311,12 @@ class Shower:
             energies = np.array([x[0] for x in energies])
             # Get index of nearest (higher) energy
             LU_Key = np.argmin(np.abs(energies - Einc)) + 1
+            if LU_Key < 0:
+                LU_Key = 0
+                print("Warning: sampling below minimum energy for process" + str(process))
+            if LU_Key >= len(sample_list[process]):
+                LU_Key = len(sample_list[process]) - 1
+                print("Warning: sampling above maximum energy for process" + str(process))
 
         # Get dictionary based on LU_Key or energy (if LU_Key is negative)
         sample_dict=sample_list[process][LU_Key][1]
