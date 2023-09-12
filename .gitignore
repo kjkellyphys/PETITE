@@ -10,6 +10,6 @@ PETITE.egg-info
 exploring_PETITE.py
 tests/.ipynb_checkpoints/*
 paddy_test/
-lightmasses_fine/*
 data/beams/Pi0_120GeVProtons_1e5POT.npy
 utilities/macpro_integrators_lightmass.py
+lightmasses_fine/*
