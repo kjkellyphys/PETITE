@@ -55,7 +55,7 @@ class DarkShower(Shower):
 
     def __init__(self, dict_dir, target_material, min_energy, mV_in_GeV , \
                           mode="exact", maxF_fudge_global=1,max_n_integrators=int(1e4), \
-                          kinetic_mixing=1.0, g_e=None, active_processes=None, sampling_location="final", annihilation_method='radret'):
+                          kinetic_mixing=1.0, g_e=None, active_processes=None):
         super().__init__(dict_dir, target_material, min_energy)
         """Initializes the shower object.
         Args:
