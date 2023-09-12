@@ -81,8 +81,6 @@ class DarkShower(Shower):
         if self.g_e is None:
             self.g_e = self.kinetic_mixing*np.sqrt(4*np.pi*alpha_em)
 
-        self._sampling_location = sampling_location
-        self._annihilation_method = annihilation_method
         self.set_material_properties()
         self.set_n_targets()
         self.set_mV_list(dict_dir)
