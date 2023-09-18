@@ -1,10 +1,10 @@
-import numpy as np
+import numpy as npA
 import pickle 
 
 from scipy.interpolate import interp1d
 from scipy.integrate import quad
 
-from .moliere import get_scattered_momentum 
+from .moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
 from .particle import Particle
 from .kinematics import e_to_egamma_fourvecs, e_to_eV_fourvecs, gamma_to_epem_fourvecs, compton_fourvecs, annihilation_fourvecs, ee_to_ee_fourvecs
 from .all_processes import *
@@ -66,7 +66,8 @@ class Shower:
     """ Representation of a shower
 
     """
-    def __init__(self, dict_dir, target_material, min_energy, maxF_fudge_global=1,max_n_integrators=int(1e4)):
+    def __init__(self, dict_dir, target_material, min_energy, \
+                 maxF_fudge_global=1,max_n_integrators=int(1e4), fast_MCS_mode=True ):
         """Initializes the shower object.
         Args:
             dict_dir: directory containing the pre-computed VEGAS integrators and auxillary info.
@@ -88,9 +89,16 @@ class Shower:
         self.set_cross_sections()
         self.set_NSigmas()
         self.set_samples()
-
+        self.set_MCS_momentum(fast_MCS_mode)
         self._maxF_fudge_global=maxF_fudge_global
         self._max_n_integrators=max_n_integrators
+
+
+    def set_MCS_momentum(self, fast_MCS_mode):
+        if fast_MCS_mode:
+            self._get_MCS_p=get_scattered_momentum_fast
+        else:
+            self._get_MCS_p=get_scattered_momentum_Bethe
 
                 
         
@@ -420,15 +428,21 @@ class Shower:
                 Part0: updated Particle object with new position and 
                 (potentially) energy/momentum
         """
+        delta_z=0
+        
         if Part0.get_ended() is True:
             Part0.set_rf(Part0.get_rf())
             return Part0
         else:
-            if (np.linalg.norm(Part0.get_p0() - Part0.get_pf()) > 0.0) or (np.linalg.norm(Part0.get_r0() - Part0.get_rf()) > 0.0) or (Part0.get_ended()):
-            #if Part0.get_p0() != Part0.get_pf() or Part0.get_r0() != Part0.get_rf() or Part0.get_ended():
-                raise ValueError("propagate_particle() should only be called for a particle with pf = p0 and rf = r0 and get_ended() == False")
+            if (np.linalg.norm(Part0.get_p0() - Part0.get_pf()) > 0.0) \
+               or (np.linalg.norm(Part0.get_r0() - Part0.get_rf()) > 0.0) \
+               or (Part0.get_ended()):
+#if Part0.get_p0() != Part0.get_pf() or Part0.get_r0() != Part0.get_rf() or Part0.get_ended():
+                raise ValueError("propagate_particle() should only be called \
+                for a particle with pf = p0 and rf = r0 and get_ended() == False")
 
-            particle_min_energy = np.max([self._minimum_calculable_energy[Part0.get_ids()["PID"]], self.min_energy, Part0.get_ids()["mass"]])
+            particle_min_energy = np.max([self._minimum_calculable_energy[Part0.get_ids()["PID"]],\
+                                          self.min_energy, Part0.get_ids()["mass"]])
             if Part0.get_p0()[0] < particle_min_energy:
                 Part0.set_ended(True)
                 return Part0
@@ -441,7 +455,8 @@ class Shower:
 
                 p0 = Part0.get_p0()[1:]
                 if MS:
-                    P0 = get_scattered_momentum(Part0.get_p0(), self._rhoTarget*(dist/cmtom), self._ATarget, self._ZTarget)
+                    P0 = self._get_MCS_p(Part0.get_p0(), self._rhoTarget*(dist/cmtom), \
+                                         self._ATarget, self._ZTarget)
                     PHat = (p0 + P0[1:])/np.linalg.norm(p0+P0[1:])
                     Part0.set_pf(P0)
                     #PHatDenom = np.sqrt((PxF0 + px0)**2 + (PyF0 + py0)**2 + (PzF0 + pz0)**2)
@@ -457,7 +472,7 @@ class Shower:
                 z_travelled =0
                 hard_scatter=False
 
-                while hard_scatter == False and Part0.get_pf()[0] > particle_min_energy:
+                while hard_scatter == False and Part0.get_pf()[0] >= particle_min_energy:
                     mfp = self.get_mfp(Part0)
                     random_number = np.random.uniform(0.0, 1.0)
                     delta_z = mfp/np.random.uniform(low=6, high=20)
@@ -476,9 +491,12 @@ class Shower:
                         pf0 = np.linalg.norm([pfx, pfy, pfz])
                         if pf0 > 0.0:
                             x_current, y_current, z_current = Part0.get_rf()
-                            Part0.set_rf([x_current + pfx/pf0*delta_z, y_current + pfy/pf0*delta_z, z_current + pfz/pf0*delta_z])
+                            Part0.set_rf([x_current + pfx/pf0*delta_z, \
+                                          y_current + pfy/pf0*delta_z, z_current + pfz/pf0*delta_z])
                         if MS:
-                            Part0.set_pf(get_scattered_momentum(Part0.get_pf(), self._rhoTarget*(delta_z/cmtom), self._ATarget, self._ZTarget))
+                            Part0.set_pf(self._get_MCS_p(Part0.get_pf(),\
+                                                         self._rhoTarget*(delta_z/cmtom), \
+                                                         self._ATarget, self._ZTarget))
 
                 distC = np.random.uniform(0.0, 1.0)
                 if Part0._pf[0] < particle_min_energy:
@@ -493,7 +511,9 @@ class Shower:
                     x_current, y_current, z_current = Part0.get_rf()
                     Part0.set_rf([x_current + pfx/pf0*last_increment, y_current + pfy/pf0*last_increment, z_current + pfz/pf0*last_increment])
                 if MS:
-                    Part0.set_pf(get_scattered_momentum(Part0.get_pf(), self._rhoTarget*(last_increment/cmtom), self._ATarget, self._ZTarget))
+                    Part0.set_pf(self._get_MCS_p(Part0.get_pf(),
+                                                 self._rhoTarget*(last_increment/cmtom),
+                                                 self._ATarget, self._ZTarget))
 
             '''
             M0 = Part0.get_ids()["mass"]
@@ -582,7 +602,8 @@ class Shower:
                         
                         all_particles[apI] = ap
 
-                        if (all([apC.get_ended() == True for apC in all_particles]) is True and ap.get_pf()[0] < self.min_energy):
+                        if (all([apC.get_ended() == True for apC in all_particles])\
+                            is True and ap.get_pf()[0] < self.min_energy):
                             break
 
                         # Generate secondaries for the hard interaction
@@ -597,7 +618,8 @@ class Shower:
                             draw = np.random.choice(["Brem","Moller"], p=choices0)
                             newparticles = self.sample_scattering(ap, process=draw, VB=VB)
                         elif ap.get_ids()["PID"] == -11:
-                            choices0 = self._NSigmaBrem(ap.get_pf()[0]), self._NSigmaAnn(ap.get_pf()[0]), self._NSigmaBhabha(ap.get_pf()[0])
+                            choices0 = self._NSigmaBrem(ap.get_pf()[0]), \
+                                self._NSigmaAnn(ap.get_pf()[0]), self._NSigmaBhabha(ap.get_pf()[0])
                             SC = np.sum(choices0)
                             if SC == 0.0 or np.isnan(SC):
                                 continue
