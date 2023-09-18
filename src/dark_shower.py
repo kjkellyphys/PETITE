@@ -5,7 +5,7 @@ import os
 from scipy.interpolate import interp1d
 from scipy.integrate import quad
 
-from .moliere import get_scattered_momentum 
+from .moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
 from .particle import Particle, meson_twobody_branchingratios
 from .kinematics import e_to_eV_fourvecs, compton_fourvecs, radiative_return_fourvecs
 from .shower import Shower
@@ -54,8 +54,9 @@ class DarkShower(Shower):
     """
 
     def __init__(self, dict_dir, target_material, min_energy, mV_in_GeV , \
-                          mode="exact", maxF_fudge_global=1,max_n_integrators=int(1e4), \
-                          kinetic_mixing=1.0, g_e=None, active_processes=None):
+                          mode="exact", maxF_fudge_global=1,\ 
+                          max_n_integrators=int(1e4), kinetic_mixing=1.0,\
+                          g_e=None, active_processes=None, fast_MCS_mode=True ):
         super().__init__(dict_dir, target_material, min_energy)
         """Initializes the shower object.
         Args:
@@ -91,12 +92,17 @@ class DarkShower(Shower):
         self.set_weight_arrays()
         self.set_drate_dE()
         self.set_dark_samples()
+        self.set_MCS_momentum(fast_MCS_mode)
 
 
         self._maxF_fudge_global=maxF_fudge_global
         self._max_n_integrators=max_n_integrators
   
-    
+    def set_MCS_momentum(self, fast_MCS_mode):
+        if fast_MCS_mode:
+            self._get_MCS_p=get_scattered_momentum_fast
+        else:
+            self._get_MCS_p=get_scattered_momentum_Bethe
     def set_dark_dict_dir(self, value):
         """Set the directory containing pre-simulated MC events for processes involing target nuclei"""
         self._dark_dict_dir = value
@@ -489,7 +495,7 @@ class DarkShower(Shower):
             E_interact = np.random.choice(energies, p=relative_probabilities) + (E0-Ei) #correct for difference between true energy and energy for which samples were saved
             dEdxT = self.get_material_properties()[3]*(0.1)
             dist = (p0.get_p0()[0] - E_interact)/dEdxT
-            p_scat = get_scattered_momentum(p0.get_p0(), self._rhoTarget*(dist/cmtom), self._ATarget, self._ZTarget)
+            p_scat = self._get_MCS_p(p0.get_p0(), self._rhoTarget*(dist/cmtom), self._ATarget, self._ZTarget)
             p0.set_pf(p_scat)
             p0.lose_energy(E0 - E_interact)
 
