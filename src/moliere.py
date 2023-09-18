@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import integrate, special, optimize
 import random
-
+import math
 import sys
 from .physical_constants import *
 
@@ -39,7 +39,7 @@ def moliere_f1(x):
     Eq. 28 in Bethe 1952
     """
     if x <= 100.:
-        return 2.*np.exp(-x)*(x-1.)*(special.expi(x)-np.log(x)) - 2.*(1.-2.*np.exp(-x))
+        return 2.*np.exp(-x)*(x-1.)*(special.expi(x)-math.log(x)) - 2.*(1.-2.*np.exp(-x))
     else:
         # avoids numerical problems when x gets large, accurate to about 1e-8 or better
         return 2./np.power(x,2) + 8./np.power(x,3) + 36./np.power(x,4)
@@ -58,8 +58,12 @@ def moliere_cdf(x, B):
     in the variable x = theta^2/(chi_c^2 B)
     """
     # This is actually already correctly normalized because f1 integrates to 0
-    integrand = lambda xp: moliere_f(xp, B)
-    return integrate.quad(integrand, 0., x)[0]
+    if x>100:
+        # Use analytic form when the function call is analytic anyways
+        return  1.0-(1.0/B/x + 2.0/B/x**2 + 6.0/B/x**3)
+    else:
+        integrand = lambda xp: moliere_f(xp, B)
+        return integrate.quad(integrand, 0., x)[0]
 
 def inverse_moliere_cdf(u, B):
     """
@@ -84,7 +88,8 @@ def inverse_moliere_cdf(u, B):
             sys.exit(0)
         continue
 
-    # The 700 upper bound just comes from numerical experiments: moliere functions have exponentials that behave poorly when the arguments get too big
+    # The 700 upper bound just comes from numerical experiments: moliere functions
+    # have exponentials that behave poorly when the arguments get too big
     if u > 0.9999:
         return 700.
     
@@ -118,9 +123,11 @@ def get_b(t, beta, A, Z, z):
     """
     alpha_EM = alpha_em # = e^2 in Gaussian units
     alpha = z*Z*alpha_EM/beta 
-    N0 = n_avogadro
+    N0 = n_avogadro 
     expb = 6700. * t * (Z+1.)*np.power(Z,1./3.)*np.power(z,2.) / (np.power(beta,2) * A * (1. + 3.34*alpha**2))
-    return np.log(expb)
+    little_b=math.log(expb)
+    
+    return little_b
 
 def get_capital_B(t, beta, A, Z, z):
     """
@@ -131,11 +138,31 @@ def get_capital_B(t, beta, A, Z, z):
     acc = 1e-3
     b = get_b(t, beta, A, Z, z)
 
-    B = b + np.log(b)
+    bOG=b
+    #try:
+    B = b + math.log(b)
+    #except ValueError as ve:
+    #    print("This is the value of bOG that fucked it up", bOG, t, beta, A, Z,z)
+
     it = 0
-    while np.fabs(B - (b + np.log(B))) > acc:
+
+    #try:
+    B = b + math.log(B)
+    #except ValueError as ve:
+    #    print("This is the value of bOG that fucked it up", bOG, t, beta, A, Z,z)
+
+    #try:
+    #    dummy= 
+    #except:
+    #    print("This is the value of bOG that fucked it up", bOG, t, beta, A, Z,z)
+        
+    while np.fabs(B - (b + math.log(B))) > acc:
         it += 1
-        B = b + np.log(B)
+        
+        #try:
+        B = b + math.log(B)
+        #except ValueError as ve:
+        #    print("This is the value of bOG that fucked it up", bOG, t, beta, A, Z,z)
     
     #print("number of iterations = ", it)
     return B
@@ -191,13 +218,22 @@ def generate_moliere_angle(t, beta, A, Z, z):
     Z - charge of target nucleus
     z - charge of beam particle
     """
-    B = get_capital_B(t, beta, A, Z, z)
-    x = generate_moliere_x(B)
 
-    # squared critical angle for Rutherford scattering, eq. 10 in Bethe, 1953
-    chic2 = get_chic_squared(t, beta, A, Z, z)
+    b = get_b(t, beta, A, Z, z)
 
-    theta = random.choice([-1,1])*np.sqrt(x*chic2*B)
+    ### The algorithm in Bethe's paper assumes a relatively large value of
+    ### B , however for very short path lengths this will not always hold
+    ### If b<2 we just use the simplified (core gaussian) sampling. 
+    if b<2:
+        theta= generate_moliere_angle_simplified_alt(t, beta, A, Z, z)
+    else: 
+        B = get_capital_B(t, beta, A, Z, z)
+        x = generate_moliere_x(B)
+
+        # squared critical angle for Rutherford scattering, eq. 10 in Bethe, 1953
+        chic2 = get_chic_squared(t, beta, A, Z, z)
+        
+        theta = random.choice([-1,1])*np.sqrt(x*chic2*B)
     
     return theta
 
@@ -208,7 +244,7 @@ def generate_moliere_angle_simplified(t_over_X0, beta, z):
     t_over_X0 is the target thickness in radiation lengths
     """
     p = m_electron * beta / np.sqrt(1.-beta**2)
-    theta0 = (13.6 * MeV) * np.fabs(z) * np.sqrt(t_over_X0)*(1. + 0.038*np.log(t_over_X0)) / (beta * p)
+    theta0 = (13.6 * MeV) * np.fabs(z) * np.sqrt(t_over_X0)*(1. + 0.038*math.log(t_over_X0)) / (beta * p)
     #return random.gauss(0.,theta0)
     # theta0 is the standard deviation for the plane angle, but we want to generate the space angle
     # we rewrite the space distribution: exp(-theta^2/(2theta_0^2)) d (theta^2/2) -> exp(-x lambda) d x, x=theta^2/2, lambda = 1/theta0^2
@@ -231,7 +267,7 @@ def generate_moliere_angle_simplified_alt(t, beta, A, Z, z):
     chia2 = get_chia_squared_alt(beta, A, Z, z)
     omega = chic2/chia2 
     v = 0.5*omega/(1.-F)
-    theta0 = np.sqrt(chic2 * ((1.+v)*np.log(1.+v)/v -1)/(1.+F**2))
+    theta0 = np.sqrt(chic2 * ((1.+v)*math.log(1.+v)/v -1)/(1.+F**2))
     #print("Lynch and Dah theta0 = ", theta0)
     # theta0 is the standard deviation for the plane angle, but we want to generate the space angle
     # in the small angle approximation the space angle is theta = sqrt(thetax^2 + thetay^2)
@@ -301,7 +337,7 @@ def get_rotation_matrix(v):
     
     return np.matmul(Rb,Ra)
    
-def get_scattered_momentum(p4, t, A, Z):
+def get_scattered_momentum_fast(p4, t, A, Z):
     """
     generate a multiple-scattered four-vector from an input four-vector p4 
     after the particle has traversed t [g/cm^2] radiation lengths of material with atomic weight A [g/mol] and 
@@ -332,6 +368,59 @@ def get_scattered_momentum(p4, t, A, Z):
     
     # this is fast, but approximate -- it excludes the rare large angle scatters
     theta = generate_moliere_angle_simplified_alt(t, beta, A, Z, Z_part)
+
+    phi = random.uniform(0.,2.*np.pi)
+    
+    cth = np.cos(theta)
+    sth = np.sin(theta)
+    cph = np.cos(phi)
+    sph = np.sin(phi)
+       
+    Rtheta = np.array([[1., 0., 0.],[0., cth, -sth],[0., sth, cth]])
+    Rphi = np.array([[cph, -sph, 0.],[sph, cph, 0.],[0., 0., 1.]])
+    
+    p3_new = p3_norm * np.matmul(Rphi,np.matmul(Rtheta,np.array([0.,0.,1.])))
+    
+    # Transform back to the lab frame
+    p3_new = np.matmul(Rz, p3_new)
+    
+    # Construct the new momentum
+    p4_new[1:] = p3_new
+    
+    return p4_new
+
+
+def get_scattered_momentum_Bethe(p4, t, A, Z):
+    """
+    generate a multiple-scattered four-vector from an input four-vector p4 
+    after the particle has traversed t [g/cm^2] radiation lengths of material with atomic weight A [g/mol] and 
+    atomic number Z
+    """
+    p3 = p4[1:]
+    p3_norm = np.linalg.norm(p3)
+    
+    if p3_norm > 0:
+        beta = np.linalg.norm(p3)/p4[0]
+    else:
+        # particle at rest
+        return p4
+    
+    # rotation matrix that takes the lab-frame 3 vector to the frame where it points along z only
+    Rz_inv = get_rotation_matrix(p3)
+    # this takes us back to the lab frame
+    Rz = np.transpose(Rz_inv)
+    
+    p4_new = np.zeros(4)
+    p4_new[0] = p4[0]
+    
+    # generate Moliere angles and make rotation matrices
+    Z_part = 1.
+    
+    # this is slow but more precise, since it includes large angle scatters
+    theta = generate_moliere_angle(t, beta, A, Z, Z_part)
+    
+    # this is fast, but approximate -- it excludes the rare large angle scatters
+    #theta = generate_moliere_angle_simplified_alt(t, beta, A, Z, Z_part)
 
     phi = random.uniform(0.,2.*np.pi)
     
