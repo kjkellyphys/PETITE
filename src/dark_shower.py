@@ -345,7 +345,7 @@ class DarkShower(Shower):
                     d_rate_dict_elec_brem = outer_dict[self._mV_estimator][self._target_material]['brem_elec_drate']
                     d_rate_dict_positron_brem = outer_dict[self._mV_estimator][self._target_material]['brem_positron_drate']
                     d_rate_dict_positron_ann = outer_dict[self._mV_estimator][self._target_material]['annihilation_drate']
-                files_set = True
+                    files_set = True
         if files_set == False:
             print("dRate not previously calculated, calculating now...")
             d_rate_dict_elec_brem = self._d_rate_d_E_elec_brem_array()
@@ -498,10 +498,14 @@ class DarkShower(Shower):
         if E0 < self._minimum_calculable_dark_energy[p0.get_ids()["PID"]][process]:
             print("Help2!")
             print(E0, p0.get_p0()[0], process, wg)
-        sample_event = self.draw_dark_sample(E0, process=process, VB=VB)
-
-        #dark-production is estabilished such that the last particle returned corresponds to the dark vector
-        EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1] 
+        #If working with Dark Annihilation and below the minimum calculated energy, 
+        #Take the 'delta-function' approach for energy conservation
+        if process == "DarkAnn" and E0 < self.get_DarkAnnXSec()[0][0]:
+            EVf, pVxfZF, pVyfZF, pVzfZF = self._resonant_annihilation_energy, 0, 0, np.sqrt(self._resonant_annihilation_energy**2 - self._mV**2)
+        else:
+            sample_event = self.draw_dark_sample(E0, process=process, VB=VB)
+            #dark-production is estabilished such that the last particle returned corresponds to the dark vector
+            EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1] 
         pV4LF = np.concatenate([[EVf], np.dot(RM, [pVxfZF, pVyfZF, pVzfZF])])
 
         init_IDs = p0.get_ids()
