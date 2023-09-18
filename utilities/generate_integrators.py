@@ -212,6 +212,21 @@ def cleanup(dir):
     os.system("rm " + dir + "*.p")
     return
 
+def organize_directories_final(dir):
+    '''
+    Moves all folders in mother directory dir to auxiliary directory dir/auxiliary, leaving behind the .pkl files
+    '''
+    # get all directories in mother directory
+    directories = glob(dir + '/*/')
+    # create auxiliary directory if it doesn't exist
+    if not(os.path.exists(dir + '/auxiliary/')):
+        os.system("mkdir -p " + dir + "/auxiliary/")
+    # move all directories to auxiliary directory
+    for directory in directories:
+        os.system("mv " + directory + " " + dir + "/auxiliary/")
+    return
+
+
 def main(args):
     """
     Run make_integrators, stitch_integrators, cleanup, and call_find_maxes using the 
@@ -265,7 +280,8 @@ def main(args):
             call_find_maxes(processing_params, process)
         else:
             print("Not Running find_maxes")
-
+    # move all directories in mother directory to auxiliary directory
+    organize_directories_final(training_params['save_location'])
 
 
 if __name__ == '__main__':
@@ -299,9 +315,7 @@ if __name__ == '__main__':
     print('**** Arguments passed to generate_integrators ****')
     print(args)
 
-
     main(args)
-
 
     print("Goodbye!")
 
