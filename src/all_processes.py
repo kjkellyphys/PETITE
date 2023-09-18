@@ -87,10 +87,12 @@ def g2_inelastic(EI, t):
     return Z*ap0**4*t**2/(1 + ap0**2*t)**2
 
 mu_p = 2.79 # https://journals.aps.org/prd/pdf/10.1103/PhysRevD.8.3109
-def Gelastic_inelastic(EI, t):
+def Gelastic_inelastic_over_tsquared(EI, t):
     """
-    Form factor used for elastic/inelastic contributions to Dark Bremsstrahlung Calculation
+    Form factor squared used for elastic/inelastic contributions to Dark Bremsstrahlung Calculation
+    Rescaled by 1/t^2 to make it easier to integrate over t
     (Scales like Z^2 in the small-t limit)
+    See Eq. (9) of Gninenko et al (Phys. Lett. B 782 (2018) 406-411)
     """
     Z = EI['Z_T']
     A = EI['A_T']
@@ -99,7 +101,7 @@ def Gelastic_inelastic(EI, t):
     Gel =  (1./(1. + c1*t))**2 * (1+t/c2)**(-2)
     
     ap2 = (773.*Z**(-2./3) / m_electron)**2
-    Ginel = Z/((c1**2 * Z**2)) * np.power((1/(1. + ap2*t))*((1. + (mu_p**2-1.)*t/(4.*m_proton**2))/(1. + t/0.71)**4), 2.)
+    Ginel = Z/((c1**2 * Z**2)) * np.power((ap2/(1. + ap2*t)), 2.)*((1. + (mu_p**2-1.)*t/(4.*m_proton**2))/(1. + t/0.71)**4)
     
     return Z**2*c1**2*(Gel+Ginel)
 
@@ -248,9 +250,9 @@ def dsig_dx_dcostheta_dark_brem_exact_tree_level(x0, x1, x2, params):
     
     phi_integral = (A0 + Y*A1 + Am1/np.sqrt(W) + Y * Am2/W**1.5)/(8*MTarget**2)
 
-    formfactor_separate = Gelastic_inelastic(params, t)
+    formfactor_separate_over_tsquared = Gelastic_inelastic_over_tsquared(params, t)
     
-    ans = formfactor_separate*np.power(alpha_em, 3) * k * Ebeam * phi_integral/(p*np.sqrt(k**2 + p**2 - 2*p*k*costheta))
+    ans = formfactor_separate_over_tsquared*np.power(alpha_em, 3) * k * Ebeam * phi_integral/(p*np.sqrt(k**2 + p**2 - 2*p*k*costheta))
     
     return(ans*tconv*Jacobian)
 
