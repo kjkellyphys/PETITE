@@ -53,10 +53,10 @@ class DarkShower(Shower):
     """ A class to reprocess an existing EM shower to generate dark photons
     """
 
-    def __init__(self, dict_dir, target_material, min_energy, mV_in_GeV , \
-                          mode="exact", maxF_fudge_global=1,\ 
-                          max_n_integrators=int(1e4), kinetic_mixing=1.0,\
-                          g_e=None, active_processes=None, fast_MCS_mode=True ):
+    def __init__(self, dict_dir, target_material, min_energy, mV_in_GeV ,
+                 mode="exact", maxF_fudge_global=1,
+                 max_n_integrators=int(1e4), kinetic_mixing=1.0,
+                 g_e=None, active_processes=None, fast_MCS_mode=True ):
         super().__init__(dict_dir, target_material, min_energy)
         """Initializes the shower object.
         Args:
