@@ -66,7 +66,7 @@ class Shower:
     """ Representation of a shower
 
     """
-    def __init__(self, dict_dir, target_material, min_energy, \
+    def __init__(self, dict_dir, target_material, min_energy,
                  maxF_fudge_global=1,max_n_integrators=int(1e4), fast_MCS_mode=True ):
         """Initializes the shower object.
         Args:

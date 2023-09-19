@@ -39,7 +39,11 @@ def moliere_f1(x):
     Eq. 28 in Bethe 1952
     """
     if x <= 100.:
-        return 2.*np.exp(-x)*(x-1.)*(special.expi(x)-math.log(x)) - 2.*(1.-2.*np.exp(-x))
+        if x>1E-6:
+            return 2.*np.exp(-x)*(x-1.)*(special.expi(x)-math.log(x)) - 2.*(1.-2.*np.exp(-x))
+        else:
+            x=1E-6
+            return 2.*np.exp(-x)*(x-1.)*(special.expi(x)-math.log(x)) - 2.*(1.-2.*np.exp(-x))
     else:
         # avoids numerical problems when x gets large, accurate to about 1e-8 or better
         return 2./np.power(x,2) + 8./np.power(x,3) + 36./np.power(x,4)
@@ -61,6 +65,8 @@ def moliere_cdf(x, B):
     if x>100:
         # Use analytic form when the function call is analytic anyways
         return  1.0-(1.0/B/x + 2.0/B/x**2 + 6.0/B/x**3)
+    elif x<0.01:
+        return moliere_f(0,B)*x
     else:
         integrand = lambda xp: moliere_f(xp, B)
         return integrate.quad(integrand, 0., x)[0]
@@ -70,6 +76,13 @@ def inverse_moliere_cdf(u, B):
     Inverse CDF of the Moliere multiple scattering distribution 
     in the variable x = theta^2/(chi_c^2 B)
     """
+
+    if 1-u > 1/B/100:
+        return(1/(1-u)/B)
+    
+    if u<0.01:
+        print("made it here")
+        return(u)
     f= lambda x: moliere_cdf(x, B) - u
     guess = 1.
     
