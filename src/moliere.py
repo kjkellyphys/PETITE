@@ -42,6 +42,7 @@ def moliere_f1(x):
         if x>1E-6:
             return 2.*np.exp(-x)*(x-1.)*(special.expi(x)-math.log(x)) - 2.*(1.-2.*np.exp(-x))
         else:
+            ## EDGE CASE , avoids too small values in log(x) and expi(x) which cancel off 
             x=1E-6
             return 2.*np.exp(-x)*(x-1.)*(special.expi(x)-math.log(x)) - 2.*(1.-2.*np.exp(-x))
     else:
@@ -62,9 +63,12 @@ def moliere_cdf(x, B):
     in the variable x = theta^2/(chi_c^2 B)
     """
     # This is actually already correctly normalized because f1 integrates to 0
+
+    ## EDGE CASE 1
     if x>100:
         # Use analytic form when the function call is analytic anyways
         return  1.0-(1.0/B/x + 2.0/B/x**2 + 6.0/B/x**3)
+    ## EDGE CASE 2 
     elif x<0.01:
         return moliere_f(0,B)*x
     else:
@@ -76,37 +80,42 @@ def inverse_moliere_cdf(u, B):
     Inverse CDF of the Moliere multiple scattering distribution 
     in the variable x = theta^2/(chi_c^2 B)
     """
-
-    if 1-u > 1/B/100:
+    if 1-u < 1/B/100:
+        # EDGE CASE just use
+        # analytic inverse CDF leading term in expansion
         return(1/(1-u)/B)
     
-    if u<0.01:
-        print("made it here")
+    elif u<0.01:
         return(u)
-    f= lambda x: moliere_cdf(x, B) - u
-    guess = 1.
-    
-    # bracket the root 
-    a = guess/2
-    b = guess*2
-    it = 0
-    while f(a)*f(b) > 0:
-        if f(b) < 0:
-            b *= 2
-        if f(a) > 0:
-            a *= 0.5
-        it += 1
-        if it > 20:
-            print("Failed to bracket root")
-            sys.exit(0)
-        continue
 
-    # The 700 upper bound just comes from numerical experiments: moliere functions
-    # have exponentials that behave poorly when the arguments get too big
-    if u > 0.9999:
-        return 700.
-    
-    return optimize.root_scalar(f, x0=guess, bracket=[a,b], method='ridder').root
+    else:
+        f= lambda x: moliere_cdf(x, B) - u
+        guess = 1.
+        
+        # bracket the root 
+        a = guess/2
+        b = guess*2
+        it = 0
+        
+        while f(a)*f(b) > 0:
+            if f(b) < 0:
+                b *= 2
+            if f(a) > 0:
+                a *= 0.5
+            it += 1
+
+            if it > 20:
+                print("Failed to bracket root")
+
+                ## CHECK ME : do we want to break or exit system? 
+                #sys.exit(0)
+                break
+
+            continue
+
+        return optimize.root_scalar(f, x0=guess, bracket=[a,b], method='ridder').root
+     
+
 
 def generate_moliere_x(B):
     """
@@ -151,32 +160,16 @@ def get_capital_B(t, beta, A, Z, z):
     acc = 1e-3
     b = get_b(t, beta, A, Z, z)
 
-    bOG=b
-    #try:
     B = b + math.log(b)
-    #except ValueError as ve:
-    #    print("This is the value of bOG that fucked it up", bOG, t, beta, A, Z,z)
 
     it = 0
-
-    #try:
     B = b + math.log(B)
-    #except ValueError as ve:
-    #    print("This is the value of bOG that fucked it up", bOG, t, beta, A, Z,z)
-
-    #try:
-    #    dummy= 
-    #except:
-    #    print("This is the value of bOG that fucked it up", bOG, t, beta, A, Z,z)
         
     while np.fabs(B - (b + math.log(B))) > acc:
         it += 1
         
-        #try:
         B = b + math.log(B)
-        #except ValueError as ve:
-        #    print("This is the value of bOG that fucked it up", bOG, t, beta, A, Z,z)
-    
+            
     #print("number of iterations = ", it)
     return B
 
@@ -194,6 +187,7 @@ def get_chic_squared(t, beta, A, Z, z):
     me_in_inv_cm = m_electron/hbarc # 511 keV in 1/cm
 
     p = me_in_inv_cm * beta / np.sqrt(1. - beta**2)
+
     return 4.*np.pi*n_avogadro * alpha_em**2 * t * Z * (Z+1.) * z**2 / (A * p**2 * beta**2)
 
 def get_chic_squared_alt(t, beta, A, Z, z):
@@ -245,7 +239,7 @@ def generate_moliere_angle(t, beta, A, Z, z):
 
         # squared critical angle for Rutherford scattering, eq. 10 in Bethe, 1953
         chic2 = get_chic_squared(t, beta, A, Z, z)
-        
+    
         theta = random.choice([-1,1])*np.sqrt(x*chic2*B)
     
     return theta
