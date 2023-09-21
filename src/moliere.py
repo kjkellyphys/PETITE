@@ -5,7 +5,7 @@ import math
 import sys
 from .physical_constants import *
 
-## dumb change
+
 """
 Below we need to be careful to distinguish between "space" and "plane"/projected angles (https://pdg.lbl.gov/2019/reviews/rpp2018-rev-passage-particles-matter.pdf)
 the "space" angle is the usual polar angle in 3D with respect to the direction of motion
@@ -375,7 +375,7 @@ def get_scattered_momentum_fast(p4, t, A, Z):
     #theta = generate_moliere_angle(t, beta, A, Z, Z_part)
     
     # this is fast, but approximate -- it excludes the rare large angle scatters
-    theta = generate_moliere_angle_simplified_alt(t, beta, A, Z, Z_part)
+    theta = generate_moliere_angle_simplified_alt(t, beta, A, Z, Z_part)*rescale_MCS
 
     phi = random.uniform(0.,2.*np.pi)
     
@@ -398,7 +398,7 @@ def get_scattered_momentum_fast(p4, t, A, Z):
     return p4_new
 
 
-def get_scattered_momentum_Bethe(p4, t, A, Z):
+def get_scattered_momentum_Bethe(p4, t, A, Z, rescale_MCS=1):
     """
     generate a multiple-scattered four-vector from an input four-vector p4 
     after the particle has traversed t [g/cm^2] radiation lengths of material with atomic weight A [g/mol] and 
@@ -425,7 +425,7 @@ def get_scattered_momentum_Bethe(p4, t, A, Z):
     Z_part = 1.
     
     # this is slow but more precise, since it includes large angle scatters
-    theta = generate_moliere_angle(t, beta, A, Z, Z_part)
+    theta = generate_moliere_angle(t, beta, A, Z, Z_part)*rescale_MCS
     
     # this is fast, but approximate -- it excludes the rare large angle scatters
     #theta = generate_moliere_angle_simplified_alt(t, beta, A, Z, Z_part)

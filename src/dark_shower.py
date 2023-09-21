@@ -56,7 +56,8 @@ class DarkShower(Shower):
     def __init__(self, dict_dir, target_material, min_energy, mV_in_GeV ,
                  mode="exact", maxF_fudge_global=1,
                  max_n_integrators=int(1e4), kinetic_mixing=1.0,
-                 g_e=None, active_processes=None, fast_MCS_mode=True ):
+                 g_e=None, active_processes=None, fast_MCS_mode=True ,
+                 rescale_MCS=1):
         super().__init__(dict_dir, target_material, min_energy)
         """Initializes the shower object.
         Args:
@@ -495,7 +496,8 @@ class DarkShower(Shower):
             E_interact = np.random.choice(energies, p=relative_probabilities) + (E0-Ei) #correct for difference between true energy and energy for which samples were saved
             dEdxT = self.get_material_properties()[3]*(0.1)
             dist = (p0.get_p0()[0] - E_interact)/dEdxT
-            p_scat = self._get_MCS_p(p0.get_p0(), self._rhoTarget*(dist/cmtom), self._ATarget, self._ZTarget)
+            p_scat = self._get_MCS_p(p0.get_p0(), self._rhoTarget*(dist/cmtom),
+                                     self._ATarget, self._ZTarget, rescale_MCS)
             p0.set_pf(p_scat)
             p0.lose_energy(E0 - E_interact)
 
