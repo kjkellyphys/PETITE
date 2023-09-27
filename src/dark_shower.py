@@ -94,11 +94,16 @@ class DarkShower(Shower):
         self.set_drate_dE()
         self.set_dark_samples()
         self.set_MCS_momentum(fast_MCS_mode)
-
+        self.set_MCS_rescale_factor(rescale_MCS)
 
         self._maxF_fudge_global=maxF_fudge_global
         self._max_n_integrators=max_n_integrators
-  
+
+    def set_MCS_rescale_factor(self, rescale_MCS):
+        self._MCS_rescale_factor=rescale_MCS
+        
+
+        
     def set_MCS_momentum(self, fast_MCS_mode):
         if fast_MCS_mode:
             self._get_MCS_p=get_scattered_momentum_fast
@@ -497,7 +502,8 @@ class DarkShower(Shower):
             dEdxT = self.get_material_properties()[3]*(0.1)
             dist = (p0.get_p0()[0] - E_interact)/dEdxT
             p_scat = self._get_MCS_p(p0.get_p0(), self._rhoTarget*(dist/cmtom),
-                                     self._ATarget, self._ZTarget, rescale_MCS)
+                                     self._ATarget, self._ZTarget,
+                                     self._MCS_rescale_factor)
             p0.set_pf(p_scat)
             p0.lose_energy(E0 - E_interact)
 

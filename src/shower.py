@@ -68,7 +68,7 @@ class Shower:
     """
     def __init__(self, dict_dir, target_material, min_energy,
                  maxF_fudge_global=1,max_n_integrators=int(1e4),
-                 fast_MCS_mode=True, re_scale_MCS=1 ):
+                 fast_MCS_mode=True, rescale_MCS=1 ):
         """Initializes the shower object.
         Args:
             dict_dir: directory containing the pre-computed VEGAS integrators and auxillary info.
@@ -91,10 +91,14 @@ class Shower:
         self.set_NSigmas()
         self.set_samples()
         self.set_MCS_momentum(fast_MCS_mode)
+        self.set_MCS_rescale_factor(rescale_MCS)
+        
         self._maxF_fudge_global=maxF_fudge_global
         self._max_n_integrators=max_n_integrators
 
-
+    def set_MCS_rescale_factor(self, rescale_MCS):
+        self._MCS_rescale_factor=rescale_MCS
+        
     def set_MCS_momentum(self, fast_MCS_mode):
         if fast_MCS_mode:
             self._get_MCS_p=get_scattered_momentum_fast
@@ -457,7 +461,8 @@ class Shower:
                 p0 = Part0.get_p0()[1:]
                 if MS:
                     P0 = self._get_MCS_p(Part0.get_p0(), self._rhoTarget*(dist/cmtom), \
-                                         self._ATarget, self._ZTarget, rescale_MCS)
+                                         self._ATarget, self._ZTarget,
+                                         self._MCS_rescale_factor)
                     PHat = (p0 + P0[1:])/np.linalg.norm(p0+P0[1:])
                     Part0.set_pf(P0)
                     #PHatDenom = np.sqrt((PxF0 + px0)**2 + (PyF0 + py0)**2 + (PzF0 + pz0)**2)
@@ -497,7 +502,7 @@ class Shower:
                         if MS:
                             Part0.set_pf(self._get_MCS_p(Part0.get_pf(),\
                                                          self._rhoTarget*(delta_z/cmtom), \
-                                                         self._ATarget, self._ZTarget, rescale_MCS) )
+                                                         self._ATarget, self._ZTarget, self._MCS_rescale_factor))
 
                 distC = np.random.uniform(0.0, 1.0)
                 if Part0._pf[0] < particle_min_energy:
@@ -514,8 +519,7 @@ class Shower:
                 if MS:
                     Part0.set_pf(self._get_MCS_p(Part0.get_pf(),
                                                  self._rhoTarget*(last_increment/cmtom),
-                                                 self._ATarget, self._ZTarget, rescale_MCS))
-
+                                                 self._ATarget, self._ZTarget, self._MCS_rescale_factor) )
             '''
             M0 = Part0.get_ids()["mass"]
 

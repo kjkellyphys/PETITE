@@ -348,7 +348,7 @@ def get_rotation_matrix(v):
     
     return np.matmul(Rb,Ra)
    
-def get_scattered_momentum_fast(p4, t, A, Z):
+def get_scattered_momentum_fast(p4, t, A, Z,  rescale_MCS=1):
     """
     generate a multiple-scattered four-vector from an input four-vector p4 
     after the particle has traversed t [g/cm^2] radiation lengths of material with atomic weight A [g/mol] and 
