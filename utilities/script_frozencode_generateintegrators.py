@@ -62,7 +62,7 @@ def main(doSM=True, doDark=True):
                     energy_list = Eg0*(1 + np.logspace(-4, np.log10((Emax - Eg0)/Eg0), len(energy_list)))
                 training_params.update({'initial_energy_list':energy_list})
                 training_params.update({"mV":mV})
-                if os.path.exists(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/" + process + "_AdaptiveMaps.npy"):
+                if os.path.exists(training_params['save_location'] + '/auxiliary/' + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/" + process + "_AdaptiveMaps.npy"):
                 #if os.path.exists(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000000.))) + "keV/" + process + "_AdaptiveMaps.npy"):
                     print("Already finished this whole process, skipping")
                     continue
@@ -70,6 +70,7 @@ def main(doSM=True, doDark=True):
                     generate_integrators.make_integrators(training_params, process)
                     generate_integrators.stitch_integrators(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
                     generate_integrators.cleanup(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
+                    generate_integrators.organize_directories_final(training_params['save_location'])
                     #generate_integrators.stitch_integrators(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000000.))) + "keV/")
                     #generate_integrators.cleanup(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000000.))) + "keV/")
 
@@ -77,4 +78,4 @@ def main(doSM=True, doDark=True):
         generate_integrators.call_find_maxes(processing_params, processes_to_do)
 
 if __name__ == "__main__":
-    main(doSM=True, doDark=True)
+    main(doSM=False, doDark=True)

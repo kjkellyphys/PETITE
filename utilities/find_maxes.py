@@ -23,15 +23,24 @@ import vegas
 from tqdm import tqdm
 
 # Dictionary of proceses with corresponding x-secs, form factors and Q**2 functions
-process_info ={    'PairProd' : {'diff_xsection': dsigma_pairprod_dimensionless,   'form_factor': g2_elastic, 'QSq_func': pair_production_q_sq_dimensionless},
-                   'Comp'     : {'diff_xsection': dsigma_compton_dCT,     'form_factor': unity,      'QSq_func': dummy},
-                    'Brem'     : {'diff_xsection': dsigma_brem_dimensionless,       'form_factor': g2_elastic, 'QSq_func': brem_q_sq_dimensionless},
-                    'Ann'      : {'diff_xsection': dsigma_annihilation_dCT,'form_factor': unity,      'QSq_func': dummy},
-                    'Moller'   : {'diff_xsection': dsigma_moller_dCT, 'form_factor': unity,      'QSq_func': dummy},
-                    'Bhabha'   : {'diff_xsection': dsigma_bhabha_dCT, 'form_factor': unity,      'QSq_func': dummy},
-                    'DarkBrem': {'diff_xsection': dsig_etl_helper, 'form_factor':Gelastic_inelastic, "QSq_func":darkbrem_qsq},
-                    'DarkAnn':  {'diff_xsection': dsigma_radiative_return_du, 'form_factor':unity, "QSq_func":dummy},
-                    'DarkComp': {'diff_xsection':dsigma_compton_dCT, 'form_factor':unity, "QSq_func":dummy}}
+#process_info ={    'PairProd' : {'diff_xsection': dsigma_pairprod_dimensionless,   'form_factor': g2_elastic, 'QSq_func': pair_production_q_sq_dimensionless},
+#                   'Comp'     : {'diff_xsection': dsigma_compton_dCT,     'form_factor': unity,      'QSq_func': dummy},
+#                    'Brem'     : {'diff_xsection': dsigma_brem_dimensionless,       'form_factor': g2_elastic, 'QSq_func': brem_q_sq_dimensionless},
+#                    'Ann'      : {'diff_xsection': dsigma_annihilation_dCT,'form_factor': unity,      'QSq_func': dummy},
+#                    'Moller'   : {'diff_xsection': dsigma_moller_dCT, 'form_factor': unity,      'QSq_func': dummy},
+#                    'Bhabha'   : {'diff_xsection': dsigma_bhabha_dCT, 'form_factor': unity,      'QSq_func': dummy},
+#                    'DarkBrem': {'diff_xsection': dsig_etl_helper, 'form_factor':Gelastic_inelastic, "QSq_func":darkbrem_qsq},
+#                    'DarkAnn':  {'diff_xsection': dsigma_radiative_return_du, 'form_factor':unity, "QSq_func":dummy},
+#                    'DarkComp': {'diff_xsection':dsigma_compton_dCT, 'form_factor':unity, "QSq_func":dummy}}
+process_info ={    'PairProd' : {'diff_xsection': dsigma_pairprod_dimensionless},
+                   'Comp'     : {'diff_xsection': dsigma_compton_dCT},
+                    'Brem'     : {'diff_xsection': dsigma_brem_dimensionless},
+                    'Ann'      : {'diff_xsection': dsigma_annihilation_dCT},
+                    'Moller'   : {'diff_xsection': dsigma_moller_dCT},
+                    'Bhabha'   : {'diff_xsection': dsigma_bhabha_dCT},
+                    'DarkBrem': {'diff_xsection': dsig_etl_helper},
+                    'DarkAnn':  {'diff_xsection': dsigma_radiative_return_du},
+                    'DarkComp': {'diff_xsection':dsigma_compton_dCT}}
 
 def get_file_names(path):
     ''' Get the names of all the files in a directory.
@@ -147,7 +156,7 @@ def main(params):
     # Loop over all processes
     for process in params['process']:
         # Get the path to the directory containing the adaptive maps
-        path = params['save_location'] + '/' + process + '/'
+        path = params['save_location'] + '/auxiliary/' + process + '/'
         # Get adaptive map main file (created by stitch_integrators)
         adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
         # Load adaptive map file. Format: list of [params, adaptive_map]
@@ -162,8 +171,8 @@ def main(params):
         # Add relevant info to params
         params['process']   = process
         params['diff_xsec'] = process_info[process]['diff_xsection']
-        params['FF_func']   = process_info[process]['form_factor']
-        params['QSq_func']  = process_info[process]['QSq_func']
+        #params['FF_func']   = process_info[process]['form_factor']
+        #params['QSq_func']  = process_info[process]['QSq_func']
 
         ####=====------ FIND MAX ------=====####
         # loop over all adaptive_map in adaptive_maps
@@ -237,7 +246,7 @@ def main_dark(params):
         # Loop over all processes
         for process in params['process']:
             # Get the path to the directory containing the adaptive maps
-            path = params['save_location'] + '/' + process + '/mV_' + str(int(1000.*mV)) + "MeV/"
+            path = params['save_location'] + '/auxiliary/' + process + '/mV_' + str(int(1000.*mV)) + "MeV/"
             adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
             # Load adaptive map file. Format: list of [params, adaptive_map]
             adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
@@ -253,8 +262,8 @@ def main_dark(params):
             fm_params['process']   = process
             fm_params['mV']        = mV
             fm_params['diff_xsec'] = process_info[process]['diff_xsection']
-            fm_params['FF_func']   = process_info[process]['form_factor']
-            fm_params['QSq_func']  = process_info[process]['QSq_func']
+            #fm_params['FF_func']   = process_info[process]['form_factor']
+            #fm_params['QSq_func']  = process_info[process]['QSq_func']
 
             ####=====------ FIND MAX ------=====####
             # loop over all adaptive_map in adaptive_maps
