@@ -6,8 +6,9 @@ from scipy.integrate import quad
 
 from .moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
 from .particle import Particle
-from .kinematics import e_to_egamma_fourvecs, e_to_eV_fourvecs, gamma_to_epem_fourvecs, compton_fourvecs, annihilation_fourvecs, ee_to_ee_fourvecs
+from .kinematics import e_to_egamma_fourvecs, gamma_to_epem_fourvecs, compton_fourvecs, annihilation_fourvecs, ee_to_ee_fourvecs
 from .all_processes import *
+from .physical_constants import *
 from datetime import datetime
 
 np.random.seed(int(datetime.now().timestamp()))
@@ -15,16 +16,6 @@ np.random.seed(int(datetime.now().timestamp()))
 import sys
 from numpy.random import random as draw_U
 import copy
-
-#FIXME: refer to physical constants intead of duplicating information!
-Z = {'hydrogen':1.0, 'graphite':6.0, 'lead':82.0, 'iron':26.0} #atomic number of different targets
-A = {'hydrogen':1.0, 'graphite':12.0, 'lead':207.2, 'iron':56.0} #atomic mass of different targets
-rho = {'hydrogen':1.0, 'graphite':2.210, 'lead':11.35, 'iron':8.00} #g/cm^3
-dEdx = {'hydrogen':2.0*rho['hydrogen'], 'graphite':2.0*rho['graphite'], 'lead':2.0*rho['lead'], 'iron':2.0*rho['iron']} #MeV per cm
-
-# GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm^2
-GeVsqcm2 = hbarc**2 #Conversion between cross sections in GeV^{-2} to cm^2
-cmtom = 0.01
 
 process_code = {'Brem':0, 'Ann': 1, 'PairProd': 2, 'Comp': 3, "Moller":4, "Bhabha":5}
 diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
@@ -128,9 +119,7 @@ class Shower:
         if process not in cross_section_dict:
             raise Exception("Process String does not match library")
         
-        #if Z[target_material] in cross_section_dict[process]:
         if target_material in cross_section_dict[process]:
-            #return(cross_section_dict[process][Z[target_material]])
             return(cross_section_dict[process][target_material])
         else:
             raise Exception("Target Material is not in library")
@@ -152,7 +141,10 @@ class Shower:
         """Defines material properties (Z, A, rho, etc) based on the target 
         material label
         """
-        self._ZTarget, self._ATarget, self._rhoTarget, self._dEdx = Z[self.get_target_material()], A[self.get_target_material()], rho[self.get_target_material()], dEdx[self.get_target_material()]
+        self._ZTarget = target_information[self.get_target_material()]["Z_T"]
+        self._ATarget = target_information[self.get_target_material()]["A_T"]
+        self._rhoTarget = target_information[self.get_target_material()]["rho"]
+        self._dEdx = target_information[self.get_target_material()]["dEdx"]
 
     def get_material_properties(self):
         """Returns target material properties: Z, A, rho, dE/dx"""
