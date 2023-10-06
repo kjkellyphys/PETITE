@@ -57,13 +57,7 @@ class Shower:
     """ Representation of a shower
 
     """
-    def __init__(self, dict_dir, target_material, min_energy,
-<<<<<<< HEAD
-                 maxF_fudge_global=1,max_n_integrators=int(1e4),
-                 fast_MCS_mode=True, rescale_MCS=1 ):
-=======
-                 maxF_fudge_global=1,max_n_integrators=int(1e4), fast_MCS_mode=True, seed=None):
->>>>>>> f8b0fad (Added option to initialize shower with a specific random seed, which is useful when launching many showers in parallel)
+    def __init__(self, dict_dir, target_material, min_energy, maxF_fudge_global=1,max_n_integrators=int(1e4), fast_MCS_mode=True, seed=None,rescale_MCS=1 ):
         """Initializes the shower object.
         Args:
             dict_dir: directory containing the pre-computed VEGAS integrators and auxillary info.
