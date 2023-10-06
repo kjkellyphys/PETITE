@@ -11,7 +11,7 @@ from .all_processes import *
 from .physical_constants import *
 from datetime import datetime
 
-np.random.seed(int(datetime.now().timestamp()))
+#np.random.seed(int(datetime.now().timestamp()))
 
 import sys
 from numpy.random import random as draw_U
@@ -58,8 +58,12 @@ class Shower:
 
     """
     def __init__(self, dict_dir, target_material, min_energy,
+<<<<<<< HEAD
                  maxF_fudge_global=1,max_n_integrators=int(1e4),
                  fast_MCS_mode=True, rescale_MCS=1 ):
+=======
+                 maxF_fudge_global=1,max_n_integrators=int(1e4), fast_MCS_mode=True, seed=None):
+>>>>>>> f8b0fad (Added option to initialize shower with a specific random seed, which is useful when launching many showers in parallel)
         """Initializes the shower object.
         Args:
             dict_dir: directory containing the pre-computed VEGAS integrators and auxillary info.
@@ -69,6 +73,8 @@ class Shower:
             min_Energy: minimum particle energy in GeV at which the particle 
             finishes its propagation through the target
         """
+        if seed is not None:
+            np.random.seed(seed)
 
         
         ## Need to swap this out for integrator objects
@@ -550,10 +556,9 @@ class Shower:
         """
         Generates particle shower from an initial particle
         Args:
-            PID0: PDG ID of the initial particle
-            p40: four-momentum of the initial particle
-            ParID: PDG ID of the parent of the initial particle
+            p0: initial Particle 
             VB: bool to turn on/off verbose output
+            GlobalMS: bool, multiple scattering flag. Set to false to disable multiple scattering of electrons and positrons
 
         Returns:
             AllParticles: a list of all particles generated in the shower
