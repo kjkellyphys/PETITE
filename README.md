@@ -14,8 +14,8 @@ PETITE, its tutorials and tools require the following packages: numpy 1.24, vega
 *The notebook `./examples/tutorial.ipynb` offers an alternative to this readme.*
 
 PETITE comes with pre-generated VEGAS integrator files stored in the `./data/VEGAS_dictionaries/` directory. 
-Key functions:
-- `Shower` and `DarkShower` classes: import the VEGAS integrators and other infrastructure for the physicsal processes in the relevant material.
+Key functions (in `./src/shower.py` and `./src/dark_shower.py`):
+- `Shower` and `DarkShower` classes: import the VEGAS integrators and other infrastructure for the physical processes in the relevant material.
 - `generate_shower` and `generate_dark_shower` functions: generate a shower for a given initial `Particle`.
 
 ### Generating a full SM shower
@@ -23,7 +23,7 @@ Key functions:
  > incoming_electron = Particle([E0,px,py,pz], [0,0,0], {"PID":11})`
 
 (2) Setup the necessary infrastructure for a shower with `sGraphite = Shower(<directory containing dictionaries>, <material>, <min energy down to which particles are tracked, in GeV>)`, e.g.
- > sGraphite = Shower("./data/VEGAS_dictionaries/", "graphite", 0.010)
+ > sGraphite = Shower("./data/", "graphite", 0.010)
 
 (3) Generate the shower 
  > standard_shower = sGraphite.generate_shower(incoming_electron, VB=True)
@@ -33,13 +33,13 @@ The output of `generate_shower` is a list of `Particle` objects generated throug
 ### Generating a full dark shower
 (1) As for the standard shower, define initial particle that seeds shower
 
-(2) Setup the necessary infrastructure for a shower with `sGraphite = DarkShower(<directory containing dictionaries>, <material>, <min energy down to which particles are tracked, in GeV>, <dark photon mass, in GeV>)`, e.g.
- > sGraphite = DarkShower("./data/VEGAS_dictionaries/", "graphite", 0.010, 0.001)
+(2) Setup the necessary infrastructure for a shower with `sGraphite = DarkShower(<directory containing dictionaries>, <material>, <min energy down to which particles are tracked, in GeV>, <dark particle mass, in GeV>)`, e.g.
+ > sGraphite = DarkShower("./data/", "graphite", 0.010, 0.001)
 
 (3) Generate the shower 
  > dark_shower = sGraphite.generate_dark_shower(incoming_electron, VB=True)
 
-The output of `generate_dark_shower` is a list of `Particle` objects generated through the development of the shower, which includes dark photons.
+The output of `generate_dark_shower` is a list of `Particle` objects generated through the development of the shower, which includes dark vectors.
 
 We can plot event displays for both standard and dark shower with 
  > event_display(shower_object)
@@ -71,8 +71,8 @@ The following is intended for advanced users who wish to generate their own VEGA
 It is possible to generate new files for both SM and dark processes using tools in the `./utilities/` directory and we describe their use below, as well as in `./utilities/README.md`.  Jupyter notebook examples of how to run PETITE using pre-generated files are given in the `./examples/` directory.
 
 ## Structure of pre-generated VEGAS adaptive maps
-In `./data/VEGAS_backend/` one can find a list of adaptive maps for both standard and dark showers, for each process.
-In `./data/VEGAS_dictionaries/` you have processed versions of the adaptive maps, with the following structure:
+In `./data/auxiliary/` one can find a list of adaptive maps for both standard and dark showers, for each process.
+In `./data/` you have processed versions of the adaptive maps, with the structure as decribed below.
 
 ### Pre-generated processed standard model showers
 `sm_maps.pkl` is a dictionary of dictionaries.
@@ -85,9 +85,9 @@ Besides the adaptive maps, there are also cross section tables for each process,
 
 ### Pre-generated processed dark showers
 `dark_maps.pkl` is also a dictionary of dictionaries.
-The first layer of keys are the masses of the dark vector.
+The first layer of keys are the masses of the dark vector in GeV (e.g. 0.1).
 For each mass, the second layer of keys are the dark shower processes:
-    `DarkBrem`, 'Comp', and 'Ann' FIXME: check this
+    `DarkBrem`, 'DarkComp', and 'DarkAnn'
 Inside those, everything follows the same structure as for standard showers.
 
-Cross sections for dark showers can be found in `dark_xsecs.pkl`.  Just as for `sm_maps` relates to `dark_maps`, `sm_xsecs` relates to `dark_xsecs`, there is one additional initial layer of keys labelling the dark photon mass.
+Cross sections for dark showers can be found in `dark_xsecs.pkl`.  Just as for `sm_maps` relates to `dark_maps`, `sm_xsecs` relates to `dark_xsecs`, there is one additional initial layer of keys labelling the dark particle mass.
