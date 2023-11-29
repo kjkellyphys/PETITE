@@ -94,9 +94,7 @@ class Shower:
         if fast_MCS_mode:
             self._get_MCS_p=get_scattered_momentum_fast
         else:
-            self._get_MCS_p=get_scattered_momentum_Bethe
-
-                
+            self._get_MCS_p=get_scattered_momentum_Bethe       
         
     def load_sample(self, dict_dir, process):
         sample_file=open(dict_dir + "sm_maps.pkl", 'rb')
@@ -109,7 +107,6 @@ class Shower:
             print(process)
             raise Exception("Process String does not match library")
     
-
     def load_cross_section(self, dict_dir, process, target_material):
         #cross_section_file=open( dict_dir + "sm_xsecs.pkl", 'rb')
         cross_section_file=open( dict_dir + "sm_xsec.pkl", 'rb')
@@ -123,7 +120,6 @@ class Shower:
             return(cross_section_dict[process][target_material])
         else:
             raise Exception("Target Material is not in library")
-
         
     def set_dict_dir(self, value):
         """Set the top level directory containing pre-computed MC pickles to value"""
