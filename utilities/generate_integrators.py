@@ -1,4 +1,5 @@
 """ This script generates VEGAS integrators for various production processes and stitch them together for different energies.
+    It can be called to generate the default set of integrators by using "script_generateintegrators.py" in the /utilities/ directory.
 """
 
 import numpy as np

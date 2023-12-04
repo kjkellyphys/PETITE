@@ -119,8 +119,6 @@ def dsigma_brem_dimensionless(event_info, phase_space_par_list):
             Z (Target Atomic Number)
     """
     ep=event_info['E_inc']
-    #event_info_H = event_info
-    #event_info_H['Z_T'] = 1.0
     Egamma_min = event_info['Eg_min']
     mV=0
 
@@ -138,7 +136,6 @@ def dsigma_brem_dimensionless(event_info, phase_space_par_list):
             qsq = m_electron**2*((d**2 + dp**2 - 2*d*dp*np.cos(ph)) + m_electron**2*((1 + d**2)/(2*ep) - (1 + dp**2)/(2*epp))**2)
             PF = 8.0/np.pi*alpha_em*(alpha_em/m_electron)**2*(epp*m_electron**4)/(w*ep*qsq**2)*d*dp
             jacobian_factor = np.pi*ep**2*(ep - m_electron - Egamma_min)/m_electron**2
-            #FF_hydrogen = g2_elastic(event_info_H, qsq)
             FF = g2_elastic(event_info, qsq)
             T1 = d**2/(1 + d**2)**2
             T2 = dp**2/(1 + dp**2)**2
@@ -322,8 +319,6 @@ def dsigma_radiative_return_du(event_info, phase_space_par_list):
         return dSigs[0]
     else:
         return dSigs
-    #return 2.*prefac*transformed_lepton_luminosity_integrand(s, mV**2/s, u)
-
 
 def dsigma_annihilation_dCT(event_info, phase_space_par_list):
     """Annihilation of a Positron and Electron into a Photon and a (Dark) Photon
@@ -380,11 +375,6 @@ def dsigma_pairprod_dimensionless(event_info, phase_space_par_list):
             Z (Target Atomic Number)
     """
     w=event_info['E_inc']
-    #event_info_H = event_info
-    #event_info_H['Z_T'] = 1.0
-
-    mV=0
-    
     if len(np.shape(phase_space_par_list)) == 1:
         phase_space_par_list = np.array([phase_space_par_list])
     dSigs = []
@@ -399,7 +389,6 @@ def dsigma_pairprod_dimensionless(event_info, phase_space_par_list):
             qsq_over_m_electron_sq = (dp**2 + dm**2 + 2.0*dp*dm*np.cos(ph)) + m_electron**2*((1.0 + dp**2)/(2.0*epp) + (1.0+dm**2)/(2.0*epm))**2
             PF = 8.0/np.pi*alpha_em*(alpha_em/m_electron)**2*epp*epm/(w**3*qsq_over_m_electron_sq**2)*dp*dm
             jacobian_factor = np.pi*w**2*(w-2*m_electron)/m_electron**2
-            #FF_hydrogen = g2_elastic(event_info_H, m_electron**2*qsq_over_m_electron_sq)
             FF = g2_elastic(event_info, m_electron**2*qsq_over_m_electron_sq)
 
             T1 = -1.0*dp**2/(1.0 + dp**2)**2
@@ -407,7 +396,7 @@ def dsigma_pairprod_dimensionless(event_info, phase_space_par_list):
             T3 = w**2/(2.0*epp*epm)*(dp**2 + dm**2)/((1.0 + dp**2)*(1.0 + dm**2))
             T4 = (epp/epm + epm/epp)*(dp*dm*np.cos(ph))/((1.0 + dp**2)*(1.0+dm**2))
 
-            dSig0 = PF*(T1+T2+T3+T4)*jacobian_factor*FF#_hydrogen
+            dSig0 = PF*(T1+T2+T3+T4)*jacobian_factor*FF
 
             if dSig0 < 0.0 or np.isnan(dSig0):
                 print([dSig0, PF, T1, T2, T3, T4, qsq_over_m_electron_sq, jacobian_factor, FF])
@@ -589,18 +578,7 @@ vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[60, 50, 40, 50]},
                             "Ann":{"nitn":20, "nstrat":[1000]},
                             "DarkAnn":{"nitn":10, "neval":10000},
                             "DarkComp":{"nitn":20, "nstrat":[1000]}}
-                            
-#vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[10, 10, 10, 10]},
-#                            "Brem":{"nitn":10, "nstrat":[10, 10, 10, 10]},
-#                            "DarkBrem":{"nitn":20, "nstrat":[40, 40, 16]},
-#                            "Comp":{"nitn":20, "nstrat":[1000]},
-#                            "Moller":{"nitn":20, "nstrat":[1000]},
-#                            "Bhabha":{"nitn":20, "nstrat":[1000]},
-#                            "Ann":{"nitn":20, "nstrat":[1000]},
-#                            "DarkAnn":{"nitn":10, "neval":10000},
-#                            "DarkComp":{"nitn":20, "nstrat":[1000]}
-#                            }
-
+      
 four_dim = {"PairProd", "Brem"}
 three_dim = {"DarkBrem"}
 one_dim = {"Comp", "Ann","Moller","Bhabha", "DarkAnn", "DarkComp"}
@@ -646,9 +624,6 @@ def integration_range(event_info, process):
         if process == "Comp" or process == "Ann" or process == "DarkComp":
             return [[-1., 1.0]]
         elif process == "DarkAnn":
-            # x integration range
-            #return [[mV**2/s,1.]]
-            # u integration range
             beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
             if s > mV**2:
                 return [[0., np.power(1.-np.sqrt(mV**2/s),beta/2.)]]

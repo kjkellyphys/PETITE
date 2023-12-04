@@ -2,7 +2,6 @@ import numpy as np
 from scipy import integrate, special, optimize
 import random
 import math
-import sys
 try:
     from .physical_constants import *
 except:

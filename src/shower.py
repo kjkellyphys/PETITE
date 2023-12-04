@@ -13,7 +13,6 @@ from datetime import datetime
 
 #np.random.seed(int(datetime.now().timestamp()))
 
-import sys
 from numpy.random import random as draw_U
 import copy
 
@@ -70,8 +69,6 @@ class Shower:
         if seed is not None:
             np.random.seed(seed)
 
-        
-        ## Need to swap this out for integrator objects
         self.set_dict_dir(dict_dir)
         self.set_target_material(target_material)
         self.min_energy = min_energy
@@ -108,7 +105,6 @@ class Shower:
             raise Exception("Process String does not match library")
     
     def load_cross_section(self, dict_dir, process, target_material):
-        #cross_section_file=open( dict_dir + "sm_xsecs.pkl", 'rb')
         cross_section_file=open( dict_dir + "sm_xsec.pkl", 'rb')
         cross_section_dict=pickle.load(cross_section_file)
         cross_section_file.close()
@@ -307,10 +303,9 @@ class Shower:
         sample_list=self._loaded_samples 
 
         if LU_Key<0 or LU_Key > len(sample_list[process]):
-            # Get the LU_Key corresponding to the closest incoming energy
             energies = sample_list[process][0:]
             energies = np.array([x[0] for x in energies])
-            # Get index of nearest (higher) energy
+
             LU_Key = np.argmin(np.abs(energies - Einc)) + 1
             if LU_Key < 0:
                 LU_Key = 0
@@ -319,7 +314,6 @@ class Shower:
                 LU_Key = len(sample_list[process]) - 1
                 print("Warning: sampling above maximum energy for process" + str(process))
 
-        # Get dictionary based on LU_Key or energy (if LU_Key is negative)
         sample_dict=sample_list[process][LU_Key][1]
 
         adaptive_map = sample_dict["adaptive_map"]
@@ -430,7 +424,6 @@ class Shower:
             if (np.linalg.norm(Part0.get_p0() - Part0.get_pf()) > 0.0) \
                or (np.linalg.norm(Part0.get_r0() - Part0.get_rf()) > 0.0) \
                or (Part0.get_ended()):
-#if Part0.get_p0() != Part0.get_pf() or Part0.get_r0() != Part0.get_rf() or Part0.get_ended():
                 raise ValueError("propagate_particle() should only be called \
                 for a particle with pf = p0 and rf = r0 and get_ended() == False")
 
@@ -440,7 +433,6 @@ class Shower:
                 Part0.set_ended(True)
                 return Part0
             
-            #if Part0.get_ids()["PID"] == 22 or Losses == False:
             if Losses == False:
                 mfp = self.get_mfp(Part0)
                 distC = np.random.uniform(0.0, 1.0)
@@ -453,12 +445,8 @@ class Shower:
                                          self._MCS_rescale_factor)
                     PHat = (p0 + P0[1:])/np.linalg.norm(p0+P0[1:])
                     Part0.set_pf(P0)
-                    #PHatDenom = np.sqrt((PxF0 + px0)**2 + (PyF0 + py0)**2 + (PzF0 + pz0)**2)
-                    #PHat = [(PxF0 + px0)/PHatDenom, (PyF0 + py0)/PHatDenom, (PzF0 + pz0)/PHatDenom]
                 else:
                     PHat = p0/np.linalg.norm(p0)
-                    #PHatDenom = np.sqrt(px0**2 + py0**2 + pz0**2)
-                    #PHat = [(px0)/PHatDenom, (py0)/PHatDenom, (pz0)/PHatDenom]
                 x0, y0, z0 = Part0.get_r0()
                 Part0.set_rf([x0 + PHat[0]*dist, y0 + PHat[1]*dist, z0 + PHat[2]*dist])
 
@@ -471,11 +459,9 @@ class Shower:
                     random_number = np.random.uniform(0.0, 1.0)
                     delta_z = mfp/np.random.uniform(low=6, high=20)
                 
-                    # Test if hard scatter happened
                     if random_number > np.exp( -delta_z/mfp):
                         hard_scatter = True
-                    # If no hard scatter propagate particle
-                    # and account for energy loss
+                    # If no hard scatter propagate particle and account for energy loss
                     else:
                         hard_scatter = False
                         Part0.lose_energy(Losses*delta_z)
@@ -508,37 +494,7 @@ class Shower:
                     Part0.set_pf(self._get_MCS_p(Part0.get_pf(),
                                                  self._rhoTarget*(last_increment/cmtom),
                                                  self._ATarget, self._ZTarget, self._MCS_rescale_factor) )
-            '''
-            M0 = Part0.get_ids()["mass"]
 
-            E0, px0, py0, pz0 = Part0.get_p0()
-            if MS:
-                ZT, AT, rhoT, dEdxT = self.get_material_properties()
-                EF0, PxF0, PyF0, PzF0 = get_scattered_momentum(Part0.get_p0(), rhoT*(dist/cmtom), AT, ZT)
-                PHatDenom = np.sqrt((PxF0 + px0)**2 + (PyF0 + py0)**2 + (PzF0 + pz0)**2)
-                PHat = [(PxF0 + px0)/PHatDenom, (PyF0 + py0)/PHatDenom, (PzF0 + pz0)/PHatDenom]
-            else:
-                PHatDenom = np.sqrt(px0**2 + py0**2 + pz0**2)
-                PHat = [(px0)/PHatDenom, (py0)/PHatDenom, (pz0)/PHatDenom]
-
-            p30 = np.sqrt(px0**2 + py0**2 + pz0**2)
-
-            x0, y0, z0 = Part0.get_r0()
-            Part0.set_rf([x0 + PHat[0]*dist, y0 + PHat[1]*dist, z0 + PHat[2]*dist])
-
-            if Losses is False:
-                if MS:
-                    Part0.set_pf(np.array([E0, PxF0, PyF0, PzF0]))
-                else:
-                    Part0.set_pf(Part0.get_p0())
-            else:
-                Ef = E0 - Losses*dist
-                if Ef <= M0 or Ef < self.min_energy:
-                    #print("Particle lost too much energy along path of propagation!")
-                    Part0.set_ended(True)
-                    return Part0
-                Part0.set_pf(np.array([Ef, px0/p30*np.sqrt(Ef**2-M0**2), py0/p30*np.sqrt(Ef**2-M0**2), pz0/p30*np.sqrt(Ef**2-M0**2)]))
-            '''
             Part0.set_ended(True)
             return Part0
 
@@ -553,7 +509,6 @@ class Shower:
         Returns:
             AllParticles: a list of all particles generated in the shower
         """
-        #p0 = Particle(PID0, p40[0], p40[1], p40[2], p40[3], 0.0, 0.0, 0.0, 1, 0, ParPID, 0, -1, 1.0)
         if VB:
             print("Starting shower, initial particle with ID Info")
             print(p0.get_ids())

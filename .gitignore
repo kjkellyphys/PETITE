@@ -12,6 +12,5 @@ tests/.ipynb_checkpoints/*
 paddy_test/
 data/beams/Pi0_120GeVProtons_1e5POT.npy
 utilities/macpro_integrators_lightmass.py
-lightmasses_fine/*
-lightmasses_fine_v2/*
-lightmasses_fine.zip
+lightmasses_fine*
+TODO*

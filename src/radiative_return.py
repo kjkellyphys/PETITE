@@ -5,7 +5,6 @@ try:
 except:
     from physical_constants import *
 
-#FIXME: make it uniform with the rest of the code
 def lor_prod(p,v):
     return p[0]*v[0] - p[1]*v[1] - p[2]*v[2] - p[3]*v[3]
 
@@ -31,15 +30,8 @@ def fl_kf(x,s):
     Kuraev-Fadin lepton structure function from appendix of https://arxiv.org/abs/1607.03210v2
     More reliable places are Nicrosini and Trentadue in their Eq. 7
     """
-    #alpha = 1./137.035999084
-    #ml = 0.51099895 * 1e-3
     
     beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
-    """
-    if x == 1.:
-        return(0.)
-    else:
-    """
     return (beta/16.)*((8. + 3.*beta)*np.power(1. - x,beta/2.-1.) - 4.*(1. + x))
 
 def fl_kf_scaled(x,s):
@@ -49,11 +41,7 @@ def fl_kf_scaled(x,s):
     This is meant to be used with transformed integration variables that absorb the singularity into the 
     measure
     """
-    #alpha = 1./137.035999084
-    #ml = 0.51099895 * 1e-3
-    
     beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
-    
     return (beta/16.)*((8. + 3.*beta) - 4.*(1. + x)*np.power(1. - x,1.-beta/2.))
 
 def lepton_luminosity_integrand(s, x, y):
@@ -83,11 +71,8 @@ def transformed_lepton_luminosity_integrand(s,y,u):
     Returns:
         lepton luminosity integrand to be integrated over u
     """
-    #alpha = 1./137.035999084
-    #ml = 0.51099895 * 1e-3
     
     beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
-    
     x = 1.- np.power(u,2./beta)
     
     # The factor 2/beta comes from the variable transformation
@@ -96,11 +81,6 @@ def transformed_lepton_luminosity_integrand(s,y,u):
 
 
 _lumi_int_fill_val = np.nan
-import os
-#load in file from src/lumi_integral_list.txt no matter where this package is being called from
-#find the path to the PETITE installation
-#lumi_path = os.path.dirname(os.path.realpath(__file__)) + "/beams/lumi_integral_list.dat"
-#lumi_integral_list = np.loadtxt(lumi_path)
 try:
     from .lumi_integral_data import *
 except:
@@ -117,9 +97,6 @@ def lumi_integral_interp(s, x):
 
 def radiative_return_cross_section(s, mA):
     eps = 1.
-
-    #alpha = 1./137.035999084
-    #ml = 0.51099895 * 1e-3
     betaf = np.sqrt( 1. - 4.*(m_electron**2) / (mA**2) )
     
     # this factor should be equal to 12pi^2 Gamma(A'->ee)/(mA * s)

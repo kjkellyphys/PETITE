@@ -39,7 +39,6 @@ GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm
 cmtom = 0.01
 mp0 = 1.673e-24 #g
 
-#dark_process_codes = ["DarkBrem", "Ann", "Comp", "TwoBody_BSMDecay"]
 dark_process_codes = ["DarkBrem", "DarkAnn", "DarkComp", "TwoBody_BSMDecay"]
 
 dark_kinematic_function = {"DarkBrem" : e_to_eV_fourvecs,
@@ -101,9 +100,7 @@ class DarkShower(Shower):
 
     def set_MCS_rescale_factor(self, rescale_MCS):
         self._MCS_rescale_factor=rescale_MCS
-        
-
-        
+               
     def set_MCS_momentum(self, fast_MCS_mode):
         if fast_MCS_mode:
             self._get_MCS_p=get_scattered_momentum_fast
@@ -173,7 +170,6 @@ class DarkShower(Shower):
                 self.load_dark_sample(self._dict_dir, process)
             
     def load_dark_cross_section(self, dict_dir, process, target_material):
-        #dark_cross_section_file=open( dict_dir + "dark_xsecs.pkl", 'rb')
         dark_cross_section_file=open( dict_dir + "dark_xsec.pkl", 'rb')
         outer_dict=pickle.load(dark_cross_section_file)
         dark_cross_section_file.close()
@@ -201,7 +197,6 @@ class DarkShower(Shower):
 
         self._resonant_annihilation_energy = (self._mV**2-2*m_electron**2)/(2*m_electron)
         self._minimum_calculable_dark_energy = {11:{"DarkBrem":self._dark_brem_cross_section[0][0]},
-                                                #-11:{"DarkBrem":self._dark_brem_cross_section[0][0], "DarkAnn":self._dark_annihilation_cross_section[0][0]},
                                                 -11:{"DarkBrem":self._dark_brem_cross_section[0][0], "DarkAnn":self._resonant_annihilation_energy},
                                                 22:{"DarkComp":self._dark_compton_cross_section[0][0]},
                                                 111:{"TwoBody_BSMDecay":-1}}
@@ -324,9 +319,8 @@ class DarkShower(Shower):
         beta = (2.*alpha_em/np.pi) * (np.log(sMAX/m_electron**2) - 1.)
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
         weight_analytic = (1/dEdxT_GeVpercm)*(2*np.pi**2*alpha_em/m_electron)*(self.get_n_targets()[1])*GeVsqcm2*(sMAX - self._mV**2)**beta*self._positron_exponential_factor(self._resonant_annihilation_energy, Ei)
-        #prepend weight_analytic to darkann_weights
+
         darkann_weights = np.concatenate([[weight_analytic], darkann_weights])
-        #prepend resonant_bin_center to energy_center_array
         energy_center_array = np.concatenate([[resonant_bin_center], energy_center_array])
         energy_array = np.concatenate([[self._resonant_annihilation_energy, np.min([minimum_saved_energy, Ei])], energy_array])
 
@@ -345,7 +339,7 @@ class DarkShower(Shower):
     def set_drate_dE(self):
         dict_dir = self.get_dark_dict_dir()
         drate_file_name = dict_dir + "dark_drate.pkl"
-        #check if file named drate_file_name exists
+
         files_set = False
         outer_dict = {}
         if os.path.exists(drate_file_name):
@@ -403,7 +397,6 @@ class DarkShower(Shower):
             dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
             weight_analytic = (1/dEdxT_GeVpercm)*(2*np.pi**2*alpha_em/m_electron)*(self.get_n_targets()[1])*GeVsqcm2*(sMAX - self._mV**2)**beta*self._positron_exponential_factor(self._resonant_annihilation_energy, energy_initial)
             if energy_initial > minimum_saved_energy:
-                #weight_numerical = quad(self._dark_ann_integrand, minimum_saved_energy, energy_initial, args=(energy_initial), full_output=1)[0]
                 weight_numerical = self._annihilation_numerical_weight(energy_initial)
             else:
                 weight_numerical = 0.0
@@ -423,10 +416,9 @@ class DarkShower(Shower):
     def draw_dark_sample(self,Einc,LU_Key=-1,process="DarkBrem",VB=False):
         dark_sample_list=self._loaded_dark_samples 
         if LU_Key<0 or LU_Key > len(dark_sample_list[process]):
-            # Get the LU_Key corresponding to the closest incoming energy
             energies = dark_sample_list[process][0:]
             energies = np.array([x[0] for x in energies])
-            # Get index of nearest (higher) energy
+
             LU_Key = np.argmin(np.abs(energies - Einc)) + 1
             if LU_Key < 0:
                 LU_Key = 0
@@ -486,7 +478,7 @@ class DarkShower(Shower):
                 dict_samp = self._d_rate_dict_positron_brem
         if dict_samp is not None:
             energies_saved = np.array(list(dict_samp.keys()))
-            #find closest energy in energies_saved below E0
+
             E0 = p0.get_p0()[0]
             if E0 < np.min(energies_saved):
                 Ei = np.min(energies_saved)
@@ -509,11 +501,7 @@ class DarkShower(Shower):
 
         E0 = p0.get_pf()[0]
         RM = p0.rotation_matrix()
-        if E0 < self._minimum_calculable_dark_energy[p0.get_ids()["PID"]][process]:
-            print("Help2!")
-            print(E0, p0.get_p0()[0], process, wg)
-        #If working with Dark Annihilation and below the minimum calculated energy, 
-        #Take the 'delta-function' approach for energy conservation
+
         if process == "DarkAnn" and E0 < self.get_DarkAnnXSec()[0][0]:
             EVf, pVxfZF, pVyfZF, pVzfZF = self._resonant_annihilation_energy, 0, 0, np.sqrt(self._resonant_annihilation_energy**2 - self._mV**2)
         else:
