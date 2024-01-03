@@ -328,21 +328,9 @@ class Shower:
                                "Ann"      : dsigma_annihilation_dCT,
                                "Moller"   : dsigma_moller_dCT,
                                "Bhabha"   : dsigma_bhabha_dCT }
-        
-        formfactor_dict      ={"PairProd" : g2_elastic,
-                               "Comp"     : unity,
-                               "Brem"     : g2_elastic,
-                               "Ann"      : unity,
-                               "Moller"   : unity,
-                               "Bhabha"   : unity }
-
-        QSq_dict             ={"PairProd" : pair_production_q_sq_dimensionless, "Brem"     : brem_q_sq_dimensionless, "Comp": dummy, "Ann": dummy, "Moller":dummy, "Bhabha":dummy }
-
-        
+                
         if process in diff_xsection_options:
             diff_xsec_func = diff_xsection_options[process]
-            FF_func        = formfactor_dict[process]
-            QSq_func       = QSq_dict[process]
         else:
             raise Exception("Your process is not in the list")
 
