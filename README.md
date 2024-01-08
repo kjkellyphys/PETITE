@@ -1,4 +1,5 @@
 # PETITE
+PETITE: Package for Electromagnetic Transitions In Thick-target Environments
 Monte Carlo generator for production of dark sector objects in thick-target experiments
 PETITE generates electromagnetic showers for incoming electron, positron or photon propagating through a dense medium, and includes the possibility of dark sector particle production.
 
