@@ -674,3 +674,45 @@ def event_display(all_particles):
             ax.plot([ki[2], ki[5]], [ki[1], ki[4]], lw=1, ls='-', color='r', alpha=0.5)
         if ki0.get_pid() == -11:
             ax.plot([ki[2], ki[5]], [ki[1], ki[4]], lw=1, ls='-', color='b', alpha=0.5)
+
+def transverse_position(particle, z):
+    '''Determines the transverse position of a particle at a given z'''
+
+    x0, y0, z0 = particle.get_r0()
+    E, px, py, pz = particle.get_p0()
+
+    T = (z-z0)/pz #proxy for the time of propagation from z0 to z in the longitudinal direction
+    xf, yf = x0 + T*px, y0 + T*py
+    return [xf, yf]
+
+def detector_cut(particle_list, detector_positions, detector_radius, method="Sample", energy_cut=None, detector_inner_radius=0.0):
+    '''Places an imaginary detector of a certain size at a certain distance from the beam origin
+        Determines which particles pass through the detector and returns a variety of options given by "method":
+            -- "Sample": returns a list of lists of particles that pass through each detector
+            -- "Efficiency": returns the fraction of particles (including weights) passing through the detector
+            -- "TotalWeight": returns the total weight of particles passing through the detector
+    '''
+    particle_list = np.array(particle_list)
+
+    if energy_cut is not None:
+        energies = np.array([p0.get_p0()[0] for p0 in particle_list])
+        particle_list = particle_list[np.where(energies < energy_cut[1],True,False)*np.where(energies>energy_cut[0],True,False)]
+
+    if len(particle_list) == 0:
+        if method == "Sample":
+            return [[] for i in range(len(detector_positions))]
+        else:
+            return [0.0 for i in range(len(detector_positions))]
+
+    rT = np.linalg.norm([transverse_position(p0, detector_positions) for p0 in particle_list], axis=1)
+
+    pass_cuts_where = np.transpose(np.where(rT > detector_inner_radius, True, False)*np.where(rT < detector_radius, True, False))
+
+    pass_cuts = [particle_list[pass_cuts_where[i]] for i in range(len(pass_cuts_where))]
+
+    if method == "Sample":
+        return pass_cuts
+    elif method == "Efficiency":
+        return [np.sum([p0.get_ids()["weight"] for p0 in pass_cuts[ii]])/np.sum([p0.get_ids()["weight"] for p0 in particle_list]) for ii in range(len(pass_cuts))]
+    elif method == "TotalWeight":
+        return [np.sum([p0.get_ids()["weight"] for p0 in pass_cuts[ii]]) for ii in range(len(pass_cuts))]
