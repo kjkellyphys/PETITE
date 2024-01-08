@@ -686,11 +686,19 @@ def transverse_position(particle, z):
     return [xf, yf]
 
 def detector_cut(particle_list, detector_positions, detector_radius, method="Sample", energy_cut=None, detector_inner_radius=0.0):
-    '''Places an imaginary detector of a certain size at a certain distance from the beam origin
-        Determines which particles pass through the detector and returns a variety of options given by "method":
-            -- "Sample": returns a list of lists of particles that pass through each detector
-            -- "Efficiency": returns the fraction of particles (including weights) passing through the detector
-            -- "TotalWeight": returns the total weight of particles passing through the detector
+    '''Places an imaginary detector of a certain size at a certain distance from the beam origin.
+        A particle is assumed to have crossed the detector if it passes through a disk of radius detector_radius
+        Input:
+            -- particle_list: list of Particle objects
+            -- detector_positions: list of positions of the detector centers (x,y,z) wrt the beam origin
+            -- detector_radius: radius of the detector
+            -- method: string that determines what is returned by the function.
+                Determines which particles pass through the detector and returns a variety of options given by "method":
+                -- "Sample": returns a list of lists of particles that pass through each detector
+                -- "Efficiency": returns the fraction of particles (including weights) passing through the detector
+                -- "TotalWeight": returns the total weight of particles passing through the detector
+            -- energy_cut: tuple of minimum and maximum energies of particles to consider
+            -- detector_inner_radius: inner radius of the detector
     '''
     particle_list = np.array(particle_list)
 
