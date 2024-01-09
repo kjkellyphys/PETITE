@@ -14,3 +14,4 @@ data/beams/Pi0_120GeVProtons_1e5POT.npy
 utilities/macpro_integrators_lightmass.py
 lightmasses_fine*
 TODO*
+examples/.ipynb_checkpoints/*

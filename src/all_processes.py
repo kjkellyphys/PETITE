@@ -160,7 +160,7 @@ def dsig_dx_dcostheta_dark_brem_exact_tree_level(x0, x1, x2, params):
        result it dsigma/dx/dcostheta where x=E_darkphoton/E_beam and theta is angle between beam and dark photon
 
        Input parameters needed:
-            x, costheta (see above)
+            x0, x1, x2:  kinematic parameters related to energy of emitted vector, cosine of its angle and the momentum transfer to the nucleus (precise relation depends on params['Method'] see below.
             me (mass of electron)
             mV (mass of dark photon)
             Ebeam (incident electron energy)

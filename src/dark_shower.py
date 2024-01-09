@@ -58,16 +58,16 @@ class DarkShower(Shower):
                  g_e=None, active_processes=None, fast_MCS_mode=True ,
                  rescale_MCS=1):
         super().__init__(dict_dir, target_material, min_energy)
-        """Initializes the shower object.
+        """Initializes the dark shower object.
         Args:
-            PickDir: directory containing the pre-computed MC samples of various shower processes
-            TargetMaterial: string label of the homogeneous material through which 
+            dict_dir: directory containing the pre-computed MC samples of various shower processes
+            target_material: string label of the homogeneous material through which 
             particles propagate (available materials are the dict keys of 
             Z, A, rho, etc)
-            MinEnergy: minimum particle energy in GeV at which the particle 
+            min_energy: minimum particle energy in GeV at which the particle 
             finishes its propagation through the target
-            mV_string: str which determines the pre-computed MC sample of massive
-            vector events to use (see MVLib variable for available choices)
+            mV_in_GeV: vector mass in GeV 
+            mode: determines whether mV is set to MV_in_GeV or the nearest value for which integrators have been trained
         """
 
         self.active_processes = active_processes
