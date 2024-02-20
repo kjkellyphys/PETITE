@@ -260,27 +260,26 @@ def dsig_etl_helper(params, v):
     x, l1mct, t = v
     return dsig_dx_dcostheta_dark_brem_exact_tree_level(x, l1mct, t, params)
 
-def dsig_dx_dcostheta_pseudoscalar(x0, x1, x2, params):
-    """Pseudoscalar electron/positron Bremsstrahlung  
+def dsig_dx_dcostheta_pseudoscalar(params, v):
+    """Pseudoscalar electron/positron Bremsstrahlung of a massive pseudoscalar a:
        e (ep) + Z -> e (epp) + a (w) + Z
        result it dsigma/dx/dcostheta where x=E_pseudoscalar/E_beam and theta is angle between beam and dark photon
+       Tsai, 1986 (PRD 34 1326)
 
        Input parameters needed:
-            x0, x1, x2:  kinematic parameters related to energy of emitted vector, cosine of its angle and the momentum transfer to the nucleus (precise relation depends on params['Method'] see below.
+            x0, x1:  kinematic parameters related to energy of emitted vector, cosine of its angle.
             me (mass of electron)
-            mV (mass of dark photon)
+            mV (mass of pseudoscalar boson)
             Ebeam (incident electron energy)
             ZTarget (Target charge)
-            ATarget (Target Atomic mass number)  
-            MTarget (Target mass)
     """
-    # Differential cross section d^2 Sigma/(dE_a dOmega) for ALP bremsstrahlung (e- Z -> e- Z a)
-    # Tsai, 1986
+    x0, x1, x2 = v  # x2 (the momentum transfer) is unused in WW; it is already set to tmin
+
     Ebeam = params['E_inc']
     ma = params['mV']
     theta_max = max(np.sqrt(ma*m_electron)/Ebeam, np.power(ma/Ebeam, 3/2))
-
     thetaa = np.arccos(x1)
+    z = params["Z_T"]
     
     x = x0 / Ebeam
     l = (Ebeam * thetaa / m_electron)**2
@@ -288,14 +287,13 @@ def dsig_dx_dcostheta_pseudoscalar(x0, x1, x2, params):
     tmin = (U / (2*Ebeam*(1-x)))**2
     a = 111*np.power(z, -1/3)/m_electron
     aPrime = 773*np.power(z, -2/3)/m_electron
-    chi = z**2 * (np.log((a*m_electron*(1+l))**2 / (a**2 * tmin + 1)) - 1)
+    chi = z**2 * (np.log((a*m_electron*(1+l))**2 / (a**2 * tmin + 1)) - 1) \
+            + z * (np.log((aPrime*m_electron*(1+l))**2 / (aPrime**2 * tmin + 1)) - 1)
 
-    prefactor = np.heaviside(theta_max - thetaa, 0.0) * ((alpha_em * g)**2 / (4*np.pi**2)) * Ebeam / U**2
+    prefactor = np.heaviside(theta_max - thetaa, 0.0) * ((alpha_em)**2 / (4*np.pi**2)) / U**2
     return chi * prefactor * (x**3 - 2*(ma*x)**2 * (1-x)/U  \
                                 + 2*(ma/U)**2 * (x*(ma*(1-x))**2 \
                                 + m_electron**2 * x**3 * (1-x)))
-
-
 
 def dsigma_radiative_return_dx(event_info, x):
     """

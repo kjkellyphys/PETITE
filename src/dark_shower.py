@@ -40,13 +40,17 @@ cmtom = 0.01
 mp0 = 1.673e-24 #g
 
 dark_process_codes = ["DarkBrem", "DarkAnn", "DarkComp", "TwoBody_BSMDecay"]
+pseudoscalar_process_codes = ["DarkBrem"]
 
 dark_kinematic_function = {"DarkBrem" : e_to_eV_fourvecs,
                            "DarkAnn"      : radiative_return_fourvecs,
                            "DarkComp"     : compton_fourvecs}
-diff_xsection_options={"DarkComp"      : dsigma_compton_dCT,
+
+diff_xsection_options_vector={"DarkComp"      : dsigma_compton_dCT,
                         "DarkBrem" : dsig_etl_helper,
-                        "DarkAnn"      : dsigma_radiative_return_du }
+                        "DarkAnn"      : dsigma_radiative_return_du}
+diff_xsection_options_pseudoscalar={"DarkBrem" : dsig_dx_dcostheta_pseudoscalar}
+
 
 class DarkShower(Shower):
     """ A class to reprocess an existing EM shower to generate dark photons
@@ -56,7 +60,7 @@ class DarkShower(Shower):
                  mode="exact", maxF_fudge_global=1,
                  max_n_integrators=int(1e4), kinetic_mixing=1.0,
                  g_e=None, active_processes=None, fast_MCS_mode=True ,
-                 rescale_MCS=1):
+                 rescale_MCS=1, lorentz_representation="vector"):
         super().__init__(dict_dir, target_material, min_energy)
         """Initializes the dark shower object.
         Args:
@@ -69,10 +73,22 @@ class DarkShower(Shower):
             mV_in_GeV: vector mass in GeV 
             mode: determines whether mV is set to MV_in_GeV or the nearest value for which integrators have been trained
         """
+        self.lorentz_rep = lorentz_representation
+        if lorentz_representation == "vector":
+            self.diff_xsection_options = diff_xsection_options_vector
+        elif lorentz_representation == "pseudoscalar":
+            self.diff_xsection_options = diff_xsection_options_pseudoscalar
+
 
         self.active_processes = active_processes
         if self.active_processes is None:
-            self.active_processes = dark_process_codes
+            if self.lorentz_rep == "vector":
+                self.active_processes = dark_process_codes
+            elif self.lorentz_rep == "pseudoscalar":
+                self.active_processes = pseudoscalar_process_codes
+            else:
+                raise Exception("lorentz_representation = {} not found \
+                                options are vector, pseudoscalar.".format(self.lorentz_rep))
 
         self.set_dark_dict_dir(dict_dir)
         self.set_target_material(target_material)
@@ -165,7 +181,7 @@ class DarkShower(Shower):
 
     def set_dark_samples(self):
         self._loaded_dark_samples={}
-        for process in diff_xsection_options.keys():
+        for process in self.diff_xsection_options.keys():
             self._loaded_dark_samples[process]= \
                 self.load_dark_sample(self._dict_dir, process)
             
@@ -197,7 +213,8 @@ class DarkShower(Shower):
 
         self._resonant_annihilation_energy = (self._mV**2-2*m_electron**2)/(2*m_electron)
         self._minimum_calculable_dark_energy = {11:{"DarkBrem":self._dark_brem_cross_section[0][0]},
-                                                -11:{"DarkBrem":self._dark_brem_cross_section[0][0], "DarkAnn":self._resonant_annihilation_energy},
+                                                -11:{"DarkBrem":self._dark_brem_cross_section[0][0],
+                                                     "DarkAnn":self._resonant_annihilation_energy},
                                                 22:{"DarkComp":self._dark_compton_cross_section[0][0]},
                                                 111:{"TwoBody_BSMDecay":-1}}
 
@@ -437,8 +454,8 @@ class DarkShower(Shower):
 
         event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min}
         
-        if process in diff_xsection_options:
-            diff_xsec_func = diff_xsection_options[process]
+        if process in self.diff_xsection_options:
+            diff_xsec_func = self.diff_xsection_options[process]
         else:
             raise Exception("Your process is not in the list")
 
