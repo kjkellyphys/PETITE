@@ -273,7 +273,7 @@ def dsig_dx_dcostheta_pseudoscalar(params, v):
             Ebeam (incident electron energy)
             ZTarget (Target charge)
     """
-    x0, x1, x2 = v  # x2 (the momentum transfer) is unused in WW; it is already set to tmin
+    x0, x1 = v
 
     Ebeam = params['E_inc']
     ma = params['mV']
@@ -602,7 +602,8 @@ diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                        "Ann"      : dsigma_annihilation_dCT, 
                        "DarkAnn"   : dsigma_radiative_return_du, #dsigma_radiative_return_dx,
                        "DarkComp" : dsigma_compton_dCT,
-                       "DarkBrem" :  dsig_etl_helper}
+                       "DarkBrem" :  dsig_etl_helper,
+                       "DarkALPBrem": dsig_dx_dcostheta_pseudoscalar}
 
 vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[60, 50, 40, 50]},
                             "Brem":{"nitn":10, "nstrat":[60, 50, 50, 50]},
@@ -612,10 +613,12 @@ vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[60, 50, 40, 50]},
                             "Bhabha":{"nitn":20, "nstrat":[1000]},
                             "Ann":{"nitn":20, "nstrat":[1000]},
                             "DarkAnn":{"nitn":10, "neval":10000},
-                            "DarkComp":{"nitn":20, "nstrat":[1000]}}
+                            "DarkComp":{"nitn":20, "nstrat":[1000]},
+                            "DarkALPBrem":{"nitn":20,"nstrat":[50,50]}}
       
 four_dim = {"PairProd", "Brem"}
 three_dim = {"DarkBrem"}
+two_dim = {"DarkALPBrem"}
 one_dim = {"Comp", "Ann","Moller","Bhabha", "DarkAnn", "DarkComp"}
 
 def integration_range(event_info, process):
@@ -671,7 +674,8 @@ def integration_range(event_info, process):
                 DE = 0.005
             delta_ct_limit = 2.0*DE/(event_info['E_inc'] - m_electron)
             return [[-1.0+delta_ct_limit, 1.0-delta_ct_limit]]
-
+    elif process in two_dim:
+        return [[0., 1.0], [-1.0, 1.0]] # "DarkALPBrem" parameters are x and cos(theta)
     else:
         raise Exception("Your process is not in the list")
 

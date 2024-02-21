@@ -93,7 +93,7 @@ def make_integrators(params, process):
         mV = 0.0
     else:
         mV = params['mV']
-    if process == 'DarkBrem' or process == 'DarkAnn' or process == 'DarkComp':
+    if process == 'DarkBrem' or process == 'DarkAnn' or process == 'DarkComp' or process == 'DarkALPBrem':
         if 'training_target' not in params:
             raise ValueError("Training target must be specified when running DarkBrem")
         else:
@@ -105,7 +105,7 @@ def make_integrators(params, process):
         else:
             params['mT'] = target_information[params['training_target']]['mT']
         # Create process specific directory in mother directory for saving VEGAS adaptive maps for dark sector production
-        process_directory = params['save_location'] + '/' + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/"
+        process_directory = params['save_location'] + '/' + process + '/mA_' + str(int(np.floor(mV*1000.))) + "MeV/"
 
     else:
         if 'training_target' in params:
