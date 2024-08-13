@@ -422,10 +422,10 @@ class DarkShower(Shower):
             LU_Key = np.argmin(np.abs(energies - Einc)) + 1
             if LU_Key < 0:
                 LU_Key = 0
-                print("Warning: sampling below minimum energy for process" + str(process))
+                print("Warning: sampling below minimum energy for process" + str(process) + " , Energy: " + str(Einc))
             if LU_Key >= len(dark_sample_list[process]):
                 LU_Key = len(dark_sample_list[process]) - 1
-                print("Warning: sampling above maximum energy for process" + str(process))
+                print("Warning: sampling above maximum energy for process" + str(process) + " , Energy: " + str(Einc))
 
         # this grabs the dictionary part rather than the energy. 
         dark_sample_dict=dark_sample_list[process][LU_Key][1]

@@ -15,3 +15,7 @@ utilities/macpro_integrators_lightmass.py
 lightmasses_fine*
 TODO*
 examples/.ipynb_checkpoints/*
+examples/beams/*400GeVProtons*.npy
+data_v3/*
+data_v2f/*
+data_v2/*

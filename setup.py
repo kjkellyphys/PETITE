@@ -23,7 +23,7 @@ setup(
     install_requires=[
         "vegas>=5.4.2",
         "tqdm",
-        "numpy==1.24"
+        "numpy"#==1.24"
     ],
     extras_require={
         "interactive": ["nbstripout", "matplotlib", "jupyter"]

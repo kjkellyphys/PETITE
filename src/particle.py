@@ -4,12 +4,16 @@ from .physical_constants import *
 mass_dict = {11: m_electron, -11:m_electron,
              22:0.0, 13:m_muon, -13:m_muon,
              111:m_pi0, 211:m_pi_pm, -211:m_pi_pm,
-             221:m_eta, 331:m_eta_prime, 2212:m_proton}
+             221:m_eta, 331:m_eta_prime, 2212:m_proton,
+             12:0.0, -12:0.0, 14:0.0, -14:0.0}
 
 default_ids = {"PID":11, "ID":1, "parent_PID":22, 
                "parent_ID":-1, "generation_number":0, 
                "generation_process":"Input", "weight":1.0, 
-               "mass":None, "stability":"stable"}
+               "mass":None, "stability":"stable",
+               "production_time":0.0,
+               "decay_time":0.0,
+               "interaction_time":0.0}
 
 #pi0 (111) decays to gamma gamma with Br = 0.98823
 #eta (221) decays to gamma gamma with Br = 0.3936
@@ -79,6 +83,9 @@ class Particle:
                 self._IDs[key] = default_ids[key]
     def get_ids(self):
         return self._IDs
+    
+    def update_ids(self, key, value):
+        self._IDs[key] = value
 
     def get_pid(self):
         """Returns PID of particle in shower
@@ -97,9 +104,9 @@ class Particle:
         self._mass = value
     def set_p0(self, value):
         self._p0 = value
-        invariant_mass = round(np.sqrt(round(value[0]**2 - value[1]**2 - value[2]**2 - value[3]**2, 12)),6)
         if self._mass is None:
             #else: #If mass is not provided, set it here
+            invariant_mass = round(np.sqrt(round(value[0]**2 - value[1]**2 - value[2]**2 - value[3]**2, 12)),6)
             self._mass = invariant_mass
             self._IDs["mass"] = invariant_mass
     def get_p0(self):
@@ -164,7 +171,10 @@ class Particle:
 
         gamma = E0/m0
         beta = np.sqrt(1.0 - 1.0/gamma**2)
-        betax, betay, betaz = beta*np.array([px0, py0, pz0])/np.linalg.norm([px0, py0, pz0])
+        pmag = np.linalg.norm([px0, py0, pz0])
+        if pmag == 0.0:
+            return np.identity(4)
+        betax, betay, betaz = beta*np.array([px0, py0, pz0])/pmag
 
         return [[gamma, gamma*betax, gamma*betay, gamma*betaz],
                 [gamma*betax, 1 + (gamma-1)*betax**2/beta**2, (gamma-1)*betax*betay/beta**2, (gamma-1)*betax*betaz/beta**2],
@@ -219,6 +229,96 @@ class Particle:
         new_particle_2 = Particle(p2_four_vector_LF, self.get_rf(), p2_dict)
         
         return [new_particle_1, new_particle_2]
+    
+    def dalitz_range(self, m12sq, m1, m2, m3, M):
+        #returns the allowed range for m23sq given m12sq
+        E2s = (m12sq - m1**2 + m2**2)/(2*np.sqrt(m12sq))
+        E3s = (M**2 - m12sq - m3**2)/(2*np.sqrt(m12sq))
+        m23sqmin = (E2s + E3s)**2 - (np.sqrt(E2s**2 - m2**2) + np.sqrt(E3s**2 - m3**2))**2
+        m23sqmax = (E2s + E3s)**2 - (np.sqrt(E2s**2 - m2**2) - np.sqrt(E3s**2 - m3**2))**2
+        return m23sqmin, m23sqmax
+
+    def three_body_decay(self, p1_dict, p2_dict, p3_dict, dalitz_information="Flat", angular_information="Isotropic"):
+        mX = self._mass
+        if ("mass") not in p1_dict.keys():
+            if ("PID") not in p1_dict.keys():
+                raise ValueError("Masses must be included in `p1_dict' when calling three_body_decay()")
+            else:
+                try:
+                    p1_dict['mass'] = mass_dict[p1_dict["PID"]]
+                except:
+                    raise ValueError("PID provided for unspecified particle.")
+        if ("mass") not in p2_dict.keys():
+            if ("PID") not in p2_dict.keys():
+                raise ValueError("Masses must be included in `p2_dict' when calling three_body_decay()")
+            else:
+                try:
+                    p2_dict['mass'] = mass_dict[p2_dict["PID"]]
+                except:
+                    raise ValueError("PID provided for unspecified particle.")
+        if ("mass") not in p3_dict.keys():
+            if ("PID") not in p3_dict.keys():
+                raise ValueError("Masses must be included in `p3_dict' when calling three_body_decay()")
+            else:
+                try:
+                    p3_dict['mass'] = mass_dict[p3_dict["PID"]]
+                except:
+                    raise ValueError("PID provided for unspecified particle.")
+
+        m1, m2, m3 = p1_dict['mass'], p2_dict['mass'], p3_dict['mass']
+        if dalitz_information != "Flat":
+            raise ValueError("Matrix-element-level Dalitz sampling not yet implemented")
+        m12sq_min = (m1 + m2)**2
+        m12sq_max = (mX - m3)**2
+        m23sq_min = (m2 + m3)**2
+        m23sq_max = (mX - m1)**2
+        sample_found = False
+        while sample_found is False:
+            m12sq, m23sq = np.random.uniform(m12sq_min, m12sq_max), np.random.uniform(m23sq_min, m23sq_max)
+            dr = self.dalitz_range(m12sq, m1, m2, m3, mX)
+            if m23sq > dr[0] and m23sq < dr[1]:
+                sample_found = True
+
+        E1 = (mX**2 - m23sq + m1**2)/(2*mX)
+        E3 = (mX**2 - m12sq + m3**2)/(2*mX)
+        E2 = mX - E1 - E3
+        p1, p2, p3 = np.sqrt(E1**2 - m1**2), np.sqrt(E2**2 - m2**2), np.sqrt(E3**2 - m3**2)
+
+        #opening angle between p1 and p2 three-vectors in X rest-frame
+        cos_theta_12 = (m1**2 + m2**2 + 2*E1*E2 - m12sq)/(2*p1*p2)
+        sin_theta_12 = np.sqrt(1 - cos_theta_12**2)
+
+        if angular_information == "Isotropic":
+            cos_theta = np.random.uniform(-1.0, 1.0)
+            phi, gamma = np.random.uniform(0.0, 2.0*np.pi, size=2)
+        elif len(angular_information) == 3:
+            cos_theta_c, phi_c, gamma_c = np.random.uniform(low=0.0, high=1.0, size=3)
+            cos_theta = angular_information[0](cos_theta_c)
+            phi = angular_information[1](phi_c)
+            gamma = angular_information[2](gamma_c)
+        else: #If three functions are not given, assume the one given is for cos(theta), phi is uniform
+            cos_theta_c = np.random.uniform(low=0.0, high=1.0, size=1)
+            cos_theta = angular_information(cos_theta_c)
+            phi, gamma = np.random.uniform(0.0, 2.0*np.pi, size=2)
+        sin_theta = np.sqrt(1 - cos_theta**2)
+
+        p1_four_vector_RF = [E1, -p1*sin_theta*np.sin(phi), -p1*sin_theta*np.cos(phi), -p1*cos_theta]
+        p2_four_vector_RF = [E2, p2*(sin_theta_12*np.cos(phi)*np.sin(gamma) - sin_theta_12*np.cos(gamma)*cos_theta*np.sin(phi) - cos_theta_12*sin_theta*np.sin(phi)),
+                                 p2*(-np.cos(phi)*(sin_theta_12*np.cos(gamma)*cos_theta + cos_theta_12*sin_theta) - sin_theta_12*np.sin(gamma)*np.sin(phi)),
+                                 p2*(sin_theta_12*np.cos(gamma)*sin_theta - cos_theta_12*cos_theta)]
+        p3_four_vector_RF = [E3, -p1_four_vector_RF[1] - p2_four_vector_RF[1], -p1_four_vector_RF[2] - p2_four_vector_RF[2], -p1_four_vector_RF[3] - p2_four_vector_RF[3]]
+
+        boost = self.boost_matrix()
+        
+        p1_four_vector_LF = np.dot(boost, p1_four_vector_RF)
+        p2_four_vector_LF = np.dot(boost, p2_four_vector_RF)
+        p3_four_vector_LF = np.dot(boost, p3_four_vector_RF)
+
+        new_particle_1 = Particle(p1_four_vector_LF, self.get_rf(), p1_dict)
+        new_particle_2 = Particle(p2_four_vector_LF, self.get_rf(), p2_dict)
+        new_particle_3 = Particle(p3_four_vector_LF, self.get_rf(), p3_dict)
+        
+        return [new_particle_1, new_particle_2, new_particle_3]
 
     def decay_particle(self):
         if self.get_ids()["PID"] not in meson_decay_dict.keys():
@@ -235,8 +335,8 @@ class Particle:
         if len(decay) > 2:
             raise ValueError("Three-body (and above) decays not yet implemented")
         elif len(decay) == 2:
-            p1_dict = {"PID":decay[0], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"]), "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1)}
-            p2_dict = {"PID":decay[1], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"])+1, "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1)}
+            p1_dict = {"PID":decay[0], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"]), "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1), "production_time":self.get_ids()["decay_time"]}
+            p2_dict = {"PID":decay[1], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"])+1, "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1), "production_time":self.get_ids()["decay_time"]}
             new_particles = self.two_body_decay(p1_dict=p1_dict, p2_dict=p2_dict)
         
         self.set_ended(True)
