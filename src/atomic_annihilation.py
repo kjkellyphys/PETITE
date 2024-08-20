@@ -1,9 +1,9 @@
 import numpy as np
-
+from .physical_constants import alpha_em, m_electron
 
 ## FIX ME  (global variables should be loaded in from physicalconstants.py)
-alpha_em=1/137
-m_electron=0.511E-3
+#alpha_em=1/137
+#m_electron=0.511E-3
 
 def radiative_tail_expression(s_rescaled,mV_rescaled):
     # Calculate components of the expression

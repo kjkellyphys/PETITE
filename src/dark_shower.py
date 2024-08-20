@@ -5,6 +5,8 @@ import os
 from scipy.interpolate import interp1d
 from scipy.integrate import quad
 
+from .atomic_annihilation import rad_tail_annihilation_on_atoms
+
 from .moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
 from .particle import Particle, meson_twobody_branchingratios
 from .kinematics import e_to_eV_fourvecs, compton_fourvecs, radiative_return_fourvecs
@@ -54,7 +56,7 @@ class DarkShower(Shower):
 
     def __init__(self, dict_dir, target_material, min_energy, mV_in_GeV ,
                  mode="exact", maxF_fudge_global=1,
-                 max_n_integrators=int(1e4), kinetic_mixing=1.0,
+                 max_n_integrators=int(1e4), kinetic_mixing=1.0, Zeff=21, bound_electron=True,
                  g_e=None, active_processes=None, fast_MCS_mode=True ,
                  rescale_MCS=1):
         super().__init__(dict_dir, target_material, min_energy)
@@ -78,6 +80,8 @@ class DarkShower(Shower):
         self.set_target_material(target_material)
         self.min_energy = min_energy
         self.kinetic_mixing = kinetic_mixing
+        self.bound_electron = bound_electron
+        self.Zeff = Zeff
         self.g_e = g_e
         if self.g_e is None:
             self.g_e = self.kinetic_mixing*np.sqrt(4*np.pi*alpha_em)
@@ -88,6 +92,7 @@ class DarkShower(Shower):
         self.set_mV(mV_in_GeV, mode)
         
         self.set_dark_cross_sections()
+        self.set_DarkAnnXSec()
         self.set_dark_NSigmas()
         self.set_weight_arrays()
         self.set_drate_dE()
@@ -204,9 +209,19 @@ class DarkShower(Shower):
     def get_DarkBremXSec(self):
         """ Returns array of [energy,cross-section] values for brem """ 
         return self._dark_brem_cross_section 
+    def set_DarkAnnXSec(self):
+        """ Returns array of [energy,cross-section] values for e+e- annihilation with a bound electron """ 
+        E = np.logspace(np.log10(0.0016), np.log10(100), 100)
+        xsec = [rad_tail_annihilation_on_atoms(e, self._mV, self.Zeff) for e in E]
+        self._dark_annihilation_cross_section_bound = np.column_stack((E, xsec))
     def get_DarkAnnXSec(self):
         """ Returns array of [energy,cross-section] values for e+e- annihilation """ 
-        return self._dark_annihilation_cross_section
+        if self.bound_electron:
+            return self._dark_annihilation_cross_section_bound
+        elif self.bound_electron == False:
+            return self._dark_annihilation_cross_section
+        else:
+            raise Exception("Bound must be True or False")
     def get_DarkCompXSec(self):
         """ Returns array of [energy,cross-section] values for Compton """ 
         return self._dark_compton_cross_section
