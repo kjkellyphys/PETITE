@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d
 from scipy.integrate import quad
 
 from .moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
-from .particle import Particle
+from .particle import Particle, mass_dict
 from .kinematics import e_to_egamma_fourvecs, gamma_to_epem_fourvecs, compton_fourvecs, annihilation_fourvecs, ee_to_ee_fourvecs
 from .all_processes import *
 from .physical_constants import *
@@ -210,9 +210,11 @@ class Shower:
         self._NSigmaPP = interp1d(np.transpose(PPS)[0], nZ*GeVsqcm2*np.transpose(PPS)[1], fill_value=0.0, bounds_error=False)
         self._NSigmaAnn = interp1d(np.transpose(AnnS)[0], ne*GeVsqcm2*np.transpose(AnnS)[1], fill_value=0.0, bounds_error=False)
         self._NSigmaComp = interp1d(np.transpose(CS)[0], ne*GeVsqcm2*np.transpose(CS)[1], fill_value=0.0, bounds_error=False)
-        bhabha_moller_energies = np.logspace(np.log10(3*m_electron + self.min_energy), 2, 101)
-        self._NSigmaMoller = interp1d(bhabha_moller_energies, ne*GeVsqcm2*sigma_moller({"E_inc":bhabha_moller_energies, "Ee_min":self.min_energy}), fill_value=0.0, bounds_error=False)
-        self._NSigmaBhabha = interp1d(bhabha_moller_energies, ne*GeVsqcm2*sigma_bhabha({"E_inc":bhabha_moller_energies, "Ee_min":self.min_energy}), fill_value=0.0, bounds_error=False)
+        #bhabha_moller_energies = np.logspace(np.log10(3*m_electron + self.min_energy), 2, 101)
+        Te_min_Bhabha_Moller = 0.001 #1 MeV
+        bhabha_moller_energies = np.logspace(np.log10(3*m_electron + Te_min_Bhabha_Moller), 2, 101)
+        self._NSigmaMoller = interp1d(bhabha_moller_energies, ne*GeVsqcm2*sigma_moller({"E_inc":bhabha_moller_energies, "Ee_min":Te_min_Bhabha_Moller+m_electron}), fill_value=0.0, bounds_error=False)
+        self._NSigmaBhabha = interp1d(bhabha_moller_energies, ne*GeVsqcm2*sigma_bhabha({"E_inc":bhabha_moller_energies, "Ee_min":Te_min_Bhabha_Moller+m_electron}), fill_value=0.0, bounds_error=False)
 
         II_y_Brem = np.array([quad(self._NSigmaBrem, BS[0][0],   BS[i][0], full_output=1)[0]   for i in range(len(BS))])
         self._interaction_integral_Brem = interp1d(np.transpose(BS)[0],   II_y_Brem, fill_value=0.0, bounds_error=False)
@@ -386,6 +388,9 @@ class Shower:
             p1_dict["PID"] = init_IDs["PID"]
         if p2_dict["PID"] == 0:
             p2_dict["PID"] = init_IDs["PID"]
+
+        p1_dict['mass'] = mass_dict[p1_dict["PID"]]
+        p2_dict['mass'] = mass_dict[p2_dict["PID"]]
 
         new_particle1 = Particle(p1_labframe, p0.get_rf(), p1_dict)
         new_particle2 = Particle(p2_labframe, p0.get_rf(), p2_dict)
