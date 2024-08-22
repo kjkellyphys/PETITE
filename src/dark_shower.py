@@ -5,7 +5,7 @@ import os
 from scipy.interpolate import interp1d
 from scipy.integrate import quad
 
-from .atomic_annihilation import rad_tail_annihilation_on_atoms
+from .atomic_annihilation import sigma_atomic
 
 from .moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
 from .particle import Particle, meson_twobody_branchingratios
@@ -218,7 +218,7 @@ class DarkShower(Shower):
         #ER0 = ((self._mV**2 - 2*m_electron**2)/(2*m_electron))
         #Emax = np.max([100.0, 100*ER0])
         #energy_list = ER0*(1 + np.logspace(-4, np.log10((Emax - ER0)/ER0), 100))
-        xsec = [rad_tail_annihilation_on_atoms(e, self._mV, self.Zeff) for e in energy_list]
+        xsec = [sigma_atomic(e, self._mV, self.Zeff) for e in energy_list]
         self._dark_annihilation_cross_section_bound = np.column_stack((energy_list, xsec))
     def get_DarkAnnXSec(self):
         """ Returns array of [energy,cross-section] values for e+e- annihilation """ 
