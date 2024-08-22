@@ -211,9 +211,12 @@ class DarkShower(Shower):
         return self._dark_brem_cross_section 
     def set_DarkAnnXSec(self):
         """ Returns array of [energy,cross-section] values for e+e- annihilation with a bound electron """ 
-        E = np.logspace(np.log10(0.0016), np.log10(100), 100)
-        xsec = [rad_tail_annihilation_on_atoms(e, self._mV, self.Zeff) for e in E]
-        self._dark_annihilation_cross_section_bound = np.column_stack((E, xsec))
+        energy_list = np.logspace(np.log10(0.0016), np.log10(100), 100)
+        #ER0 = ((self._mV**2 - 2*m_electron**2)/(2*m_electron))
+        #Emax = np.max([100.0, 100*ER0])
+        #energy_list = ER0*(1 + np.logspace(-4, np.log10((Emax - ER0)/ER0), 100))
+        xsec = [rad_tail_annihilation_on_atoms(e, self._mV, self.Zeff) for e in energy_list]
+        self._dark_annihilation_cross_section_bound = np.column_stack((energy_list, xsec))
     def get_DarkAnnXSec(self):
         """ Returns array of [energy,cross-section] values for e+e- annihilation """ 
         if self.bound_electron:
@@ -234,12 +237,18 @@ class DarkShower(Shower):
         nZ, ne = self.get_n_targets()
 
         self._NSigmaDarkBrem = interpolate1d(np.transpose(DBS)[0], nZ*GeVsqcm2*np.transpose(DBS)[1], xspace='log', yspace='log', fill_value=-20.0, bounds_error=False)
-        self._NSigmaDarkAnn = interpolate1d(np.transpose(DAnnS)[0] - self._resonant_annihilation_energy, ne*GeVsqcm2*np.transpose(DAnnS)[1], xspace='log', yspace='log', fill_value=-20.0, bounds_error=False)
+        if self.bound_electron:
+            self._NSigmaDarkAnn = interpolate1d(np.transpose(DAnnS)[0], ne*GeVsqcm2*np.transpose(DAnnS)[1], xspace='log', yspace='log', fill_value=-20.0, bounds_error=False)
+        elif self.bound_electron == False:
+            self._NSigmaDarkAnn = interpolate1d(np.transpose(DAnnS)[0] - self._resonant_annihilation_energy, ne*GeVsqcm2*np.transpose(DAnnS)[1], xspace='log', yspace='log', fill_value=-20.0, bounds_error=False)
         self._NSigmaDarkComp = interpolate1d(np.transpose(DCS)[0], ne*GeVsqcm2*np.transpose(DCS)[1], xspace='log', yspace='log', fill_value=-20.0, bounds_error=False)
 
     def _dark_ann_integrand(self, E, Ei):
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
-        return self._NSigmaDarkAnn(E - self._resonant_annihilation_energy)/dEdxT_GeVpercm*self._positron_exponential_factor(E, Ei)
+        if self.bound_electron:
+            return self._NSigmaDarkAnn(E)/dEdxT_GeVpercm*self._positron_exponential_factor(E, Ei)
+        elif self.bound_electron == False:
+            return self._NSigmaDarkAnn(E - self._resonant_annihilation_energy)/dEdxT_GeVpercm*self._positron_exponential_factor(E, Ei)
     def _dark_brem_integrand_elec(self, E, Ei):
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
         return self._NSigmaDarkBrem(E)/dEdxT_GeVpercm*self._electron_exponential_factor(E, Ei)
@@ -316,6 +325,16 @@ class DarkShower(Shower):
         brem_positron_weights = np.array([quad(self._dark_brem_integrand_positron, energy_array[i], energy_array[i+1], args=(Ei), full_output=1)[0] for i in range(len(energy_array)-1)])
         return np.transpose([energy_center_array, brem_positron_weights])
 
+    def _d_rate_d_E_positron_ann_bound(self, Ei):
+        dEdxT_GeVperm = self.get_material_properties()[3]*(0.1)
+        mfp_positron_EI = self.get_mfp([-11, Ei])
+        energy_loss_ten_mfp = 10*mfp_positron_EI*dEdxT_GeVperm
+        energy_array = np.linspace(np.max([Ei-energy_loss_ten_mfp, self.get_DarkAnnXSec()[0][0]]), Ei, 11)
+        energy_center_array = np.array([(energy_array[i] + energy_array[i+1])/2. for i in range(len(energy_array)-1)])
+
+        darkann_weights = np.array([quad(self._dark_ann_integrand, energy_array[i], energy_array[i+1], args=(Ei), full_output=1)[0] for i in range(len(energy_array)-1)])
+        return np.transpose([energy_center_array, darkann_weights])
+    
     def _d_rate_d_E_positron_ann(self, Ei):
         if Ei < self._resonant_annihilation_energy:
             return [[[0., 0.]], [0., 1.]]
@@ -334,7 +353,6 @@ class DarkShower(Shower):
         beta = (2.*alpha_em/np.pi) * (np.log(sMAX/m_electron**2) - 1.)
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
         weight_analytic = (1/dEdxT_GeVpercm)*(2*np.pi**2*alpha_em/m_electron)*(self.get_n_targets()[1])*GeVsqcm2*(sMAX - self._mV**2)**beta*self._positron_exponential_factor(self._resonant_annihilation_energy, Ei)
-
         darkann_weights = np.concatenate([[weight_analytic], darkann_weights])
         energy_center_array = np.concatenate([[resonant_bin_center], energy_center_array])
         energy_array = np.concatenate([[self._resonant_annihilation_energy, np.min([minimum_saved_energy, Ei])], energy_array])
@@ -347,6 +365,9 @@ class DarkShower(Shower):
     def _d_rate_d_E_positron_brem_array(self):
         Ei_samp = np.transpose(self.get_DarkBremXSec())[0]
         return {Ei:self._d_rate_d_E_positron_brem(Ei) for Ei in Ei_samp}
+    def _d_rate_d_E_positron_ann_bound_array(self):
+        Ei_samp = np.transpose(self.get_DarkAnnXSec())[0]
+        return {Ei:self._d_rate_d_E_positron_ann_bound(Ei) for Ei in Ei_samp}
     def _d_rate_d_E_positron_ann_array(self):
         Ei_samp = np.transpose(self.get_DarkAnnXSec())[0]
         return {Ei:self._d_rate_d_E_positron_ann(Ei)[0] for Ei in Ei_samp}
@@ -365,13 +386,19 @@ class DarkShower(Shower):
                 if self._target_material in outer_dict[self._mV_estimator].keys():
                     d_rate_dict_elec_brem = outer_dict[self._mV_estimator][self._target_material]['brem_elec_drate']
                     d_rate_dict_positron_brem = outer_dict[self._mV_estimator][self._target_material]['brem_positron_drate']
-                    d_rate_dict_positron_ann = outer_dict[self._mV_estimator][self._target_material]['annihilation_drate']
+                    if self.bound_electron:
+                        d_rate_dict_positron_ann = self._d_rate_d_E_positron_ann_bound_array()
+                    elif self.bound_electron == False:
+                        d_rate_dict_positron_ann = outer_dict[self._mV_estimator][self._target_material]['annihilation_drate']
                     files_set = True
         if files_set == False:
             print("dRate not previously calculated, calculating now...")
             d_rate_dict_elec_brem = self._d_rate_d_E_elec_brem_array()
             d_rate_dict_positron_brem = self._d_rate_d_E_positron_brem_array()
-            d_rate_dict_positron_ann = self._d_rate_d_E_positron_ann_array()
+            if self.bound_electron:
+                d_rate_dict_positron_ann = self._d_rate_d_E_positron_ann_bound_array()
+            elif self.bound_electron == False:
+                d_rate_dict_positron_ann = self._d_rate_d_E_positron_ann_array()
             if self._mV_estimator not in outer_dict.keys():
                 outer_dict[self._mV_estimator] = {}
             outer_dict[self._mV_estimator][self._target_material] = {'brem_elec_drate':d_rate_dict_elec_brem,
@@ -415,8 +442,10 @@ class DarkShower(Shower):
                 weight_numerical = self._annihilation_numerical_weight(energy_initial)
             else:
                 weight_numerical = 0.0
-
-            return (self.g_e**2/(4*np.pi*alpha_em))*(weight_numerical + weight_analytic)
+            if self.bound_electron:
+                return (self.g_e**2/(4*np.pi*alpha_em))*self._annihilation_numerical_weight(energy_initial)
+            elif self.bound_electron == False:
+                return (self.g_e**2/(4*np.pi*alpha_em))*(weight_numerical + weight_analytic)
         if PID == 111 or PID == 221 or PID == 331:
             if process == "TwoBody_BSMDecay":
                 mass_ratio = self._mV/particle.get_ids()["mass"]
