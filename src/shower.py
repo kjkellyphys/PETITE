@@ -76,8 +76,8 @@ class Shower:
         self.set_material_properties()
         self.set_n_targets()
         self.set_cross_sections()
-        self.set_NSigmas()
         self.set_samples()
+        self.set_NSigmas()
         self.set_MCS_momentum(fast_MCS_mode)
         self.set_MCS_rescale_factor(rescale_MCS)
         
@@ -156,6 +156,7 @@ class Shower:
             self._loaded_samples[Process]= \
                 self.load_sample(self._dict_dir, Process)
         self._Egamma_min = self._loaded_samples['Brem'][0][1]['Eg_min']
+        self._Ee_min = self._loaded_samples['Brem'][0][1]['Ee_min']
         
     def get_n_targets(self):
         """Returns nuclear and electron target densities for the 
@@ -211,10 +212,9 @@ class Shower:
         self._NSigmaAnn = interp1d(np.transpose(AnnS)[0], ne*GeVsqcm2*np.transpose(AnnS)[1], fill_value=0.0, bounds_error=False)
         self._NSigmaComp = interp1d(np.transpose(CS)[0], ne*GeVsqcm2*np.transpose(CS)[1], fill_value=0.0, bounds_error=False)
         #bhabha_moller_energies = np.logspace(np.log10(3*m_electron + self.min_energy), 2, 101)
-        Te_min_Bhabha_Moller = 0.001 #1 MeV
-        bhabha_moller_energies = np.logspace(np.log10(3*m_electron + Te_min_Bhabha_Moller), 2, 101)
-        self._NSigmaMoller = interp1d(bhabha_moller_energies, ne*GeVsqcm2*sigma_moller({"E_inc":bhabha_moller_energies, "Ee_min":Te_min_Bhabha_Moller+m_electron}), fill_value=0.0, bounds_error=False)
-        self._NSigmaBhabha = interp1d(bhabha_moller_energies, ne*GeVsqcm2*sigma_bhabha({"E_inc":bhabha_moller_energies, "Ee_min":Te_min_Bhabha_Moller+m_electron}), fill_value=0.0, bounds_error=False)
+        bhabha_moller_energies = np.logspace(np.log10(3*m_electron + self._Ee_min), 2, 101)
+        self._NSigmaMoller = interp1d(bhabha_moller_energies, ne*GeVsqcm2*sigma_moller({"E_inc":bhabha_moller_energies, "Ee_min":self._Ee_min}), fill_value=0.0, bounds_error=False)
+        self._NSigmaBhabha = interp1d(bhabha_moller_energies, ne*GeVsqcm2*sigma_bhabha({"E_inc":bhabha_moller_energies, "Ee_min":self._Ee_min}), fill_value=0.0, bounds_error=False)
 
         II_y_Brem = np.array([quad(self._NSigmaBrem, BS[0][0],   BS[i][0], full_output=1)[0]   for i in range(len(BS))])
         self._interaction_integral_Brem = interp1d(np.transpose(BS)[0],   II_y_Brem, fill_value=0.0, bounds_error=False)
@@ -323,7 +323,7 @@ class Shower:
         neval_vegas= sample_dict["neval"]
         integrand=vg.Integrator(map=adaptive_map, max_nhcube=1, neval=neval_vegas)
 
-        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min, 'Ee_min':self.min_energy}
+        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min, 'Ee_min':self._Ee_min}
         diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                                "Comp"     : dsigma_compton_dCT,
                                "Brem"     : dsigma_brem_dimensionless,
@@ -391,7 +391,7 @@ class Shower:
 
         p1_dict['mass'] = mass_dict[p1_dict["PID"]]
         p2_dict['mass'] = mass_dict[p2_dict["PID"]]
-        
+
         new_particle1 = Particle(p1_labframe, p0.get_rf(), p1_dict)
         new_particle2 = Particle(p2_labframe, p0.get_rf(), p2_dict)
         

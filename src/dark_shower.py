@@ -205,13 +205,16 @@ class DarkShower(Shower):
                                                 -11:{"DarkBrem":self._dark_brem_cross_section[0][0], "DarkAnn":self._resonant_annihilation_energy},
                                                 22:{"DarkComp":self._dark_compton_cross_section[0][0]},
                                                 111:{"TwoBody_BSMDecay":-1}}
+        if self.bound_electron:
+            self._minimum_calculable_dark_energy[-11]["DarkAnn"] = self._resonant_annihilation_energy/1000.0
 
     def get_DarkBremXSec(self):
         """ Returns array of [energy,cross-section] values for brem """ 
         return self._dark_brem_cross_section 
     def set_DarkAnnXSec(self):
         """ Returns array of [energy,cross-section] values for e+e- annihilation with a bound electron """ 
-        energy_list = np.logspace(np.log10(0.0016), np.log10(100), 100)
+        energy_list = np.logspace(np.log10(0.001*self._resonant_annihilation_energy), np.log10(1000*self._resonant_annihilation_energy), 200)
+        #energy_list = np.logspace(np.log10(0.0016), np.log10(1000), 200)
         #ER0 = ((self._mV**2 - 2*m_electron**2)/(2*m_electron))
         #Emax = np.max([100.0, 100*ER0])
         #energy_list = ER0*(1 + np.logspace(-4, np.log10((Emax - ER0)/ER0), 100))
@@ -303,7 +306,11 @@ class DarkShower(Shower):
 
         self._brem_elec_numerical_weight = interp1d(initial_energies_brem_elec, brem_elec_weight_array, fill_value=0.0, bounds_error=False)
         self._brem_positron_numerical_weight = interp1d(initial_energies_brem_positron, brem_positron_weight_array, fill_value=0.0, bounds_error=False)
-        self._annihilation_numerical_weight = interp1d(initial_energies_annihilation, annihilation_weight_array, fill_value=0.0, bounds_error=False)
+        if self.bound_electron:
+            initial_energies_annihilation, annihilation_weight_array = self.construct_annihilation_weight_array()
+            self._annihilation_numerical_weight = interp1d(initial_energies_annihilation, annihilation_weight_array, fill_value=0.0, bounds_error=False)            
+        else:
+            self._annihilation_numerical_weight = interp1d(initial_energies_annihilation, annihilation_weight_array, fill_value=0.0, bounds_error=False)
     
     def _d_rate_d_E_elec_brem(self, Ei):
         dEdxT_GeVperm = self.get_material_properties()[3]*(0.1)
@@ -433,18 +440,18 @@ class DarkShower(Shower):
             else:
                 return (self.g_e**2/(4*np.pi*alpha_em))*self._brem_positron_numerical_weight(energy_initial)
         if PID == -11 and process == "DarkAnn":
-            minimum_saved_energy = self.get_DarkAnnXSec()[0][0]
-            sMAX = 2*(m_electron*np.min([minimum_saved_energy, energy_initial]) + m_electron**2)
-            beta = (2.*alpha_em/np.pi) * (np.log(sMAX/m_electron**2) - 1.)
-            dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
-            weight_analytic = (1/dEdxT_GeVpercm)*(2*np.pi**2*alpha_em/m_electron)*(self.get_n_targets()[1])*GeVsqcm2*(sMAX - self._mV**2)**beta*self._positron_exponential_factor(self._resonant_annihilation_energy, energy_initial)
-            if energy_initial > minimum_saved_energy:
-                weight_numerical = self._annihilation_numerical_weight(energy_initial)
-            else:
-                weight_numerical = 0.0
             if self.bound_electron:
                 return (self.g_e**2/(4*np.pi*alpha_em))*self._annihilation_numerical_weight(energy_initial)
-            elif self.bound_electron == False:
+            else:
+                minimum_saved_energy = self.get_DarkAnnXSec()[0][0]
+                sMAX = 2*(m_electron*np.min([minimum_saved_energy, energy_initial]) + m_electron**2)
+                beta = (2.*alpha_em/np.pi) * (np.log(sMAX/m_electron**2) - 1.)
+                dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
+                weight_analytic = (1/dEdxT_GeVpercm)*(2*np.pi**2*alpha_em/m_electron)*(self.get_n_targets()[1])*GeVsqcm2*(sMAX - self._mV**2)**beta*self._positron_exponential_factor(self._resonant_annihilation_energy, energy_initial)
+                if energy_initial > minimum_saved_energy:
+                    weight_numerical = self._annihilation_numerical_weight(energy_initial)
+                else:
+                    weight_numerical = 0.0
                 return (self.g_e**2/(4*np.pi*alpha_em))*(weight_numerical + weight_analytic)
         if PID == 111 or PID == 221 or PID == 331:
             if process == "TwoBody_BSMDecay":
