@@ -213,7 +213,9 @@ class DarkShower(Shower):
         return self._dark_brem_cross_section 
     def set_DarkAnnXSec(self):
         """ Returns array of [energy,cross-section] values for e+e- annihilation with a bound electron """ 
-        energy_list = np.logspace(np.log10(0.001*self._resonant_annihilation_energy), np.log10(1000*self._resonant_annihilation_energy), 200)
+        E_min = np.max([self._minimum_calculable_energy[-11], 0.001*self._resonant_annihilation_energy])
+        E_max = np.min([1000*self._resonant_annihilation_energy, self._dark_brem_cross_section[-1][0]])
+        energy_list = np.logspace(np.log10(E_min), np.log10(E_max), 200)
         #energy_list = np.logspace(np.log10(0.0016), np.log10(1000), 200)
         #ER0 = ((self._mV**2 - 2*m_electron**2)/(2*m_electron))
         #Emax = np.max([100.0, 100*ER0])
@@ -270,8 +272,13 @@ class DarkShower(Shower):
     def construct_annihilation_weight_array(self):
         DAnnS = self.get_DarkAnnXSec()
         initial_energies = np.transpose(DAnnS)[0]
-        minimum_saved_energy = initial_energies[0]
-        annihilation_weight_array = np.array([quad(self._dark_ann_integrand, minimum_saved_energy, initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
+        #minimum_saved_energy = initial_energies[0]
+        minimum_energy = np.ones(len(initial_energies))*initial_energies[0]
+        if self.bound_electron:
+            for i in range(len(minimum_energy)):
+                if 0.99*initial_energies[i] > initial_energies[0]:
+                    minimum_energy[i] = 0.99*initial_energies[i]
+        annihilation_weight_array = np.array([quad(self._dark_ann_integrand, minimum_energy[i], initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
         return [initial_energies, annihilation_weight_array]
 
     def set_weight_arrays(self):
@@ -555,6 +562,8 @@ class DarkShower(Shower):
 
         if process == "DarkAnn" and E0 < self.get_DarkAnnXSec()[0][0]:
             EVf, pVxfZF, pVyfZF, pVzfZF = self._resonant_annihilation_energy, 0, 0, np.sqrt(self._resonant_annihilation_energy**2 - self._mV**2)
+        elif process == "DarkAnn" and self.bound_electron:
+            EVf, pVxfZF, pVyfZF, pVzfZF = np.sqrt(E0**2 - m_electron**2 + self._mV**2), 0, 0, np.sqrt(E0**2 - m_electron**2)
         else:
             sample_event = self.draw_dark_sample(E0, process=process, VB=VB)
             #dark-production is estabilished such that the last particle returned corresponds to the dark vector
