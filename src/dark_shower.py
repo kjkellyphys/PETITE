@@ -274,10 +274,10 @@ class DarkShower(Shower):
         initial_energies = np.transpose(DAnnS)[0]
         #minimum_saved_energy = initial_energies[0]
         minimum_energy = np.ones(len(initial_energies))*initial_energies[0]
-        if self.bound_electron:
-            for i in range(len(minimum_energy)):
-                if 0.99*initial_energies[i] > initial_energies[0]:
-                    minimum_energy[i] = 0.99*initial_energies[i]
+        #if self.bound_electron:
+        for i in range(len(minimum_energy)):
+            if 0.99*initial_energies[i] > initial_energies[0]:
+                minimum_energy[i] = 0.99*initial_energies[i]
         annihilation_weight_array = np.array([quad(self._dark_ann_integrand, minimum_energy[i], initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
         return [initial_energies, annihilation_weight_array]
 
