@@ -264,21 +264,47 @@ class DarkShower(Shower):
     def construct_brem_weight_array(self):
         DBS = self.get_DarkBremXSec()
         initial_energies = np.transpose(DBS)[0]
-        minimum_saved_energy = initial_energies[0]
-        brem_elec_weight_array = np.array([quad(self._dark_brem_integrand_elec, minimum_saved_energy, initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
-        brem_positron_weight_array = np.array([quad(self._dark_brem_integrand_positron, minimum_saved_energy, initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
+
+        dEdxT_GeVperm = self.get_material_properties()[3]*(0.1)
+        mfp_electron_EI = np.array([self.get_mfp([11, Ei]) for Ei in initial_energies])
+        mfp_positron_EI = np.array([self.get_mfp([-11, Ei]) for Ei in initial_energies])
+        energy_loss_ten_mfp_electron = 10*mfp_electron_EI*dEdxT_GeVperm
+        energy_loss_ten_mfp_positron = 10*mfp_positron_EI*dEdxT_GeVperm
+        minimum_energy_0 = initial_energies[0]
+        energy_break_electrons = np.ones(len(initial_energies))*minimum_energy_0
+        energy_break_positrons = np.ones(len(initial_energies))*minimum_energy_0
+        for i in range(len(energy_break_electrons)):
+            Eb_electron = initial_energies[i] - energy_loss_ten_mfp_electron[i]
+            Eb_positron = initial_energies[i] - energy_loss_ten_mfp_positron[i]
+            if Eb_electron > minimum_energy_0:
+                energy_break_electrons[i] = Eb_electron
+            if Eb_positron > minimum_energy_0:
+                energy_break_positrons[i] = Eb_positron
+
+        brem_elec_weight_array =        np.array([quad(self._dark_brem_integrand_elec, minimum_energy_0, energy_break_electrons[i], args=(initial_energies[i]), full_output=1)[0] + 
+                                                  quad(self._dark_brem_integrand_elec, energy_break_electrons[i], initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
+        brem_positron_weight_array =    np.array([quad(self._dark_brem_integrand_positron, minimum_energy_0, energy_break_positrons[i], args=(initial_energies[i]), full_output=1)[0] +
+                                                  quad(self._dark_brem_integrand_positron, energy_break_positrons[i], initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
+
         return [initial_energies, brem_elec_weight_array, brem_positron_weight_array]
 
     def construct_annihilation_weight_array(self):
         DAnnS = self.get_DarkAnnXSec()
         initial_energies = np.transpose(DAnnS)[0]
-        #minimum_saved_energy = initial_energies[0]
-        minimum_energy = np.ones(len(initial_energies))*initial_energies[0]
-        #if self.bound_electron:
-        for i in range(len(minimum_energy)):
-            if 0.99*initial_energies[i] > initial_energies[0]:
-                minimum_energy[i] = 0.99*initial_energies[i]
-        annihilation_weight_array = np.array([quad(self._dark_ann_integrand, minimum_energy[i], initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
+
+        dEdxT_GeVperm = self.get_material_properties()[3]*(0.1)
+        mfp_positron_EI = np.array([self.get_mfp([-11, Ei]) for Ei in initial_energies])
+        energy_loss_ten_mfp_positron = 10*mfp_positron_EI*dEdxT_GeVperm
+        minimum_energy_0 = initial_energies[0]
+        energy_break_positrons = np.ones(len(initial_energies))*minimum_energy_0
+        for i in range(len(energy_break_positrons)):
+            Eb_positron = initial_energies[i] - energy_loss_ten_mfp_positron[i]
+            if Eb_positron > minimum_energy_0:
+                energy_break_positrons[i] = Eb_positron
+
+        annihilation_weight_array = np.array([quad(self._dark_ann_integrand, minimum_energy_0, energy_break_positrons[i], args=(initial_energies[i]), full_output=1)[0] +
+                                              quad(self._dark_ann_integrand, energy_break_positrons[i], initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
+        
         return [initial_energies, annihilation_weight_array]
 
     def set_weight_arrays(self):
@@ -295,7 +321,14 @@ class DarkShower(Shower):
                 if self._target_material in outer_dict[self._mV_estimator].keys():
                     initial_energies_brem_elec, brem_elec_weight_array = np.transpose(outer_dict[self._mV_estimator][self._target_material]['brem_elec_weights'])
                     initial_energies_brem_positron, brem_positron_weight_array = np.transpose(outer_dict[self._mV_estimator][self._target_material]['brem_positron_weights'])
-                    initial_energies_annihilation, annihilation_weight_array = np.transpose(outer_dict[self._mV_estimator][self._target_material]['annihilation_weights'])
+                    if self.bound_electron is False and 'annihilation_weights' in outer_dict[self._mV_estimator][self._target_material].keys():
+                        initial_energies_annihilation, annihilation_weight_array = np.transpose(outer_dict[self._mV_estimator][self._target_material]['annihilation_weights'])
+                    elif self.bound_electron is False and 'annihilation_weights' not in outer_dict[self._mV_estimator][self._target_material].keys():
+                        initial_energies_annihilation, annihilation_weight_array = self.construct_annihilation_weight_array()
+                        outer_dict[self._mV_estimator][self._target_material]['annihilation_weights'] = np.transpose([initial_energies_annihilation, annihilation_weight_array])
+                        sample_file = open(weights_file_name, 'wb')
+                        pickle.dump(outer_dict, sample_file)
+                        sample_file.close()
                     files_set = True
         if files_set == False:
             print("Weights not previously calculated, calculating now...")
@@ -304,20 +337,23 @@ class DarkShower(Shower):
             initial_energies_annihilation, annihilation_weight_array = self.construct_annihilation_weight_array()
             if self._mV_estimator not in outer_dict.keys():
                 outer_dict[self._mV_estimator] = {}
-            outer_dict[self._mV_estimator][self._target_material] = {'brem_elec_weights':np.transpose([initial_energies_brem_elec, brem_elec_weight_array]),
-                                                                     'brem_positron_weights':np.transpose([initial_energies_brem_positron, brem_positron_weight_array]),
-                                                                     'annihilation_weights':np.transpose([initial_energies_annihilation, annihilation_weight_array])}
+            if self.bound_electron:
+                outer_dict[self._mV_estimator][self._target_material] = {'brem_elec_weights':np.transpose([initial_energies_brem_elec, brem_elec_weight_array]),
+                                                                        'brem_positron_weights':np.transpose([initial_energies_brem_positron, brem_positron_weight_array])}
+            else: #only save the annihilation case if dealing with a free-electron calculation
+                outer_dict[self._mV_estimator][self._target_material] = {'brem_elec_weights':np.transpose([initial_energies_brem_elec, brem_elec_weight_array]),
+                                                                        'brem_positron_weights':np.transpose([initial_energies_brem_positron, brem_positron_weight_array]),
+                                                                        'annihilation_weights':np.transpose([initial_energies_annihilation, annihilation_weight_array])}
+
             sample_file=open(weights_file_name, 'wb')
             pickle.dump(outer_dict, sample_file)
             sample_file.close()
 
         self._brem_elec_numerical_weight = interp1d(initial_energies_brem_elec, brem_elec_weight_array, fill_value=0.0, bounds_error=False)
         self._brem_positron_numerical_weight = interp1d(initial_energies_brem_positron, brem_positron_weight_array, fill_value=0.0, bounds_error=False)
-        if self.bound_electron:
+        if self.bound_electron: #explicitly calculate annihilation weight arrays if dealing with a bound-electron case
             initial_energies_annihilation, annihilation_weight_array = self.construct_annihilation_weight_array()
-            self._annihilation_numerical_weight = interp1d(initial_energies_annihilation, annihilation_weight_array, fill_value=0.0, bounds_error=False)            
-        else:
-            self._annihilation_numerical_weight = interp1d(initial_energies_annihilation, annihilation_weight_array, fill_value=0.0, bounds_error=False)
+        self._annihilation_numerical_weight = interp1d(initial_energies_annihilation, annihilation_weight_array, fill_value=0.0, bounds_error=False)            
     
     def _d_rate_d_E_elec_brem(self, Ei):
         dEdxT_GeVperm = self.get_material_properties()[3]*(0.1)
