@@ -100,7 +100,8 @@ def radiative_return_cross_section(s, mA):
     betaf = np.sqrt( 1. - 4.*(m_electron**2) / (mA**2) )
     
     # this factor should be equal to 12pi^2 Gamma(A'->ee)/(mA * s)
-    prefac = (4.*np.pi**2)*(alpha_em*eps**2)*betaf*(3./2. - betaf**2 / 2.)/s
+    #Changed betaf -> (1.0/betaf) on 26/08/2024, fix relative to original published result.
+    prefac = (4.*np.pi**2)*(alpha_em*eps**2)*(1.0/betaf)*(3./2. - betaf**2 / 2.)/s
     
     lumi_factor = lumi_integral_interp(s, mA**2 / s)
 

@@ -78,7 +78,7 @@ def tree_level_sigma(k,mV, Zeff):
     a=m_e/Lambda 
     b=mV**2/(2*k*Lambda)
 
-    return( (mV**2+2*m_e**2)* (2/3/Lambda/m_e)*(1/k**2)*f_ab(a,b) )
+    return( (4.0*np.pi*alpha_em)*((mV**2+2*m_e**2)* (2/3/Lambda/m_e)*(1/k**2)*f_ab(a,b)) )
 
 def rad_tail_sigma(k,mV, Zeff):
     # Calculate components of the expression
@@ -93,9 +93,9 @@ def rad_tail_sigma(k,mV, Zeff):
     
     s=2*k*m_e+m_e**2
     
-    beta = 2*alpha_em/np.pi*np.log(s/m_e**2)
+    beta = 2*alpha_em/np.pi*(np.log(s/m_e**2) - 1.0)
 
-    return( (mV**2+2*m_e**2)* (2/3/Lambda/m_e)*(1/k**2)*(beta/4)*fancy_integral(a,b) )
+    return( (4.0*np.pi*alpha_em)*((mV**2+2*m_e**2)* (2/3/Lambda/m_e)*(1/k**2)*(beta/2)*fancy_integral(a,b)) )
 
 
 def sigma_atomic(k,mV,Zeff):
