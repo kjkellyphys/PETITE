@@ -160,8 +160,12 @@ def main(params):
         # Get adaptive map main file (created by stitch_integrators)
         adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
         # Load adaptive map file. Format: list of [params, adaptive_map]
-        adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
-
+        try:
+            adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
+        except:
+            path = params['save_location'] + process + '/'
+            adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
+            adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
         final_sampling_dict[process] = []
         final_xsec_dict[process] = {}
         # Initialise dictionary to store cross sections for each target material
@@ -249,8 +253,12 @@ def main_dark(params):
             path = params['save_location'] + '/auxiliary/' + process + '/mV_' + str(int(1000.*mV)) + "MeV/"
             adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
             # Load adaptive map file. Format: list of [params, adaptive_map]
-            adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
-
+            try:
+                adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
+            except:
+                path = params['save_location'] + process + '/mV_' + str(int(1000.*mV)) + "MeV/"
+                adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
+                adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
             final_sampling_dict[mV][process] = []
             final_xsec_dict[mV][process] = {}
             # Initialise dictionary to store cross sections for each target material

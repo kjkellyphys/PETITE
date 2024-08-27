@@ -11,11 +11,12 @@ exploring_PETITE.py
 tests/.ipynb_checkpoints/*
 paddy_test/
 data/beams/Pi0_120GeVProtons_1e5POT.npy
-utilities/macpro_integrators_lightmass.py
+utilities/script_generateintegrators_new.py
 lightmasses_fine*
 TODO*
 examples/.ipynb_checkpoints/*
 examples/beams/*400GeVProtons*.npy
 data_v3/*
 data_v2f/*
+data_v2f_annihilationredo/*
 data_v2/*

@@ -213,8 +213,8 @@ class DarkShower(Shower):
         return self._dark_brem_cross_section 
     def set_DarkAnnXSec(self):
         """ Returns array of [energy,cross-section] values for e+e- annihilation with a bound electron """ 
-        E_min = np.max([self._minimum_calculable_energy[-11], 0.001*self._resonant_annihilation_energy])
-        E_max = np.min([1000*self._resonant_annihilation_energy, self._dark_brem_cross_section[-1][0]])
+        E_min = np.max([self._minimum_calculable_energy[-11], 0.001*self._resonant_annihilation_energy])       
+        E_max = self._dark_brem_cross_section[-1][0]
         energy_list = np.logspace(np.log10(E_min), np.log10(E_max), 200)
         #energy_list = np.logspace(np.log10(0.0016), np.log10(1000), 200)
         #ER0 = ((self._mV**2 - 2*m_electron**2)/(2*m_electron))

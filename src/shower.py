@@ -241,6 +241,8 @@ class Shower:
         n_sigma_diff = (self._interaction_integral_Brem(Ei) - self._interaction_integral_Brem(E)) \
                      + (self._interaction_integral_Ann(Ei) - self._interaction_integral_Ann(E))   \
                      + (self._interaction_integral_Bhabha(Ei) - self._interaction_integral_Bhabha(E))
+        if n_sigma_diff < 0.0 or E > Ei:
+            return 0.0
         #dEdxT has units of GeV/m
         dEdxT = self.get_material_properties()[3]*(0.1) #Converting MeV/cm to GeV/m
         #the ratio n_sigma_diff/dEdxT has units of (GeV/cm)/(GeV/m) = m/cm = 100
@@ -251,6 +253,8 @@ class Shower:
         over an energy interval [E, Ei]"""
         n_sigma_diff = (self._interaction_integral_Brem(Ei) - self._interaction_integral_Brem(E)) \
                      + (self._interaction_integral_Moller(Ei) - self._interaction_integral_Moller(E))
+        if n_sigma_diff < 0.0 or E > Ei:
+            return 0.0
         dEdxT = self.get_material_properties()[3]*(0.1) #Converting MeV/cm to GeV/m
         return np.exp(-n_sigma_diff/dEdxT/cmtom)
 
