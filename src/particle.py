@@ -5,6 +5,7 @@ mass_dict = {11: m_electron, -11:m_electron,
              22:0.0, 13:m_muon, -13:m_muon,
              111:m_pi0, 211:m_pi_pm, -211:m_pi_pm,
              221:m_eta, 331:m_eta_prime, 2212:m_proton,
+             223:m_omega,
              12:0.0, -12:0.0, 14:0.0, -14:0.0}
 
 default_ids = {"PID":11, "ID":1, "parent_PID":22, 
@@ -24,7 +25,8 @@ default_ids = {"PID":11, "ID":1, "parent_PID":22,
 #                       to three pi0 with Br = 0.00250
 meson_decay_dict = {111: [[0.98823, [22,22]]],
                     221: [[0.3936, [22,22]], [0.3257, [111, 111, 111]]],
-                    331: [[0.02307, [22,22]], [0.224, [111, 111, 221]], [0.00250, [111, 111, 111]]]}
+                    331: [[0.02307, [22,22]], [0.224, [111, 111, 221]], [0.00250, [111, 111, 111]]],
+                    223: [[0.0828, [22, 111]]]}
 meson_twobody_branchingratios = {pid0:meson_decay_dict[pid0][0][0] for pid0 in meson_decay_dict.keys()}
 
 class Particle:

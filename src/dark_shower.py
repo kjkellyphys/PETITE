@@ -204,6 +204,7 @@ class DarkShower(Shower):
     def get_DarkBremXSec(self):
         """ Returns array of [energy,cross-section] values for brem """ 
         return self._dark_brem_cross_section 
+
     def get_DarkAnnXSec(self):
         """ Returns array of [energy,cross-section] values for e+e- annihilation """ 
         return self._dark_annihilation_cross_section
@@ -235,16 +236,47 @@ class DarkShower(Shower):
     def construct_brem_weight_array(self):
         DBS = self.get_DarkBremXSec()
         initial_energies = np.transpose(DBS)[0]
-        minimum_saved_energy = initial_energies[0]
-        brem_elec_weight_array = np.array([quad(self._dark_brem_integrand_elec, minimum_saved_energy, initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
-        brem_positron_weight_array = np.array([quad(self._dark_brem_integrand_positron, minimum_saved_energy, initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
+
+        dEdxT_GeVperm = self.get_material_properties()[3]*(0.1)
+        mfp_electron_EI = np.array([self.get_mfp([11, Ei]) for Ei in initial_energies])
+        mfp_positron_EI = np.array([self.get_mfp([-11, Ei]) for Ei in initial_energies])
+        energy_loss_ten_mfp_electron = 10*mfp_electron_EI*dEdxT_GeVperm
+        energy_loss_ten_mfp_positron = 10*mfp_positron_EI*dEdxT_GeVperm
+        minimum_energy_0 = initial_energies[0]
+        energy_break_electrons = np.ones(len(initial_energies))*minimum_energy_0
+        energy_break_positrons = np.ones(len(initial_energies))*minimum_energy_0
+        for i in range(len(energy_break_electrons)):
+            Eb_electron = initial_energies[i] - energy_loss_ten_mfp_electron[i]
+            Eb_positron = initial_energies[i] - energy_loss_ten_mfp_positron[i]
+            if Eb_electron > minimum_energy_0:
+                energy_break_electrons[i] = Eb_electron
+            if Eb_positron > minimum_energy_0:
+                energy_break_positrons[i] = Eb_positron
+
+        brem_elec_weight_array =        np.array([quad(self._dark_brem_integrand_elec, minimum_energy_0, energy_break_electrons[i], args=(initial_energies[i]), full_output=1)[0] + 
+                                                  quad(self._dark_brem_integrand_elec, energy_break_electrons[i], initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
+        brem_positron_weight_array =    np.array([quad(self._dark_brem_integrand_positron, minimum_energy_0, energy_break_positrons[i], args=(initial_energies[i]), full_output=1)[0] +
+                                                  quad(self._dark_brem_integrand_positron, energy_break_positrons[i], initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
+
         return [initial_energies, brem_elec_weight_array, brem_positron_weight_array]
 
     def construct_annihilation_weight_array(self):
         DAnnS = self.get_DarkAnnXSec()
         initial_energies = np.transpose(DAnnS)[0]
-        minimum_saved_energy = initial_energies[0]
-        annihilation_weight_array = np.array([quad(self._dark_ann_integrand, minimum_saved_energy, initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
+
+        dEdxT_GeVperm = self.get_material_properties()[3]*(0.1)
+        mfp_positron_EI = np.array([self.get_mfp([-11, Ei]) for Ei in initial_energies])
+        energy_loss_ten_mfp_positron = 10*mfp_positron_EI*dEdxT_GeVperm
+        minimum_energy_0 = initial_energies[0]
+        energy_break_positrons = np.ones(len(initial_energies))*minimum_energy_0
+        for i in range(len(energy_break_positrons)):
+            Eb_positron = initial_energies[i] - energy_loss_ten_mfp_positron[i]
+            if Eb_positron > minimum_energy_0:
+                energy_break_positrons[i] = Eb_positron
+
+        annihilation_weight_array = np.array([quad(self._dark_ann_integrand, minimum_energy_0, energy_break_positrons[i], args=(initial_energies[i]), full_output=1)[0] +
+                                              quad(self._dark_ann_integrand, energy_break_positrons[i], initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
+        
         return [initial_energies, annihilation_weight_array]
 
     def set_weight_arrays(self):
@@ -271,15 +303,16 @@ class DarkShower(Shower):
             if self._mV_estimator not in outer_dict.keys():
                 outer_dict[self._mV_estimator] = {}
             outer_dict[self._mV_estimator][self._target_material] = {'brem_elec_weights':np.transpose([initial_energies_brem_elec, brem_elec_weight_array]),
-                                                                     'brem_positron_weights':np.transpose([initial_energies_brem_positron, brem_positron_weight_array]),
-                                                                     'annihilation_weights':np.transpose([initial_energies_annihilation, annihilation_weight_array])}
+                                                                    'brem_positron_weights':np.transpose([initial_energies_brem_positron, brem_positron_weight_array]),
+                                                                    'annihilation_weights':np.transpose([initial_energies_annihilation, annihilation_weight_array])}
+
             sample_file=open(weights_file_name, 'wb')
             pickle.dump(outer_dict, sample_file)
             sample_file.close()
 
         self._brem_elec_numerical_weight = interp1d(initial_energies_brem_elec, brem_elec_weight_array, fill_value=0.0, bounds_error=False)
         self._brem_positron_numerical_weight = interp1d(initial_energies_brem_positron, brem_positron_weight_array, fill_value=0.0, bounds_error=False)
-        self._annihilation_numerical_weight = interp1d(initial_energies_annihilation, annihilation_weight_array, fill_value=0.0, bounds_error=False)
+        self._annihilation_numerical_weight = interp1d(initial_energies_annihilation, annihilation_weight_array, fill_value=0.0, bounds_error=False)            
     
     def _d_rate_d_E_elec_brem(self, Ei):
         dEdxT_GeVperm = self.get_material_properties()[3]*(0.1)
@@ -300,7 +333,7 @@ class DarkShower(Shower):
 
         brem_positron_weights = np.array([quad(self._dark_brem_integrand_positron, energy_array[i], energy_array[i+1], args=(Ei), full_output=1)[0] for i in range(len(energy_array)-1)])
         return np.transpose([energy_center_array, brem_positron_weights])
-
+    
     def _d_rate_d_E_positron_ann(self, Ei):
         if Ei < self._resonant_annihilation_energy:
             return [[[0., 0.]], [0., 1.]]
@@ -319,7 +352,6 @@ class DarkShower(Shower):
         beta = (2.*alpha_em/np.pi) * (np.log(sMAX/m_electron**2) - 1.)
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
         weight_analytic = (1/dEdxT_GeVpercm)*(2*np.pi**2*alpha_em/m_electron)*(self.get_n_targets()[1])*GeVsqcm2*(sMAX - self._mV**2)**beta*self._positron_exponential_factor(self._resonant_annihilation_energy, Ei)
-
         darkann_weights = np.concatenate([[weight_analytic], darkann_weights])
         energy_center_array = np.concatenate([[resonant_bin_center], energy_center_array])
         energy_array = np.concatenate([[self._resonant_annihilation_energy, np.min([minimum_saved_energy, Ei])], energy_array])
@@ -400,7 +432,6 @@ class DarkShower(Shower):
                 weight_numerical = self._annihilation_numerical_weight(energy_initial)
             else:
                 weight_numerical = 0.0
-
             return (self.g_e**2/(4*np.pi*alpha_em))*(weight_numerical + weight_analytic)
         if PID == 111 or PID == 221 or PID == 331:
             if process == "TwoBody_BSMDecay":

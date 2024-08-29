@@ -169,11 +169,12 @@ def radiative_return_fourvecs(pe, sampled_event, mV=0.0):
     s = 2.*m_electron*(m_electron + pe.get_pf()[0])
 
     beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
+    umax = np.power(1.-mV**2/s,beta/2.)
 
-    x1 = 1.- np.power(sampled_event[0],2./beta)
+    x1 = 1.- np.power(sampled_event[0]*umax,2./beta)
     x2 = mV**2/(x1*s)
     
-    if x2 > 1.:
+    if x2 >= 1.:
         print("wrong kinematics...")
         print("x1, x2, x1*x2*s,  mV^2 = ", x1, "\t", x2,"\t",x1*x2*s, "\t", mV**2)
 

@@ -278,7 +278,8 @@ def dsigma_radiative_return_dx(event_info, x):
     s = 2.0*m_electron*(Ee+m_electron)
     betaf = np.sqrt( 1. - 4.*(m_electron**2) / (mV**2) )
     
-    prefac = (4.*np.pi**2)*alpha_em*betaf*(3./2. - betaf**2 / 2.)/s
+    #Changed betaf -> (1.0/betaf) on 26/08/2024, fix relative to original published result.
+    prefac = (4.*np.pi**2)*alpha_em*(1.0/betaf)*(3./2. - betaf**2 / 2.)/s
     
     # this needs to be integrated over x in [y, 1], where y=mV^2/s
     return prefac*lepton_luminosity_integrand(s, mV**2/s, x) 
@@ -304,8 +305,11 @@ def dsigma_radiative_return_du(event_info, phase_space_par_list):
             return 0.
         else:
             return np.zeros(shape=len(phase_space_par_list))
+    beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
+    umax = np.power(1.-mV**2/s,beta/2.)
+
     betaf = np.sqrt( 1. - 4.*(m_electron**2) / (mV**2) )
-    prefac = (4.*np.pi**2)*alpha_em*betaf*(3./2. - betaf**2 / 2.)/s
+    prefac = (4.*np.pi**2)*alpha_em*betaf*(3./2. - betaf**2 / 2.)/s*umax
 
     if len(np.shape(phase_space_par_list)) == 0:
         phase_space_par_list = np.array([phase_space_par_list])
@@ -314,7 +318,12 @@ def dsigma_radiative_return_du(event_info, phase_space_par_list):
     # the factor of 2 comes from splitting the [y,1] integration into [y,sqrt(y)] + [sqrt(y),1] and using x-> y/x in the first part comes from splitting the [y,1] integration into [y,sqrt(y)] + [sqrt(y),1] and using x-> y/x in the first part 
     dSigs = []
     for u in phase_space_par_list:
-        dSigs.append(2.*prefac*transformed_lepton_luminosity_integrand(s, mV**2/s, u))
+        x1 = 1.- np.power(u*umax,2./beta)
+        x2 = mV**2/(x1*s)
+        if x2 >= 1.0:
+            dSigs.append(0.0)
+        else:
+            dSigs.append(2.*prefac*transformed_lepton_luminosity_integrand(s, mV**2/s, u*umax))
     if len(dSigs) == 1:
         return dSigs[0]
     else:
@@ -624,9 +633,10 @@ def integration_range(event_info, process):
         if process == "Comp" or process == "Ann" or process == "DarkComp":
             return [[-1., 1.0]]
         elif process == "DarkAnn":
-            beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
+            #beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
             if s > mV**2:
-                return [[0., np.power(1.-np.sqrt(mV**2/s),beta/2.)]]
+                #return [[0., np.power(1.-mV**2/s,beta/2.)]]
+                return [[0., 1.0]]
             else:
                 return [[0.,0.]]
         else:
