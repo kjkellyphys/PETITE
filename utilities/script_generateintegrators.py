@@ -74,11 +74,9 @@ def main(doSM=True, doDark=True):
                     generate_integrators.stitch_integrators(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
                     generate_integrators.cleanup(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
                     generate_integrators.organize_directories_final(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
-                    #generate_integrators.stitch_integrators(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000000.))) + "keV/")
-                    #generate_integrators.cleanup(training_params['save_location'] + process + '/mV_' + str(int(np.floor(mV*1000000.))) + "keV/")
 
         processing_params = {'process_targets':['graphite','lead','iron','aluminum'], 'save_location':save_location, 'mV_list':mV_list}
         generate_integrators.call_find_maxes(processing_params, processes_to_do)
 
 if __name__ == "__main__":
-    main(doSM=True, doDark=True)
+    main(doSM=False, doDark=True)
