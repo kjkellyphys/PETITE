@@ -23,7 +23,13 @@ diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
                         "Ann"      : dsigma_annihilation_dCT,
                         "Moller"   : dsigma_moller_dCT,
                         "Bhabha"   : dsigma_bhabha_dCT }
-        
+dimensionalities={"PairProd":4,
+                  "Comp":1,
+                  "Brem":4,
+                  "Ann":1,
+                  "Moller":1,
+                  "Bhabha":1}
+     
 formfactor_dict      ={"PairProd" : g2_elastic,
                         "Comp"     : unity,
                         "Brem"     : g2_elastic,
@@ -325,15 +331,10 @@ class Shower:
         adaptive_map = sample_dict["adaptive_map"]
         max_F      = sample_dict["max_F"][self._target_material]*self._maxF_fudge_global
         neval_vegas= sample_dict["neval"]
-        integrand=vg.Integrator(map=adaptive_map, max_nhcube=1, neval=neval_vegas)
+        integrand=vg.Integrator(map=adaptive_map, max_nhcube=1, nstrat=np.ones(dimensionalities[process]), neval=neval_vegas)
 
         event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min, 'Ee_min':self._Ee_min}
-        diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
-                               "Comp"     : dsigma_compton_dCT,
-                               "Brem"     : dsigma_brem_dimensionless,
-                               "Ann"      : dsigma_annihilation_dCT,
-                               "Moller"   : dsigma_moller_dCT,
-                               "Bhabha"   : dsigma_bhabha_dCT }
+        
                 
         if process in diff_xsection_options:
             diff_xsec_func = diff_xsection_options[process]
