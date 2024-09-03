@@ -47,6 +47,9 @@ dark_kinematic_function = {"DarkBrem" : e_to_eV_fourvecs,
 diff_xsection_options={"DarkComp"      : dsigma_compton_dCT,
                         "DarkBrem" : dsig_etl_helper,
                         "DarkAnn"      : dsigma_radiative_return_du }
+dimensionalities_dark={"DarkComp":1,
+                       "DarkBrem":3,
+                       "DarkAnn":1}
 
 class DarkShower(Shower):
     """ A class to reprocess an existing EM shower to generate dark photons
@@ -464,7 +467,8 @@ class DarkShower(Shower):
         integrand = dark_sample_dict["adaptive_map"]
         max_F      = dark_sample_dict["max_F"][self._target_material]*self._maxF_fudge_global
         neval_vegas= dark_sample_dict["neval"]
-        integrand=vg.Integrator(map=integrand, max_nhcube=1, neval=neval_vegas)
+        integrand=vg.Integrator(map=integrand, max_nhcube=1, nstrat=np.ones(dimensionalities_dark[process]), neval=neval_vegas)
+
 
         event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min}
         
