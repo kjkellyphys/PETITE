@@ -317,13 +317,13 @@ def dsigma_radiative_return_du(event_info, phase_space_par_list):
     # this needs to be integrated over x in [sqrt(y), 1], where y=mV^2/s and multiplied by 2
     # the factor of 2 comes from splitting the [y,1] integration into [y,sqrt(y)] + [sqrt(y),1] and using x-> y/x in the first part comes from splitting the [y,1] integration into [y,sqrt(y)] + [sqrt(y),1] and using x-> y/x in the first part 
     dSigs = []
-    for u in phase_space_par_list:
-        x1 = 1.- np.power(u*umax,2./beta)
+    for u0 in phase_space_par_list:
+        x1 = 1.- np.power(u0*umax,2./beta)
         x2 = mV**2/(x1*s)
-        if x2 >= 1.0:
+        if x2 >= 1.0 or x1 <= 0.0 or u0 >= 1.0:
             dSigs.append(0.0)
         else:
-            dSigs.append(2.*prefac*transformed_lepton_luminosity_integrand(s, mV**2/s, u*umax))
+            dSigs.append(2.*prefac*transformed_lepton_luminosity_integrand(s, mV**2/s, u0*umax))
     if len(dSigs) == 1:
         return dSigs[0]
     else:
