@@ -6,7 +6,7 @@ from scipy.interpolate import interp1d
 from scipy.integrate import quad
 
 from .atomic_annihilation import sigma_atomic
-
+from .atomic_compton import sigma_atomic_comp
 from .moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
 from .particle import Particle, meson_twobody_branchingratios
 from .kinematics import e_to_eV_fourvecs, compton_fourvecs, radiative_return_fourvecs
@@ -45,7 +45,7 @@ dark_process_codes = ["DarkBrem", "DarkAnn", "DarkComp", "TwoBody_BSMDecay"]
 
 dark_kinematic_function = {"DarkBrem" : e_to_eV_fourvecs,
                            "DarkAnn"      : radiative_return_fourvecs,
-                           "DarkComp"     : compton_fourvecs}
+                           "DarkComp"     : compton_fourvecs} #compton_fourvecs_split
 diff_xsection_options={"DarkComp"      : dsigma_compton_dCT,
                         "DarkBrem" : dsig_etl_helper,
                         "DarkAnn"      : dsigma_radiative_return_du }
@@ -96,6 +96,7 @@ class DarkShower(Shower):
         
         self.set_dark_cross_sections()
         self.set_DarkAnnXSec()
+        self.set_DarkCompXSec()
         self.set_dark_NSigmas()
         self.set_weight_arrays()
         self.set_drate_dE()
@@ -233,9 +234,26 @@ class DarkShower(Shower):
             return self._dark_annihilation_cross_section
         else:
             raise Exception("Bound must be True or False")
+    def set_DarkCompXSec(self):
+        """ Returns array of [energy,cross-section] values for Compton scattering with a bound electron""" 
+        E_min = np.max([self._minimum_calculable_energy[22], 0.001*self._resonant_annihilation_energy])       
+        E_max = self._dark_compton_cross_section[-1][0]
+        energy_list = np.logspace(np.log10(E_min), np.log10(E_max), 200)
+        #energy_list = np.logspace(np.log10(0.0016), np.log10(1000), 200)
+        #ER0 = ((self._mV**2 - 2*m_electron**2)/(2*m_electron))
+        #Emax = np.max([100.0, 100*ER0])
+        #energy_list = ER0*(1 + np.logspace(-4, np.log10((Emax - ER0)/ER0), 100))
+        xsec = [sigma_atomic_comp(e, self._mV, self.Zeff) for e in energy_list]
+        self._dark_compton_cross_section_bound = np.column_stack((energy_list, xsec))
+
     def get_DarkCompXSec(self):
         """ Returns array of [energy,cross-section] values for Compton """ 
-        return self._dark_compton_cross_section
+        if self.bound_electron:
+            return self._dark_compton_cross_section_bound
+        elif self.bound_electron == False:
+            return self._dark_compton_cross_section
+        else:
+            raise Exception("Bound must be True or False")
 
     def set_dark_NSigmas(self):
         """Constructs interpolations of n_T sigma (in 1/cm) as a functon of 
@@ -533,7 +551,7 @@ class DarkShower(Shower):
         neval_vegas= dark_sample_dict["neval"]
         integrand=vg.Integrator(map=integrand, max_nhcube=1, nstrat=np.ones(dimensionalities_dark[process]), neval=neval_vegas)
 
-        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min}
+        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min, 'Zeff':self.Zeff}
         
         if process in diff_xsection_options:
             diff_xsec_func = diff_xsection_options[process]
