@@ -136,23 +136,24 @@ def compton_fourvecs_split(p0, sampled_event, mV=0.0):
     x = sampled_event[0]
     # transverse momentum squared of the positron
     pts = sampled_event[1]
-    # transverse momentum of the positron
-    pt = np.sqrt(pts)
+    s = m_electron**2 + 2*Egi*m_electron
+    # Initial energy of electron and photon in CM frame
+    Egi = (s-m_electron**2)/(2*np.sqrt(s))
+    Eei = (s+m_electron**2)/(2*np.sqrt(s))
+    # Final energy of the electron and the photon in the CM frame
+    Eef = (1-x) * Egi
+    EVf = Eei+x*Egi
+    # momentum in z direction of the outgoing electron in the CM frame
+    y = np.sqrt(Eef**2-pts-m_electron**2)
+    g0 = Eei/m_electron
+    b0 = 1.0/g0*np.sqrt(g0**2-1.0)
     # random sampling of the azimuthal angle of the positron
     ph = np.random.uniform(0, 2.0*np.pi)
-    # energy of the positron
-    Ee = x*Egi
-    # Now the rest goes like dark annihilation
-    s = 2*m_electron*(Ee+m_electron)
-    EeCM = np.sqrt(s)/2.0
-    EV = np.sqrt(s)
-    pF = np.sqrt(Ee**2 - mV**2)
-    
-    g0 = EeCM/m_electron
-    b0 = 1.0/g0*np.sqrt(g0**2-1.0)
-    
-    pe4v = [(1-x)*Egi, -pt*np.sin(ph), -pt*np.cos(ph), np.sqrt((1-x)**2*Egi**2-pts)]
-    pV4v = [g0*EV + b0*g0*pF, pt*np.sin(ph), pt*np.cos(ph), b0*g0*EV + g0*pF]
+
+    # 4 momentum of the electron in the lab frame
+    pe4v = [g0*Eef + b0*g0*y, -np.sqrt(pts)*np.sin(ph), -np.sqrt(pts)*np.cos(ph), b0*g0*Eef + g0*y]
+    # 4 momentum of the photon in the lab frame
+    pV4v = [g0*EVf - b0*g0*y, np.sqrt(pts)*np.sin(ph), np.sqrt(pts)*np.cos(ph), b0*g0*EVf - g0*y]
 
     return [pe4v, pV4v]
 
