@@ -45,7 +45,7 @@ dark_process_codes = ["DarkBrem", "DarkAnn", "DarkComp", "TwoBody_BSMDecay"]
 
 dark_kinematic_function = {"DarkBrem" : e_to_eV_fourvecs,
                            "DarkAnn"      : radiative_return_fourvecs,
-                           "DarkComp"     : compton_fourvecs} #compton_fourvecs_split
+                           "DarkComp"     : compton_fourvecs}
 diff_xsection_options={"DarkComp"      : dsigma_compton_dCT,
                         "DarkBrem" : dsig_etl_helper,
                         "DarkAnn"      : dsigma_radiative_return_du }
@@ -205,6 +205,7 @@ class DarkShower(Shower):
         self._dark_compton_cross_section = self.load_dark_cross_section(self._dict_dir, 'DarkComp', self._target_material) 
 
         self._resonant_annihilation_energy = (self._mV**2-2*m_electron**2)/(2*m_electron)
+        self._compton_threshold_energy = self._mV**2/(2*m_electron) + self._mV
         self._minimum_calculable_dark_energy = {11:{"DarkBrem":self._dark_brem_cross_section[0][0]},
                                                 -11:{"DarkBrem":self._dark_brem_cross_section[0][0], "DarkAnn":self._resonant_annihilation_energy},
                                                 22:{"DarkComp":self._dark_compton_cross_section[0][0]},
@@ -577,6 +578,20 @@ class DarkShower(Shower):
         else:
             return(x)
 
+    def electron_wave_function(self, pe):
+        Lambda = alpha_em*self.Zeff*m_electron
+        return 32/np.pi*Lambda**5*pe**2/(pe**2 + Lambda**2)**4
+    
+    def draw_pe_sample(self):
+        # max value of the electron wave function
+        c = self.electron_wave_function(alpha_em*self.Zeff*m_electron/np.sqrt(3))
+        pe_max = 1e-3
+        x = np.random.uniform(0, pe_max)
+        u = np.random.uniform(0, 1)
+        # accept-reject sampling
+        if u < self.electron_wave_function(x) / (c):
+            return x
+
     def produce_bsm_particle(self, p_original, process, weight=None, VB=False):
         p0 = deepcopy(p_original)
         if weight == None:
@@ -622,6 +637,26 @@ class DarkShower(Shower):
             EVf, pVxfZF, pVyfZF, pVzfZF = self._resonant_annihilation_energy, 0, 0, np.sqrt(self._resonant_annihilation_energy**2 - self._mV**2)
         elif process == "DarkAnn" and self.bound_electron:
             EVf, pVxfZF, pVyfZF, pVzfZF = np.sqrt(E0**2 - m_electron**2 + self._mV**2), 0, 0, np.sqrt(E0**2 - m_electron**2)
+        elif process == "DarkComp" and self.bound_electron and E0 <= self._compton_threshold_energy:
+            EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, self._mV)[-1]
+        elif process == "DarkComp" and self.bound_electron and E0 > self._compton_threshold_energy:
+            EVfr, pVxfZFr, pVyfZFr, pVzfZFr = dark_kinematic_function[process](p0, self._mV)[-1]
+            # Boost the outgoing particels from electron at rest frame to lab frame
+            pe = self.draw_pe_sample()
+            c0 = np.random.uniform(-1, 1)
+            ph = np.random.uniform(0, 2.0*np.pi)
+            Eei = np.sqrt(pe**2 + m_electron**2)
+            g0 = Eei/m_electron
+            b0 = 1.0/g0*np.sqrt(g0**2 - 1.0)
+            px0 = pe*np.sqrt(1-c0**2)*np.sin(ph)
+            py0 = pe*np.sqrt(1-c0**2)*np.cos(ph)
+            pz0 = pe*c0
+            betax, betay, betaz = b0*np.array([px0, py0, pz0])/pe
+            boost_matrix = [[g0, g0*betax, g0*betay, g0*betaz],
+                        [g0*betax, 1 + (g0-1)*betax**2/b0**2, (g0-1)*betax*betay/b0**2, (g0-1)*betax*betaz/b0**2],
+                        [g0*betay, (g0-1)*betay*betax/b0**2, 1 + (g0-1)*betay**2/b0**2, (g0-1)*betay*betaz/b0**2],
+                        [g0*betaz, (g0-1)*betaz*betax/b0**2, (g0-1)*betaz*betay/b0**2, 1 + (g0-1)*betaz**2/b0**2]]
+            EVf, pVxfZF, pVyfZF, pVzfZF = np.dot(boost_matrix, [EVfr, pVxfZFr, pVyfZFr, pVzfZFr])
         else:
             sample_event = self.draw_dark_sample(E0, process=process, VB=VB)
             #dark-production is estabilished such that the last particle returned corresponds to the dark vector
