@@ -586,11 +586,12 @@ class DarkShower(Shower):
         # max value of the electron wave function
         c = self.electron_wave_function(alpha_em*self.Zeff*m_electron/np.sqrt(3))
         pe_max = 1e-3
-        x = np.random.uniform(0, pe_max)
-        u = np.random.uniform(0, 1)
-        # accept-reject sampling
-        if u < self.electron_wave_function(x) / (c):
-            return x
+        while True:
+            x = np.random.uniform(0, pe_max)
+            u = np.random.uniform(0, 1)
+            # accept-reject sampling
+            if u < self.electron_wave_function(x) / (c):
+                return x
 
     def produce_bsm_particle(self, p_original, process, weight=None, VB=False):
         p0 = deepcopy(p_original)
@@ -632,15 +633,15 @@ class DarkShower(Shower):
 
         E0 = p0.get_pf()[0]
         RM = p0.rotation_matrix()
-
+        sample_event = self.draw_dark_sample(E0, process=process, VB=VB)
         if process == "DarkAnn" and E0 < self.get_DarkAnnXSec()[0][0]:
             EVf, pVxfZF, pVyfZF, pVzfZF = self._resonant_annihilation_energy, 0, 0, np.sqrt(self._resonant_annihilation_energy**2 - self._mV**2)
         elif process == "DarkAnn" and self.bound_electron:
             EVf, pVxfZF, pVyfZF, pVzfZF = np.sqrt(E0**2 - m_electron**2 + self._mV**2), 0, 0, np.sqrt(E0**2 - m_electron**2)
         elif process == "DarkComp" and self.bound_electron and E0 <= self._compton_threshold_energy:
-            EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, self._mV)[-1]
+            EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1]
         elif process == "DarkComp" and self.bound_electron and E0 > self._compton_threshold_energy:
-            EVfr, pVxfZFr, pVyfZFr, pVzfZFr = dark_kinematic_function[process](p0, self._mV)[-1]
+            EVfr, pVxfZFr, pVyfZFr, pVzfZFr = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1]
             # Boost the outgoing particels from electron at rest frame to lab frame
             pe = self.draw_pe_sample()
             c0 = np.random.uniform(-1, 1)
@@ -658,7 +659,6 @@ class DarkShower(Shower):
                         [g0*betaz, (g0-1)*betaz*betax/b0**2, (g0-1)*betaz*betay/b0**2, 1 + (g0-1)*betaz**2/b0**2]]
             EVf, pVxfZF, pVyfZF, pVzfZF = np.dot(boost_matrix, [EVfr, pVxfZFr, pVyfZFr, pVzfZFr])
         else:
-            sample_event = self.draw_dark_sample(E0, process=process, VB=VB)
             #dark-production is estabilished such that the last particle returned corresponds to the dark vector
             EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1] 
         pV4LF = np.concatenate([[EVf], np.dot(RM, [pVxfZF, pVyfZF, pVzfZF])])
