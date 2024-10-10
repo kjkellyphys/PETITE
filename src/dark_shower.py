@@ -9,7 +9,7 @@ from .atomic_annihilation import sigma_atomic
 from .atomic_compton import sigma_atomic_comp
 from .moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
 from .particle import Particle, meson_twobody_branchingratios
-from .kinematics import e_to_eV_fourvecs, compton_fourvecs, radiative_return_fourvecs
+from .kinematics import e_to_eV_fourvecs, compton_fourvecs, radiative_return_fourvecs, compton_fourvecs_boundelectron
 from .shower import Shower
 from .all_processes import *
 from copy import deepcopy
@@ -212,6 +212,7 @@ class DarkShower(Shower):
                                                 111:{"TwoBody_BSMDecay":-1}}
         if self.bound_electron:
             self._minimum_calculable_dark_energy[-11]["DarkAnn"] = self._resonant_annihilation_energy/1000.0
+            self._minimum_calculable_dark_energy[22]["DarkComp"] = self._compton_threshold_energy/1000.0
 
     def get_DarkBremXSec(self):
         """ Returns array of [energy,cross-section] values for brem """ 
@@ -237,7 +238,7 @@ class DarkShower(Shower):
             raise Exception("Bound must be True or False")
     def set_DarkCompXSec(self):
         """ Returns array of [energy,cross-section] values for Compton scattering with a bound electron""" 
-        E_min = np.max([self._minimum_calculable_energy[22], 0.001*self._resonant_annihilation_energy])       
+        E_min = np.max([self._minimum_calculable_energy[22], 0.001*self._compton_threshold_energy])       
         E_max = self._dark_compton_cross_section[-1][0]
         energy_list = np.logspace(np.log10(E_min), np.log10(E_max), 200)
         #energy_list = np.logspace(np.log10(0.0016), np.log10(1000), 200)
@@ -633,34 +634,45 @@ class DarkShower(Shower):
 
         E0 = p0.get_pf()[0]
         RM = p0.rotation_matrix()
-        sample_event = self.draw_dark_sample(E0, process=process, VB=VB)
-        if process == "DarkAnn" and E0 < self.get_DarkAnnXSec()[0][0]:
-            EVf, pVxfZF, pVyfZF, pVzfZF = self._resonant_annihilation_energy, 0, 0, np.sqrt(self._resonant_annihilation_energy**2 - self._mV**2)
-        elif process == "DarkAnn" and self.bound_electron:
+        if process == "DarkAnn" and self.bound_electron and E0 <= self._resonant_annihilation_energy:
             EVf, pVxfZF, pVyfZF, pVzfZF = np.sqrt(E0**2 - m_electron**2 + self._mV**2), 0, 0, np.sqrt(E0**2 - m_electron**2)
         elif process == "DarkComp" and self.bound_electron and E0 <= self._compton_threshold_energy:
-            EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1]
-        elif process == "DarkComp" and self.bound_electron and E0 > self._compton_threshold_energy:
-            EVfr, pVxfZFr, pVyfZFr, pVzfZFr = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1]
-            # Boost the outgoing particels from electron at rest frame to lab frame
-            pe = self.draw_pe_sample()
-            c0 = np.random.uniform(-1, 1)
-            ph = np.random.uniform(0, 2.0*np.pi)
-            Eei = np.sqrt(pe**2 + m_electron**2)
-            g0 = Eei/m_electron
-            b0 = 1.0/g0*np.sqrt(g0**2 - 1.0)
-            px0 = pe*np.sqrt(1-c0**2)*np.sin(ph)
-            py0 = pe*np.sqrt(1-c0**2)*np.cos(ph)
-            pz0 = pe*c0
-            betax, betay, betaz = b0*np.array([px0, py0, pz0])/pe
-            boost_matrix = [[g0, g0*betax, g0*betay, g0*betaz],
-                        [g0*betax, 1 + (g0-1)*betax**2/b0**2, (g0-1)*betax*betay/b0**2, (g0-1)*betax*betaz/b0**2],
-                        [g0*betay, (g0-1)*betay*betax/b0**2, 1 + (g0-1)*betay**2/b0**2, (g0-1)*betay*betaz/b0**2],
-                        [g0*betaz, (g0-1)*betaz*betax/b0**2, (g0-1)*betaz*betay/b0**2, 1 + (g0-1)*betaz**2/b0**2]]
-            EVf, pVxfZF, pVyfZF, pVzfZF = np.dot(boost_matrix, [EVfr, pVxfZFr, pVyfZFr, pVzfZFr])
+            EVf, pVxfZF, pVyfZF, pVzfZF = np.sqrt(E0**2 + self._mV**2), 0, 0, E0
+        elif process == "DarkAnn" and not self.bound_electron and E0 <= self.get_DarkAnnXSec()[0][0]:
+            EVf, pVxfZF, pVyfZF, pVzfZF = self._resonant_annihilation_energy, 0, 0, np.sqrt(self._resonant_annihilation_energy**2 - self._mV**2)
         else:
-            #dark-production is estabilished such that the last particle returned corresponds to the dark vector
-            EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1] 
+            sample_event = self.draw_dark_sample(E0, process=process, VB=VB)
+            if process == "DarkComp" and self.bound_electron:
+                pe = self.draw_pe_sample()
+                c0 = np.random.uniform(-1, 1)
+                #check if the event is still above threshold with the electron's momentum included
+                s = m_electron**2 + 2*E0*(np.sqrt(m_electron**2 + pe**2) - c0*pe)
+                Ee = (s - self._mV**2 + m_electron**2)/(2*np.sqrt(s))
+                if Ee < m_electron:
+                    EVf, pVxfZF, pVyfZF, pVzfZF = self._mV, 0, 0, 0
+                    wg = 0.0
+                else:
+                    EVf, pVxfZF, pVyfZF, pVzfZF = compton_fourvecs_boundelectron(p0, sample_event, mV=self._mV, Pe=pe, cte=c0)[-1]
+            else:
+                EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1]
+        
+        #if (process == "DarkAnn" or process == "DarkComp") and self.bound_electron:
+        #    pe = self.draw_pe_sample()
+        #    c0 = np.random.uniform(-1, 1)
+        #    ph = np.random.uniform(0, 2.0*np.pi)
+        #    Eei = np.sqrt(pe**2 + m_electron**2)
+        #    g0 = Eei/m_electron
+        #    b0 = 1.0/g0*np.sqrt(g0**2 - 1.0)
+        #    px0 = pe*np.sqrt(1-c0**2)*np.sin(ph)
+        #    py0 = pe*np.sqrt(1-c0**2)*np.cos(ph)
+        #    pz0 = pe*c0
+        #    betax, betay, betaz = b0*np.array([px0, py0, pz0])/pe
+        #    boost_matrix = [[g0, g0*betax, g0*betay, g0*betaz],
+        #                [g0*betax, 1 + (g0-1)*betax**2/b0**2, (g0-1)*betax*betay/b0**2, (g0-1)*betax*betaz/b0**2],
+        #                [g0*betay, (g0-1)*betay*betax/b0**2, 1 + (g0-1)*betay**2/b0**2, (g0-1)*betay*betaz/b0**2],
+        #                [g0*betaz, (g0-1)*betaz*betax/b0**2, (g0-1)*betaz*betay/b0**2, 1 + (g0-1)*betaz**2/b0**2]]
+        #    EVf, pVxfZF, pVyfZF, pVzfZF = np.dot(boost_matrix, [EVf, pVxfZF, pVyfZF, pVzfZF])
+
         pV4LF = np.concatenate([[EVf], np.dot(RM, [pVxfZF, pVyfZF, pVzfZF])])
 
         init_IDs = p0.get_ids()
@@ -672,6 +684,10 @@ class DarkShower(Shower):
         V_dict["generation_number"] = init_IDs["generation_number"] + 1
         V_dict["generation_process"] = process
         V_dict["weight"] = wg*init_IDs["weight"]
+        if process == "DarkAnn" and self.bound_electron:
+            V_dict["generation_process"] = "DarkAnn_bound"
+        if process == "DarkComp" and self.bound_electron:
+            V_dict["generation_process"] = "DarkComp_bound"
 
         return Particle(pV4LF, p0.get_rf(), V_dict)
 
