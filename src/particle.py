@@ -4,6 +4,7 @@ from .physical_constants import *
 mass_dict = {11: m_electron, -11:m_electron,
              22:0.0, 13:m_muon, -13:m_muon,
              111:m_pi0, 211:m_pi_pm, -211:m_pi_pm,
+             321:m_K_pm, -321:m_K_pm,
              221:m_eta, 331:m_eta_prime, 2212:m_proton,
              223:m_omega,
              12:0.0, -12:0.0, 14:0.0, -14:0.0}

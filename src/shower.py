@@ -730,6 +730,8 @@ def detector_cut(particle_list, detector_positions, detector_radius, method="Sam
 
     if method == "Sample":
         return pass_cuts
+    elif method == "SampleW":
+        return pass_cuts_where
     elif method == "Efficiency":
         return [np.sum([p0.get_ids()["weight"] for p0 in pass_cuts[ii]])/np.sum([p0.get_ids()["weight"] for p0 in particle_list]) for ii in range(len(pass_cuts))]
     elif method == "TotalWeight":
