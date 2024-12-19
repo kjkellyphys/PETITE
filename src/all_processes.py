@@ -466,6 +466,48 @@ def dsigma_compton_dCT(event_info, phase_space_par_list):
     else:
         return dSigs
     
+def dsigma_compton_dxdpt(event_info, phase_space_par_list):
+    """Compton Scattering of a Photon off a bound Electron, producing either a photon or a Dark Vector
+        gamma (Eg) + e- (me) -> e- + gamma/V
+       Input parameters needed:
+            Eg (incident photon energy)
+            MV (Dark Vector Mass -- can be set to zero for SM Case)
+       phase_space_par_list: list of tuples with x, pt values
+    """
+    Eg=event_info['E_inc']
+    if 'mV' in event_info.keys():
+        mV=event_info['mV']
+    else:
+        mV = 0.0
+
+    s = m_electron**2 + 2*Eg*m_electron
+    if s < (m_electron + mV)**2:
+        if len(np.shape(phase_space_par_list)) == 1:
+            return 0.0
+        else:
+            return np.zeros(shape=len(phase_space_par_list))
+    Zeff = event_info['Z_eff']
+    Lambda = Zeff*alpha_em*m_electron
+
+    if len(np.shape(phase_space_par_list)) == 1:
+        phase_space_par_list = np.array([phase_space_par_list])
+    dSigs = []
+    for variables in phase_space_par_list:
+        a = m_electron/Lambda
+        b = mV**2/(2*Lambda*x*s)
+        x = variables[0]
+        pts = variables[1]
+        dSig0 = alpha_em/np.pi * 1/pts * (x**2+(1-x)**2)*(mV**2+2*m_electron**2)*2/ (3*m_electron*Lambda) \
+        * (1/(x**2*s**2)) * (1/(x**2*((a-b/x)**2+1)**3))
+        if np.isnan(dSig0):
+            print(dSig0, x, pts, s, Lambda, a, b)
+        dSigs.append(dSig0)
+
+    if len(dSigs) == 1:
+        return dSigs[0]
+    else:
+        return dSigs
+
 def dsigma_moller_dCT(event_info, phase_space_par_list):
     """Moller Scattering of an Electron off an at-rest Electron
         e- (Einc) + e- (me) -> e- + e-

@@ -129,6 +129,85 @@ def compton_fourvecs(p0, sampled_event, mV=0.0):
 
     return [pe4v, pV4v]
 
+def compton_fourvecs_boundelectron(p0, sampled_event, mV=0.0, Pe=0.0, cte=0.0):
+    """Reconstruct final electron and photon four vectors from 
+    mc-sampled kinematic variables for SM Compton  gamma e > gamma e 
+    or dark Compoton gamma e > V e
+    Args:
+        p0: incoming photon Particle object
+        sampled_event: list including cos(theta) of outgoing particle as zero'th element
+        optional mV: mass of outgoing dark vector
+    Returns:
+        List of four four-vectors representing the final state electron and 
+        vector (SM or dark photon)
+    """
+    Eg = p0.get_pf()[0]
+    ct = sampled_event[0]
+
+    s = m_electron**2 + 2*Eg*(np.sqrt(m_electron**2 + Pe**2) - cte*Pe)
+    #s = m_electron**2 + 2*Eg*m_electron
+    Ee0 = (s + m_electron**2)/(2.0*np.sqrt(s))
+    Ee = (s - mV**2 + m_electron**2)/(2*np.sqrt(s))
+    EV = (s + mV**2 - m_electron**2)/(2*np.sqrt(s))
+    pF = np.sqrt(Ee**2 - m_electron**2)
+
+    bnum = np.sqrt(Eg**2 + 2*cte*Eg*Pe + Pe**2)
+    bden = Eg + np.sqrt(m_electron**2 + Pe**2)
+    b0 = bnum/bden
+    g0 = 1.0/np.sqrt(1.0 - b0**2)
+
+    #g0 = Ee0/m_electron
+    #b0 = 1.0/g0*np.sqrt(g0**2 - 1.0)
+
+    ph = np.random.uniform(0, 2.0*np.pi)
+    #pe4v = [g0*Ee + b0*g0*pF*ct, -pF*np.sqrt(1-ct**2)*np.sin(ph), -pF*np.sqrt(1-ct**2)*np.cos(ph), b0*g0*Ee+g0*pF*ct]
+    EeLab = g0*Ee + b0*g0*pF*ct
+    peLab3V = np.array([-pF*np.sqrt(1-ct**2)*np.sin(ph), -pF*np.sqrt(1-ct**2)*np.cos(ph), b0*g0*Ee+g0*pF*ct])
+    #pV4v = [g0*EV - b0*g0*pF*ct, pF*np.sqrt(1-ct**2)*np.sin(ph), pF*np.sqrt(1-ct**2)*np.cos(ph), b0*g0*EV - g0*pF*ct]
+    EVLab = g0*EV - b0*g0*pF*ct
+    pVLab3V = np.array([pF*np.sqrt(1-ct**2)*np.sin(ph), pF*np.sqrt(1-ct**2)*np.cos(ph), b0*g0*EV - g0*pF*ct])
+
+    ctz = (Eg + cte*Pe)/np.sqrt(Eg**2 + 2*cte*Eg*Pe + Pe**2)
+    stz = np.sqrt(1.0 - ctz**2)
+    phie = np.random.uniform(0, 2.0*np.pi)
+
+    P_rotation_matrix = np.array([[ctz*np.cos(phie), -np.sin(phie), stz*np.cos(phie)],
+                                  [ctz*np.sin(phie), np.cos(phie), stz*np.sin(phie)],
+                                  [-stz, 0, ctz]])
+
+    pe4v = np.concatenate([[EeLab], np.dot(P_rotation_matrix, peLab3V)])
+    pV4v = np.concatenate([[EVLab], np.dot(P_rotation_matrix, pVLab3V)])
+
+    return [pe4v, pV4v]
+
+def compton_fourvecs_split(p0, sampled_event, mV=0.0):
+    # Initial photon energy
+    Egi = p0.get_pf()[0]
+    # energy fraction of the positron
+    x = sampled_event[0]
+    # transverse momentum squared of the positron
+    pts = sampled_event[1]
+    s = m_electron**2 + 2*Egi*m_electron
+    # Initial energy of electron and photon in CM frame
+    Egi = (s-m_electron**2)/(2*np.sqrt(s))
+    Eei = (s+m_electron**2)/(2*np.sqrt(s))
+    # Final energy of the electron and the photon in the CM frame
+    Eef = (1-x) * Egi
+    EVf = Eei+x*Egi
+    # momentum in z direction of the outgoing electron in the CM frame
+    y = np.sqrt(Eef**2-pts-m_electron**2)
+    g0 = Eei/m_electron
+    b0 = 1.0/g0*np.sqrt(g0**2-1.0)
+    # random sampling of the azimuthal angle of the positron
+    ph = np.random.uniform(0, 2.0*np.pi)
+
+    # 4 momentum of the electron in the lab frame
+    pe4v = [g0*Eef + b0*g0*y, -np.sqrt(pts)*np.sin(ph), -np.sqrt(pts)*np.cos(ph), b0*g0*Eef + g0*y]
+    # 4 momentum of the photon in the lab frame
+    pV4v = [g0*EVf - b0*g0*y, np.sqrt(pts)*np.sin(ph), np.sqrt(pts)*np.cos(ph), b0*g0*EVf - g0*y]
+
+    return [pe4v, pV4v]
+
 def ee_to_ee_fourvecs(p0, sampled_event):
     """Reconstruct final electron and electron (positron) four vectors from 
     mc-sampled kinematic variables for SM Moller/Bhabha  e e > e e 
