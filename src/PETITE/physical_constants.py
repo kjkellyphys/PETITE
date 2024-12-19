@@ -1,3 +1,10 @@
+try:
+    from importlib.resources import files
+except ImportError:
+    from importlib_resources import files
+import numpy as np
+from scipy import interpolate
+
 '''For internal consistency, all physical units and constants are defined here.
 '''
 
