@@ -1,12 +1,10 @@
 import numpy as np
 from scipy.interpolate import LinearNDInterpolator
-try:
-    from .physical_constants import *
-except:
-    from physical_constants import *
 
-def lor_prod(p,v):
-    return p[0]*v[0] - p[1]*v[1] - p[2]*v[2] - p[3]*v[3]
+from PETITE.physical_constants import alpha_em, m_electron
+from PETITE.lumi_integral_data import lumi_integral_list
+def lor_prod(p, v):
+    return p[0] * v[0] - p[1] * v[1] - p[2] * v[2] - p[3] * v[3]
 
 def invariant_mass(*args):
     psum = np.zeros(4)
@@ -15,7 +13,7 @@ def invariant_mass(*args):
     return np.sqrt(lor_prod(psum,psum))
 
 # boost v into the restframe of p
-# you can show that this expression is equivalent to a boost in an arbitrary direction 
+# you can show that this expression is equivalent to a boost in an arbitrary direction
 # with gamma = Ep/mp and 3 velocity p/(mp*gamma).
 def boost(p,v):
     rsq = np.sqrt(lor_prod(p,p))

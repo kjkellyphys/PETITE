@@ -1,4 +1,4 @@
-import numpy as npA
+import numpy as np
 import pickle 
 
 from scipy.interpolate import interp1d
@@ -6,63 +6,88 @@ from scipy.integrate import quad
 
 from .moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
 from .particle import Particle, mass_dict
-from .kinematics import e_to_egamma_fourvecs, gamma_to_epem_fourvecs, compton_fourvecs, annihilation_fourvecs, ee_to_ee_fourvecs
+from .kinematics import (
+    e_to_egamma_fourvecs,
+    gamma_to_epem_fourvecs,
+    compton_fourvecs,
+    annihilation_fourvecs,
+    ee_to_ee_fourvecs,
+)
 from .all_processes import *
 from .physical_constants import *
 from datetime import datetime
 
-#np.random.seed(int(datetime.now().timestamp()))
+# np.random.seed(int(datetime.now().timestamp()))
 
 from numpy.random import random as draw_U
 import copy
 
-process_code = {'Brem':0, 'Ann': 1, 'PairProd': 2, 'Comp': 3, "Moller":4, "Bhabha":5}
-diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
-                        "Comp"     : dsigma_compton_dCT,
-                        "Brem"     : dsigma_brem_dimensionless,
-                        "Ann"      : dsigma_annihilation_dCT,
-                        "Moller"   : dsigma_moller_dCT,
-                        "Bhabha"   : dsigma_bhabha_dCT }
-dimensionalities={"PairProd":4,
-                  "Comp":1,
-                  "Brem":4,
-                  "Ann":1,
-                  "Moller":1,
-                  "Bhabha":1}
-     
-formfactor_dict      ={"PairProd" : g2_elastic,
-                        "Comp"     : unity,
-                        "Brem"     : g2_elastic,
-                        "Ann"      : unity,
-                        "Moller"   : unity,
-                        "Bhabha"   : unity }
+# Maximum energy allowed for Bhabha and Moller scattering
+_Ee_MAX = 10e3 * TeV  # 10 TeV
 
-QSq_dict             ={"PairProd" : pair_production_q_sq_dimensionless, 
-                       "Brem"     : brem_q_sq_dimensionless, 
-                       "Comp": dummy, 
-                       "Ann": dummy, 
-                       "Moller":dummy, 
-                       "Bhabha":dummy }
-
-kinematic_function   ={"PairProd" : gamma_to_epem_fourvecs,
-                       "Brem"     : e_to_egamma_fourvecs,
-                       "Comp"     : compton_fourvecs,
-                       "Ann"      : annihilation_fourvecs,
-                       "Moller"   : ee_to_ee_fourvecs,
-                       "Bhabha"   : ee_to_ee_fourvecs}
-
-process_PIDS         ={"PairProd" : [-11, 11],
-                       "Brem"     : [0, 22],
-                       "Comp"     : [11, 22],
-                       "Ann"      : [22, 22],
-                       "Moller"   : [0, 11],
-                       "Bhabha"   : [0, 11]}
+process_code = {"Brem": 0, "Ann": 1, "PairProd": 2, "Comp": 3, "Moller": 4, "Bhabha": 5}
+diff_xsection_options = {
+    "PairProd": dsigma_pairprod_dimensionless,
+    "Comp": dsigma_compton_dCT,
+    "Brem": dsigma_brem_dimensionless,
+    "Ann": dsigma_annihilation_dCT,
+    "Moller": dsigma_moller_dCT,
+    "Bhabha": dsigma_bhabha_dCT,
+}
+dimensionalities = {
+    "PairProd": 4,
+    "Comp": 1,
+    "Brem": 4,
+    "Ann": 1,
+    "Moller": 1,
+    "Bhabha": 1,
+}
+formfactor_dict = {
+    "PairProd": g2_elastic,
+    "Comp": unity,
+    "Brem": g2_elastic,
+    "Ann": unity,
+    "Moller": unity,
+    "Bhabha": unity,
+}
+QSq_dict = {
+    "PairProd": pair_production_q_sq_dimensionless,
+    "Brem": brem_q_sq_dimensionless,
+    "Comp": dummy,
+    "Ann": dummy,
+    "Moller": dummy,
+    "Bhabha": dummy,
+}
+kinematic_function = {
+    "PairProd": gamma_to_epem_fourvecs,
+    "Brem": e_to_egamma_fourvecs,
+    "Comp": compton_fourvecs,
+    "Ann": annihilation_fourvecs,
+    "Moller": ee_to_ee_fourvecs,
+    "Bhabha": ee_to_ee_fourvecs,
+}
+process_PIDS = {
+    "PairProd": [-11, 11],
+    "Brem": [0, 22],
+    "Comp": [11, 22],
+    "Ann": [22, 22],
+    "Moller": [0, 11],
+    "Bhabha": [0, 11],
+}
 
 class Shower:
-    """ Representation of a shower
-
-    """
-    def __init__(self, dict_dir, target_material, min_energy, maxF_fudge_global=1,max_n_integrators=int(1e4), fast_MCS_mode=True, seed=None,rescale_MCS=1 ):
+    """Representation of a shower"""
+    def __init__(
+        self,
+        dict_dir,
+        target_material,
+        min_energy,
+        maxF_fudge_global=1,
+        max_n_integrators=int(1e4),
+        fast_MCS_mode=True,
+        seed=None,
+        rescale_MCS=1,
+    ):
         """Initializes the shower object.
         Args:
             dict_dir: directory containing the pre-computed VEGAS integrators and auxillary info.
@@ -87,20 +112,20 @@ class Shower:
         self.set_MCS_momentum(fast_MCS_mode)
         self.set_MCS_rescale_factor(rescale_MCS)
         
-        self._maxF_fudge_global=maxF_fudge_global
-        self._max_n_integrators=max_n_integrators
+        self._maxF_fudge_global = maxF_fudge_global
+        self._max_n_integrators = max_n_integrators
 
     def set_MCS_rescale_factor(self, rescale_MCS):
-        self._MCS_rescale_factor=rescale_MCS
+        self._MCS_rescale_factor = rescale_MCS
         
     def set_MCS_momentum(self, fast_MCS_mode):
         if fast_MCS_mode:
-            self._get_MCS_p=get_scattered_momentum_fast
+            self._get_MCS_p = get_scattered_momentum_fast
         else:
-            self._get_MCS_p=get_scattered_momentum_Bethe       
+            self._get_MCS_p = get_scattered_momentum_Bethe       
         
     def load_sample(self, dict_dir, process):
-        sample_file=open(dict_dir + "sm_maps.pkl", 'rb')
+        sample_file=open(dict_dir + "sm_maps.pkl", "rb")
         sample_dict=pickle.load(sample_file)
         sample_file.close()
 
@@ -157,12 +182,11 @@ class Shower:
         self._nElecs = self._nTarget*ZT
 
     def set_samples(self):
-        self._loaded_samples={}
+        self._loaded_samples = {}
         for Process in process_code.keys():
-            self._loaded_samples[Process]= \
-                self.load_sample(self._dict_dir, Process)
-        self._Egamma_min = self._loaded_samples['Brem'][0][1]['Eg_min']
-        self._Ee_min = self._loaded_samples['Brem'][0][1]['Ee_min']
+            self._loaded_samples[Process] = self.load_sample(self._dict_dir, Process)
+        self._Egamma_min = self._loaded_samples["Brem"][0][1]["Eg_min"]
+        self._Ee_min = self._loaded_samples["Brem"][0][1]["Ee_min"]
         
     def get_n_targets(self):
         """Returns nuclear and electron target densities for the 
@@ -358,7 +382,7 @@ class Shower:
         if VB:
             return np.concatenate([list(x), [sampcount]])
         else:
-            return(x)
+            return x
     
     def sample_scattering(self, p0, process, VB=False):
         E0 = p0.get_pf()[0]
@@ -527,7 +551,7 @@ class Shower:
             p0.set_ended(True)
             return all_particles
 
-        while all([ap.get_ended() == True for ap in all_particles]) is False:
+        while all([ap.get_ended() for ap in all_particles]) is False:
             for apI, ap in enumerate(all_particles):
                 if ap.get_ended() is True:
                     continue

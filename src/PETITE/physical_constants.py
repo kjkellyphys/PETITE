@@ -8,12 +8,13 @@ from scipy import interpolate
 '''For internal consistency, all physical units and constants are defined here.
 '''
 
+TeV = 1e3
 GeV = 1
 MeV = 1E-3
 keV = 1E-6
 eV = 1E-9
 centimeter = 1
-##  https://pdg.lbl.gov/2022/reviews/contents_sports.html
+#  https://pdg.lbl.gov/2022/reviews/contents_sports.html
 alpha_em = 1/137.035999
 m_electron = 510.998950*keV
 m_proton = 938.272088*MeV

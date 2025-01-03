@@ -7,12 +7,10 @@
 
     python find_maxes.py -A=12 -Z=6 -mT=12 -process='Comp' -import_directory='/Users/johndoe/PETITE/data/Comp' 
 """
-import os, sys
-#path = os.getcwd()
-#path = os.path.join(path,"../PETITE")
-#sys.path.insert(0,path)
+import os
 
-from PETITE.all_processes import *
+import PETITE.all_processes as proc
+from PETITE.physical_constants import target_information
 import pickle
 import copy
 import numpy as np
@@ -23,24 +21,15 @@ import vegas
 from tqdm import tqdm
 
 # Dictionary of proceses with corresponding x-secs, form factors and Q**2 functions
-#process_info ={    'PairProd' : {'diff_xsection': dsigma_pairprod_dimensionless,   'form_factor': g2_elastic, 'QSq_func': pair_production_q_sq_dimensionless},
-#                   'Comp'     : {'diff_xsection': dsigma_compton_dCT,     'form_factor': unity,      'QSq_func': dummy},
-#                    'Brem'     : {'diff_xsection': dsigma_brem_dimensionless,       'form_factor': g2_elastic, 'QSq_func': brem_q_sq_dimensionless},
-#                    'Ann'      : {'diff_xsection': dsigma_annihilation_dCT,'form_factor': unity,      'QSq_func': dummy},
-#                    'Moller'   : {'diff_xsection': dsigma_moller_dCT, 'form_factor': unity,      'QSq_func': dummy},
-#                    'Bhabha'   : {'diff_xsection': dsigma_bhabha_dCT, 'form_factor': unity,      'QSq_func': dummy},
-#                    'DarkBrem': {'diff_xsection': dsig_etl_helper, 'form_factor':Gelastic_inelastic, "QSq_func":darkbrem_qsq},
-#                    'DarkAnn':  {'diff_xsection': dsigma_radiative_return_du, 'form_factor':unity, "QSq_func":dummy},
-#                    'DarkComp': {'diff_xsection':dsigma_compton_dCT, 'form_factor':unity, "QSq_func":dummy}}
-process_info ={    'PairProd' : {'diff_xsection': dsigma_pairprod_dimensionless},
-                   'Comp'     : {'diff_xsection': dsigma_compton_dCT},
-                    'Brem'     : {'diff_xsection': dsigma_brem_dimensionless},
-                    'Ann'      : {'diff_xsection': dsigma_annihilation_dCT},
-                    'Moller'   : {'diff_xsection': dsigma_moller_dCT},
-                    'Bhabha'   : {'diff_xsection': dsigma_bhabha_dCT},
-                    'DarkBrem': {'diff_xsection': dsig_etl_helper},
-                    'DarkAnn':  {'diff_xsection': dsigma_radiative_return_du},
-                    'DarkComp': {'diff_xsection':dsigma_compton_dCT}}
+process_info ={    'PairProd' : {'diff_xsection': proc.dsigma_pairprod_dimensionless},
+                   'Comp'     : {'diff_xsection': proc.dsigma_compton_dCT},
+                    'Brem'     : {'diff_xsection': proc.dsigma_brem_dimensionless},
+                    'Ann'      : {'diff_xsection': proc.dsigma_annihilation_dCT},
+                    'Moller'   : {'diff_xsection': proc.dsigma_moller_dCT},
+                    'Bhabha'   : {'diff_xsection': proc.dsigma_bhabha_dCT},
+                    'DarkBrem': {'diff_xsection': proc.dsig_dx_dcostheta_dark_brem_exact_tree_level},
+                    'DarkAnn':  {'diff_xsection': proc.dsigma_radiative_return_du},
+                    'DarkComp': {'diff_xsection':proc.dsigma_compton_dCT}}
 
 def get_file_names(path):
     ''' Get the names of all the files in a directory.
@@ -79,7 +68,7 @@ def do_find_max_work(params, process_file):
     diff_xsec = params['diff_xsec']
     event_info, integrand_or_map = process_file
 
-    integrand = vegas.Integrator(map=integrand_or_map, **vegas_integrator_options[event_info['process']])#nstrat=nstrat_options[params['process']])
+    integrand = vegas.Integrator(map=integrand_or_map, **proc.vegas_integrator_options[event_info['process']])#nstrat=nstrat_options[params['process']])
     save_copy = copy.deepcopy(integrand_or_map)
 
     max_F_TM = {}
@@ -88,21 +77,24 @@ def do_find_max_work(params, process_file):
         xSec[tm] = 0.0
         max_F_TM[tm] = 0.0
 
-    integrand.set(max_nhcube=1, neval=params['neval'])
-    for trial_number in range(params['n_trials']):
-        for x, wgt in integrand.random(): #scan over integrand
+    batch_f = diff_xsec(
+        event_info, len(proc.integration_range(event_info, event_info["process"]))
+    )
+    integrand.set(max_nhcube=1, neval=params["neval"])
+    for trial_number in range(params["n_trials"]):
+        for x, wgt in integrand.random_batch():  # scan over integrand
 
-            for tm in params['process_targets']:
+            for tm in params["process_targets"]:
                 event_info_target = copy.deepcopy(event_info)
-                event_info_target['Z_T'] = target_information[tm]['Z_T']
-                event_info_target['A_T'] = target_information[tm]['A_T']
-                event_info_target['mT'] = target_information[tm]['mT']
-                if 'mV' in params:
-                    event_info_target['mV'] = params['mV']
-                MM = wgt*diff_xsec(event_info_target, x)
+                event_info_target["Z_T"] = target_information[tm]["Z_T"]
+                event_info_target["A_T"] = target_information[tm]["A_T"]
+                event_info_target["mT"] = target_information[tm]["mT"]
+                if "mV" in params:
+                    event_info_target["mV"] = params["mV"]
+                MM = np.max(wgt * batch_f(x))
                 if MM > max_F_TM[tm]:
                     max_F_TM[tm] = MM
-                xSec[tm] += MM/params['n_trials']
+                xSec[tm] += MM / params["n_trials"]
 
     samp_dict_info = {"neval":params['neval'], "max_F": {tm:max_F_TM[tm] for tm in params['process_targets']}, "adaptive_map": save_copy}
     if "Eg_min" in event_info.keys():
@@ -162,9 +154,14 @@ def main(params):
         # Load adaptive map file. Format: list of [params, adaptive_map]
         try:
             adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
-        except:
-            path = params['save_location'] + process + '/'
-            adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
+        except Exception as e:
+            print(e)
+            print(
+                f"Tried to load adaptive maps {adaptive_maps_file} but could not find them.",
+            )
+            path = params["save_location"] + process + "/"
+            adaptive_maps_file = path + process + "_AdaptiveMaps.npy"
+            print(f"Trying again at {adaptive_maps_file}")
             adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
         final_sampling_dict[process] = []
         final_xsec_dict[process] = {}
@@ -255,9 +252,15 @@ def main_dark(params):
             # Load adaptive map file. Format: list of [params, adaptive_map]
             try:
                 adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
-            except:
-                path = params['save_location'] + process + '/mV_' + str(int(1000.*mV)) + "MeV/"
-                adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
+            except Exception as e:
+                path = (
+                    params["save_location"]
+                    + process
+                    + "/mV_"
+                    + str(int(1000.0 * mV))
+                    + "MeV/"
+                )
+                adaptive_maps_file = path + process + "_AdaptiveMaps.npy"
                 adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
             final_sampling_dict[mV][process] = []
             final_xsec_dict[mV][process] = {}
