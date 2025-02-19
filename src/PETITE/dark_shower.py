@@ -1,19 +1,26 @@
 import numpy as np
+import vegas as vg
 import pickle 
 import os
 
 from scipy.interpolate import interp1d
 from scipy.integrate import quad
 
-from .moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
-from .particle import Particle, meson_twobody_branchingratios
-from .kinematics import e_to_eV_fourvecs, compton_fourvecs, radiative_return_fourvecs, compton_fourvecs_boundelectron
-from .shower import Shower
-from .all_processes import *
+from PETITE.moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
+from PETITE.particle import Particle, meson_twobody_branchingratios
+from PETITE.atomic_annihilation import sigma_atomic
+from PETITE.atomic_compton import sigma_atomic_comp
+from PETITE.kinematics import (
+    e_to_eV_fourvecs,
+    compton_fourvecs,
+    radiative_return_fourvecs,
+    compton_fourvecs_boundelectron,
+)
+from PETITE.shower import Shower
+import PETITE.all_processes as proc
 from copy import deepcopy
-
-from .atomic_annihilation import sigma_atomic
-from .atomic_compton import sigma_atomic_comp
+from numpy.random import random as draw_U
+from PETITE.physical_constants import alpha_em, m_electron
 
 class interpolate1d(interp1d):
     """Extend scipy interp1d to interpolate/extrapolate per axis in log space"""
@@ -32,47 +39,66 @@ class interpolate1d(interp1d):
         else:
             return super().__call__(x, *args, **kwargs)
         
-import sys
-from numpy.random import random as draw_U
-        
-Z = {'hydrogen':1.0, 'graphite':6.0, 'lead':82.0, 'iron':26.0} #atomic number of different targets
-A = {'hydrogen':1.0, 'graphite':12.0, 'lead':207.2, 'iron':56.0} #atomic mass of different targets
-
-GeVsqcm2 = 1.0/(5.06e13)**2 #Conversion between cross sections in GeV^{-2} to cm^2
+Z = {
+    "hydrogen": 1.0,
+    "graphite": 6.0,
+    "lead": 82.0,
+    "iron": 26.0,
+}  # atomic number of different targets
+A = {
+    "hydrogen": 1.0,
+    "graphite": 12.0,
+    "lead": 207.2,
+    "iron": 56.0,
+}  # atomic mass of different targets
+GeVsqcm2 = 1.0 / (5.06e13) ** 2  # Conversion between cross sections in GeV^{-2} to cm^2
 cmtom = 0.01
-mp0 = 1.673e-24 #g
+mp0 = 1.673e-24  # g
 
 dark_process_codes = ["DarkBrem", "DarkAnn", "DarkComp", "TwoBody_BSMDecay"]
 
-dark_kinematic_function = {"DarkBrem" : e_to_eV_fourvecs,
-                           "DarkAnn"      : radiative_return_fourvecs,
-                           "DarkComp"     : compton_fourvecs}
-diff_xsection_options={"DarkComp"      : dsigma_compton_dCT,
-                        "DarkBrem" : dsig_etl_helper,
-                        "DarkAnn"      : dsigma_radiative_return_du }
-dimensionalities_dark={"DarkComp":1,
-                       "DarkBrem":3,
-                       "DarkAnn":1}
+dark_kinematic_function = {
+    "DarkBrem": e_to_eV_fourvecs,
+    "DarkAnn": radiative_return_fourvecs,
+    "DarkComp": compton_fourvecs,
+}
+diff_xsection_options = {
+    "DarkComp": proc.dsigma_compton_dCT,
+    "DarkBrem": proc.dsig_dx_dcostheta_dark_brem_exact_tree_level,
+    "DarkAnn": proc.dsigma_radiative_return_du,
+}
+dimensionalities_dark = {"DarkComp": 1, "DarkBrem": 3, "DarkAnn": 1}
 
 class DarkShower(Shower):
     """ A class to reprocess an existing EM shower to generate dark photons
     """
 
-    def __init__(self, dict_dir, target_material, min_energy, mV_in_GeV ,
-                 mode="exact", maxF_fudge_global=1,
-                 max_n_integrators=int(1e4), kinetic_mixing=1.0, Zeff=29.508, bound_electron=True,
-                 g_e=None, active_processes=None, fast_MCS_mode=True ,
-                 rescale_MCS=1):
+    def __init__(self,
+                 dict_dir,
+                 target_material,
+                 min_energy,
+                 mV_in_GeV ,
+                 mode="exact",
+                 maxF_fudge_global=1,
+                 max_n_integrators=int(1e4),
+                 kinetic_mixing=1.0,
+                 Zeff=29.508,
+                 bound_electron=True,
+                 g_e=None,
+                 active_processes=None,
+                 fast_MCS_mode=True ,
+                 rescale_MCS=1,
+    ):
         super().__init__(dict_dir, target_material, min_energy)
         """Initializes the dark shower object.
         Args:
             dict_dir: directory containing the pre-computed MC samples of various shower processes
-            target_material: string label of the homogeneous material through which 
-            particles propagate (available materials are the dict keys of 
+            target_material: string label of the homogeneous material through which
+            particles propagate (available materials are the dict keys of
             Z, A, rho, etc)
-            min_energy: minimum particle energy in GeV at which the particle 
+            min_energy: minimum particle energy in GeV at which the particle
             finishes its propagation through the target
-            mV_in_GeV: vector mass in GeV 
+            mV_in_GeV: vector mass in GeV
             mode: determines whether mV is set to MV_in_GeV or the nearest value for which integrators have been trained
         """
 
@@ -89,13 +115,13 @@ class DarkShower(Shower):
 
         self.g_e = g_e
         if self.g_e is None:
-            self.g_e = self.kinetic_mixing*np.sqrt(4*np.pi*alpha_em)
+            self.g_e = self.kinetic_mixing * np.sqrt(4 * np.pi * alpha_em)
 
         self.set_material_properties()
         self.set_n_targets()
         self.set_mV_list(dict_dir)
         self.set_mV(mV_in_GeV, mode)
-        
+
         self.set_dark_cross_sections()
         self.set_DarkAnnXSec()
         self.set_DarkCompXSec()
@@ -106,17 +132,17 @@ class DarkShower(Shower):
         self.set_MCS_momentum(fast_MCS_mode)
         self.set_MCS_rescale_factor(rescale_MCS)
 
-        self._maxF_fudge_global=maxF_fudge_global
-        self._max_n_integrators=max_n_integrators
+        self._maxF_fudge_global = maxF_fudge_global
+        self._max_n_integrators = max_n_integrators
 
     def set_MCS_rescale_factor(self, rescale_MCS):
-        self._MCS_rescale_factor=rescale_MCS
-               
+        self._MCS_rescale_factor = rescale_MCS
+
     def set_MCS_momentum(self, fast_MCS_mode):
         if fast_MCS_mode:
-            self._get_MCS_p=get_scattered_momentum_fast
+            self._get_MCS_p = get_scattered_momentum_fast
         else:
-            self._get_MCS_p=get_scattered_momentum_Bethe
+            self._get_MCS_p = get_scattered_momentum_Bethe
     def set_dark_dict_dir(self, value):
         """Set the directory containing pre-simulated MC events for processes involing target nuclei"""
         self._dark_dict_dir = value
@@ -505,7 +531,7 @@ class DarkShower(Shower):
         self._d_rate_dict_positron_ann = d_rate_dict_positron_ann
 
     def GetBSMWeights(self, particle, process):
-        if type(particle) == list or type(particle) == np.ndarray:
+        if isinstance(particle, list) or isinstance(particle, np.ndarray):
             PID, energy_initial = particle
         else:
             PID, energy_initial = particle.get_ids()["PID"], particle.get_p0()[0]
@@ -578,6 +604,7 @@ class DarkShower(Shower):
             diff_xsec_func = diff_xsection_options[process]
         else:
             raise Exception("Your process is not in the list")
+        f_integrand = diff_xsec_func(event_info=event_info, ndim=dimensionalities_dark[process])
 
         if VB:
             sampcount = 0
@@ -588,7 +615,8 @@ class DarkShower(Shower):
             for x,wgt in integrand.random():
                 if VB:
                     sampcount += 1  
-                if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x):
+                #if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x):
+                if  max_F*draw_U()<wgt*f_integrand(x):
                     sample_found = True
                     break
         if sample_found is False:
@@ -596,7 +624,7 @@ class DarkShower(Shower):
         if VB:
             return np.concatenate([list(x), [sampcount]])
         else:
-            return(x)
+            return x
 
     def electron_wave_function(self, pe):
         Lambda = alpha_em*self.Zeff*m_electron
@@ -615,7 +643,7 @@ class DarkShower(Shower):
 
     def produce_bsm_particle(self, p_original, process, weight=None, VB=False):
         p0 = deepcopy(p_original)
-        if weight == None:
+        if weight is None:
             wg = self.GetBSMWeights(p0, process)
         else:
             wg = weight
@@ -710,11 +738,11 @@ class DarkShower(Shower):
             print("Need an existing SM shower-file directory or SM incident particle to run dark shower")
             return None
         
-        if ExDir is not None and type(ExDir)==str:
+        if ExDir is not None and isinstance(ExDir, str):
             ShowerToSamp = np.load(ExDir, allow_pickle=True)
-        elif ExDir is not None and type(ExDir)==list:
+        elif ExDir is not None and isinstance(ExDir, list):
             ShowerToSamp = ExDir
-        elif type(SParams)==Particle:
+        elif isinstance(SParams, Particle):
             ShowerToSamp = self.generate_shower(SParams)
         else:
             raise ValueError("Provided SParams must be a `Particle' class object")

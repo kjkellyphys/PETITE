@@ -4,21 +4,16 @@
 
 import numpy as np
 import sys, os
-path = os.getcwd()
-path = os.path.join(path,"../PETITE")
-sys.path.insert(0,path)
-from PETITE.all_processes import *
-from PETITE.physical_constants import *
+
+from PETITE.all_processes import vegas_integration
+from PETITE.physical_constants import target_information, m_electron, alpha_em
 from glob import glob
 
-
-from copy import deepcopy
 from multiprocessing import Pool
 import pickle
 from functools import partial
 import argparse
 import datetime
-import vegas
 
 # helper function to turn float to string
 def generate_vector_mass_string(mV):
@@ -46,7 +41,7 @@ def make_readme(params, process, process_directory):
     return()
 
 
-def run_vegas_in_parallel(params, process, verbosity_mode, process_directory, energy_index):
+def run_vegas_in_parallel(params, process, verbosity_mode, process_directory, energy_index, overwrite=False):
     '''Run VEGAS in parallel for a given energy index and process, and save the integrator adaptive map 
     and relevant parameters to a pickle file.
     Input:
@@ -62,23 +57,29 @@ def run_vegas_in_parallel(params, process, verbosity_mode, process_directory, en
     '''
     params['E_inc'] = params['initial_energy_list'][energy_index]
     file_name = process_directory + process + '_' + str(energy_index) + ".p"
-    if os.path.exists(file_name):
+    if os.path.exists(file_name) and not overwrite:
         print("Already generated integrator for this point\n")
     else:
-        print('Starting VEGAS for energy index ',energy_index)
-        VEGAS_integrator = vegas_integration(params, process, verbose=verbosity_mode, mode='Pickle') 
-        #VEGAS_integrator = 0
-        print('Done VEGAS for energy index ',energy_index)
+        if params["verbosity"]:
+            print("Starting VEGAS for energy index ", energy_index)
+        VEGAS_integrator = vegas_integration(
+            params, process, verbose=verbosity_mode, mode="Pickle"
+        )
+        # VEGAS_integrator = 0
+        if params["verbosity"]:
+            print("Done VEGAS for energy index ", energy_index)
+
         # Objects to be saved. Should include all important parameters (in params) and the VEGAS integrator adaptive map.
         params['process'] = process
         object_to_save = [params, VEGAS_integrator.map]
         pickle.dump(object_to_save, open(file_name, "wb"))
-        print('File created: ' + file_name)
+        if params["verbosity"]:
+            print("File created: " + file_name)
     return()
 
 
 
-def make_integrators(params, process):
+def make_integrators(params, process, paralellize=True, overwrite=False):
     """
     Generate vegas integrator pickles for a given process and set of parameters.
     Input:
@@ -88,6 +89,7 @@ def make_integrators(params, process):
             Z : target atomic number
             mT : target mass in GeV
         process: string of process name
+        paralellize: boolean to run in parallel or not
     """
     if 'mV' not in params:
         mV = 0.0
@@ -124,31 +126,57 @@ def make_integrators(params, process):
 
     initial_energy_list = params['initial_energy_list']
     
-    vec_mass_string = generate_vector_mass_string(mV)
     energy_index_list = range(len(initial_energy_list))
 
-    print("Parameters:")
-    print(params)
-    print('Doing process: ', process)
-    
+    if verbosity_mode:
+        print("Parameters:")
+        print(params)
+        print("Doing process: ", process)
+
     # energy_index_list = range(len(initial_energy_list))
     # vec_mass_string = generate_vector_mass_string(params['mV'])
     
     # If directory does not exist, create it
     if not(os.path.exists(process_directory)):
         os.system("mkdir -p " + process_directory)
-    # pool parallelizes the generation of integrators    
-    pool = Pool()
-    res = pool.map(partial(run_vegas_in_parallel, params, process, verbosity_mode, process_directory), energy_index_list)
-    # make the human readable file contining info on params of run and put in directory 
+
+    if paralellize:
+        # pool parallelizes the generation of integrators
+        pool = Pool()
+        _ = pool.map(
+            partial(
+                run_vegas_in_parallel,
+                params,
+                process,
+                verbosity_mode,
+                process_directory,
+                overwrite=overwrite,
+            ),
+            energy_index_list,
+        )
+    else:
+        for energy_index in energy_index_list:
+            run_vegas_in_parallel(
+                params,
+                process,
+                verbosity_mode,
+                process_directory,
+                energy_index,
+                overwrite=overwrite,
+            )
+    # make the human readable file contining info on params of run and put in directory
     make_readme(params, process, process_directory)
-    print('make_integrators is complete, readme files created in ' + process_directory + ' for convenience')
+    if params["verbosity"]:
+        print(
+            "make_integrators is complete, readme files created in "
+            + process_directory
+            + " for convenience"
+        )
 
-
-    return()
+    return ()
 
 # Set up parameters for and then run find_maxes
-def call_find_maxes(params, list_of_processes): 
+def call_find_maxes(params, list_of_processes, verbose=False): 
     """Call find_maxes.py to find the maximum of the integrand for each energy.
     Note that find_maxes.py will save the maximum of the integrand and the corresponding energy to a pickle file.
     Input:
@@ -160,7 +188,8 @@ def call_find_maxes(params, list_of_processes):
     # find_maxes_params['process'] = process
     # find_maxes_params['import_directory'] = params['save_location'] + "/" + process
     # find_maxes_params['save_location'] = params['find_maxes_save_location']
-    print("Now running find_maxes....please wait")
+    if verbose:
+        print("Now running find_maxes....please wait")
     find_maxes_params = params
     # add process key to find_maxes_params
     find_maxes_params['process'] = list_of_processes
@@ -172,12 +201,17 @@ def call_find_maxes(params, list_of_processes):
     # if params['n_trials'] is not present, default to 100
     if 'n_trials' not in find_maxes_params:
         find_maxes_params['n_trials'] = 100
-    print('Parameters used in find_maxes: ', find_maxes_params)
-    if ("DarkBrem" in list_of_processes) or ('DarkAnn' in list_of_processes) or ('DarkComp' in list_of_processes):
+    if verbose:
+        print("Parameters used in find_maxes: ", find_maxes_params)
+    if (
+        ("DarkBrem" in list_of_processes)
+        or ("DarkAnn" in list_of_processes)
+        or ("DarkComp" in list_of_processes)
+    ):
         find_maxes.main_dark(find_maxes_params)
     else:
         find_maxes.main(find_maxes_params)
-    #else:
+    # else:
     #    print('Not running find_maxes')
     return
 
@@ -249,7 +283,9 @@ def main(args):
         else: # make sure DarkBrem not accidentally in list
             try:
                 process_list_to_do = args.process.remove('DarkBrem')
-            except:
+            except Exception as e:
+                print(e)
+                print("Removed all DarkBrem from process. Moving on.")
                 process_list_to_do = args.process
                 pass
         for process in process_list_to_do:

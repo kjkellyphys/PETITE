@@ -1,68 +1,99 @@
-import numpy as npA
+import numpy as np
 import pickle 
+import vegas as vg
 
 from scipy.interpolate import interp1d
 from scipy.integrate import quad
 
-from .moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
-from .particle import Particle, mass_dict
-from .kinematics import e_to_egamma_fourvecs, gamma_to_epem_fourvecs, compton_fourvecs, annihilation_fourvecs, ee_to_ee_fourvecs
-from .all_processes import *
-from .physical_constants import *
-from datetime import datetime
-
-#np.random.seed(int(datetime.now().timestamp()))
+from PETITE.moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
+from PETITE.particle import Particle, mass_dict
+from PETITE.kinematics import (
+    e_to_egamma_fourvecs,
+    gamma_to_epem_fourvecs,
+    compton_fourvecs,
+    annihilation_fourvecs,
+    ee_to_ee_fourvecs,
+)
+import PETITE.all_processes as proc
+from PETITE.physical_constants import (
+    target_information,
+    TeV,
+    m_proton_grams,
+    GeVsqcm2,
+    cmtom,
+    m_electron,
+    alpha_em,
+)
 
 from numpy.random import random as draw_U
 import copy
 
-process_code = {'Brem':0, 'Ann': 1, 'PairProd': 2, 'Comp': 3, "Moller":4, "Bhabha":5}
-diff_xsection_options={"PairProd" : dsigma_pairprod_dimensionless,
-                        "Comp"     : dsigma_compton_dCT,
-                        "Brem"     : dsigma_brem_dimensionless,
-                        "Ann"      : dsigma_annihilation_dCT,
-                        "Moller"   : dsigma_moller_dCT,
-                        "Bhabha"   : dsigma_bhabha_dCT }
-dimensionalities={"PairProd":4,
-                  "Comp":1,
-                  "Brem":4,
-                  "Ann":1,
-                  "Moller":1,
-                  "Bhabha":1}
-     
-formfactor_dict      ={"PairProd" : g2_elastic,
-                        "Comp"     : unity,
-                        "Brem"     : g2_elastic,
-                        "Ann"      : unity,
-                        "Moller"   : unity,
-                        "Bhabha"   : unity }
+# Maximum energy allowed for Bhabha and Moller scattering
+_Ee_MAX = 10e3 * TeV  # 10 TeV
 
-QSq_dict             ={"PairProd" : pair_production_q_sq_dimensionless, 
-                       "Brem"     : brem_q_sq_dimensionless, 
-                       "Comp": dummy, 
-                       "Ann": dummy, 
-                       "Moller":dummy, 
-                       "Bhabha":dummy }
-
-kinematic_function   ={"PairProd" : gamma_to_epem_fourvecs,
-                       "Brem"     : e_to_egamma_fourvecs,
-                       "Comp"     : compton_fourvecs,
-                       "Ann"      : annihilation_fourvecs,
-                       "Moller"   : ee_to_ee_fourvecs,
-                       "Bhabha"   : ee_to_ee_fourvecs}
-
-process_PIDS         ={"PairProd" : [-11, 11],
-                       "Brem"     : [0, 22],
-                       "Comp"     : [11, 22],
-                       "Ann"      : [22, 22],
-                       "Moller"   : [0, 11],
-                       "Bhabha"   : [0, 11]}
+process_code = {"Brem": 0, "Ann": 1, "PairProd": 2, "Comp": 3, "Moller": 4, "Bhabha": 5}
+diff_xsection_options = {
+    "PairProd": proc.dsigma_pairprod_dimensionless,
+    "Comp": proc.dsigma_compton_dCT,
+    "Brem": proc.dsigma_brem_dimensionless,
+    "Ann": proc.dsigma_annihilation_dCT,
+    "Moller": proc.dsigma_moller_dCT,
+    "Bhabha": proc.dsigma_bhabha_dCT,
+}
+dimensionalities = {
+    "PairProd": 4,
+    "Comp": 1,
+    "Brem": 4,
+    "Ann": 1,
+    "Moller": 1,
+    "Bhabha": 1,
+}
+formfactor_dict = {
+    "PairProd": proc.g2_elastic,
+    "Comp": proc.unity,
+    "Brem": proc.g2_elastic,
+    "Ann": proc.unity,
+    "Moller": proc.unity,
+    "Bhabha": proc.unity,
+}
+QSq_dict = {
+    "PairProd": proc.pair_production_q_sq_dimensionless,
+    "Brem": proc.brem_q_sq_dimensionless,
+    "Comp": proc.dummy,
+    "Ann": proc.dummy,
+    "Moller": proc.dummy,
+    "Bhabha": proc.dummy,
+}
+kinematic_function = {
+    "PairProd": gamma_to_epem_fourvecs,
+    "Brem": e_to_egamma_fourvecs,
+    "Comp": compton_fourvecs,
+    "Ann": annihilation_fourvecs,
+    "Moller": ee_to_ee_fourvecs,
+    "Bhabha": ee_to_ee_fourvecs,
+}
+process_PIDS = {
+    "PairProd": [-11, 11],
+    "Brem": [0, 22],
+    "Comp": [11, 22],
+    "Ann": [22, 22],
+    "Moller": [0, 11],
+    "Bhabha": [0, 11],
+}
 
 class Shower:
-    """ Representation of a shower
-
-    """
-    def __init__(self, dict_dir, target_material, min_energy, maxF_fudge_global=1,max_n_integrators=int(1e4), fast_MCS_mode=True, seed=None,rescale_MCS=1 ):
+    """Representation of a shower"""
+    def __init__(
+        self,
+        dict_dir,
+        target_material,
+        min_energy,
+        maxF_fudge_global=1,
+        max_n_integrators=int(1e4),
+        fast_MCS_mode=True,
+        seed=None,
+        rescale_MCS=1,
+    ):
         """Initializes the shower object.
         Args:
             dict_dir: directory containing the pre-computed VEGAS integrators and auxillary info.
@@ -87,20 +118,20 @@ class Shower:
         self.set_MCS_momentum(fast_MCS_mode)
         self.set_MCS_rescale_factor(rescale_MCS)
         
-        self._maxF_fudge_global=maxF_fudge_global
-        self._max_n_integrators=max_n_integrators
+        self._maxF_fudge_global = maxF_fudge_global
+        self._max_n_integrators = max_n_integrators
 
     def set_MCS_rescale_factor(self, rescale_MCS):
-        self._MCS_rescale_factor=rescale_MCS
+        self._MCS_rescale_factor = rescale_MCS
         
     def set_MCS_momentum(self, fast_MCS_mode):
         if fast_MCS_mode:
-            self._get_MCS_p=get_scattered_momentum_fast
+            self._get_MCS_p = get_scattered_momentum_fast
         else:
-            self._get_MCS_p=get_scattered_momentum_Bethe       
+            self._get_MCS_p = get_scattered_momentum_Bethe       
         
     def load_sample(self, dict_dir, process):
-        sample_file=open(dict_dir + "sm_maps.pkl", 'rb')
+        sample_file=open(dict_dir + "sm_maps.pkl", "rb")
         sample_dict=pickle.load(sample_file)
         sample_file.close()
 
@@ -157,12 +188,11 @@ class Shower:
         self._nElecs = self._nTarget*ZT
 
     def set_samples(self):
-        self._loaded_samples={}
+        self._loaded_samples = {}
         for Process in process_code.keys():
-            self._loaded_samples[Process]= \
-                self.load_sample(self._dict_dir, Process)
-        self._Egamma_min = self._loaded_samples['Brem'][0][1]['Eg_min']
-        self._Ee_min = self._loaded_samples['Brem'][0][1]['Ee_min']
+            self._loaded_samples[Process] = self.load_sample(self._dict_dir, Process)
+        self._Egamma_min = self._loaded_samples["Brem"][0][1]["Eg_min"]
+        self._Ee_min = self._loaded_samples["Brem"][0][1]["Ee_min"]
         
     def get_n_targets(self):
         """Returns nuclear and electron target densities for the 
@@ -219,8 +249,8 @@ class Shower:
         self._NSigmaComp = interp1d(np.transpose(CS)[0], ne*GeVsqcm2*np.transpose(CS)[1], fill_value=0.0, bounds_error=False)
         #bhabha_moller_energies = np.logspace(np.log10(3*m_electron + self.min_energy), 2, 101)
         bhabha_moller_energies = np.logspace(np.log10(3*m_electron + self._Ee_min), 2, 101)
-        self._NSigmaMoller = interp1d(bhabha_moller_energies, ne*GeVsqcm2*sigma_moller({"E_inc":bhabha_moller_energies, "Ee_min":self._Ee_min}), fill_value=0.0, bounds_error=False)
-        self._NSigmaBhabha = interp1d(bhabha_moller_energies, ne*GeVsqcm2*sigma_bhabha({"E_inc":bhabha_moller_energies, "Ee_min":self._Ee_min}), fill_value=0.0, bounds_error=False)
+        self._NSigmaMoller = interp1d(bhabha_moller_energies, ne*GeVsqcm2*proc.sigma_moller({"E_inc":bhabha_moller_energies, "Ee_min":self._Ee_min}), fill_value=0.0, bounds_error=False)
+        self._NSigmaBhabha = interp1d(bhabha_moller_energies, ne*GeVsqcm2*proc.sigma_bhabha({"E_inc":bhabha_moller_energies, "Ee_min":self._Ee_min}), fill_value=0.0, bounds_error=False)
 
         II_y_Brem = np.array([quad(self._NSigmaBrem, BS[0][0],   BS[i][0], full_output=1)[0]   for i in range(len(BS))])
         self._interaction_integral_Brem = interp1d(np.transpose(BS)[0],   II_y_Brem, fill_value=0.0, bounds_error=False)
@@ -340,6 +370,7 @@ class Shower:
             diff_xsec_func = diff_xsection_options[process]
         else:
             raise Exception("Your process is not in the list")
+        f_integrand = diff_xsec_func(event_info=event_info, ndim=dimensionalities[process])
 
         if VB:
             sampcount = 0
@@ -350,7 +381,8 @@ class Shower:
             for x,wgt in integrand.random():
                 if VB:
                     sampcount += 1  
-                if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x):
+                #if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x):
+                if  max_F*draw_U()<wgt*f_integrand(x):
                     sample_found = True
                     break
         if sample_found is False:
@@ -358,7 +390,7 @@ class Shower:
         if VB:
             return np.concatenate([list(x), [sampcount]])
         else:
-            return(x)
+            return x
     
     def sample_scattering(self, p0, process, VB=False):
         E0 = p0.get_pf()[0]
@@ -431,7 +463,7 @@ class Shower:
                 Part0.set_ended(True)
                 return Part0
             
-            if Losses == False:
+            if not Losses:
                 mfp = self.get_mfp(Part0)
                 distC = np.random.uniform(0.0, 1.0)
                 dist = mfp*np.log(1.0/(1.0-distC))
@@ -452,7 +484,7 @@ class Shower:
                 z_travelled =0
                 hard_scatter=False
 
-                while hard_scatter == False and Part0.get_pf()[0] >= particle_min_energy:
+                while not hard_scatter and Part0.get_pf()[0] >= particle_min_energy:
                     mfp = self.get_mfp(Part0)
                     random_number = np.random.uniform(0.0, 1.0)
                     delta_z = mfp/np.random.uniform(low=6, high=20)
@@ -527,7 +559,7 @@ class Shower:
             p0.set_ended(True)
             return all_particles
 
-        while all([ap.get_ended() == True for ap in all_particles]) is False:
+        while all([ap.get_ended() for ap in all_particles]) is False:
             for apI, ap in enumerate(all_particles):
                 if ap.get_ended() is True:
                     continue
@@ -547,8 +579,10 @@ class Shower:
                         
                         all_particles[apI] = ap
 
-                        if (all([apC.get_ended() == True for apC in all_particles])\
-                            is True and ap.get_pf()[0] < self.min_energy):
+                        if (
+                            all([apC.get_ended() for apC in all_particles]) is True
+                            and ap.get_pf()[0] < self.min_energy
+                        ):
                             break
 
                         # Generate secondaries for the hard interaction
@@ -649,9 +683,9 @@ def event_display(all_particles):
 
     ax.tick_params(direction='in', zorder=30, length=20, width=2)
     ax.tick_params(direction='in', which='minor', zorder=30, length=15, width=1.5)
-    [l.set_position((0.5, -0.015)) for l in ax.get_xticklabels()]
-    [l.set_size((0)) for l in ax.get_xticklabels()]
-    [l.set_size((labelfont.get_size())) for l in ax.get_yticklabels()]
+    [tl.set_position((0.5, -0.015)) for tl in ax.get_xticklabels()]
+    [tl.set_size((0)) for tl in ax.get_xticklabels()]
+    [tl.set_size((labelfont.get_size())) for tl in ax.get_yticklabels()]
 
     for ki0 in all_particles:
         ki = np.concatenate([ki0.get_r0(), ki0.get_rf()])
@@ -671,9 +705,9 @@ def event_display(all_particles):
 
     ax.tick_params(direction='in', zorder=30, length=20, width=2)
     ax.tick_params(direction='in', which='minor', zorder=30, length=15, width=1.5)
-    [l.set_position((0.5, -0.015)) for l in ax.get_xticklabels()]
-    [l.set_size((labelfont.get_size())) for l in ax.get_xticklabels()]
-    [l.set_size((labelfont.get_size())) for l in ax.get_yticklabels()]
+    [tl.set_position((0.5, -0.015)) for tl in ax.get_xticklabels()]
+    [tl.set_size((labelfont.get_size())) for tl in ax.get_xticklabels()]
+    [tl.set_size((labelfont.get_size())) for tl in ax.get_yticklabels()]
 
     for ki0 in all_particles:
         ki = np.concatenate([ki0.get_r0(), ki0.get_rf()])
