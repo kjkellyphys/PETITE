@@ -370,6 +370,7 @@ class Shower:
             diff_xsec_func = diff_xsection_options[process]
         else:
             raise Exception("Your process is not in the list")
+        f_integrand = diff_xsec_func(event_info=event_info, ndim=dimensionalities[process])
 
         if VB:
             sampcount = 0
@@ -380,7 +381,8 @@ class Shower:
             for x,wgt in integrand.random():
                 if VB:
                     sampcount += 1  
-                if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x):
+                #if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x):
+                if  max_F*draw_U()<wgt*f_integrand(x):
                     sample_found = True
                     break
         if sample_found is False:

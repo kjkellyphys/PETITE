@@ -155,7 +155,10 @@ class dsigma_brem_dimensionless:
         if len(np.shape(phase_space_par_list)) == 1:
             phase_space_par_list = np.array([phase_space_par_list])
         # for variables in phase_space_par_list:
-        x1, x2, x3, x4 = phase_space_par_list.T  # variables
+        try:
+            x1, x2, x3, x4 = phase_space_par_list
+        except:
+            x1, x2, x3, x4 = phase_space_par_list.T
         w, d, dp, ph = (
             Egamma_min + x1 * (ep - m_electron - Egamma_min),
             ep / (2 * m_electron) * (x2 + x3),
@@ -220,7 +223,10 @@ class dsig_dx_dcostheta_dark_brem_exact_tree_level:
         self.ndim = ndim
 
     def __call__(self, phase_space_par_list):
-        x0, x1, x2 = phase_space_par_list.T
+        try:
+            x0, x1, x2 = phase_space_par_list
+        except:
+            x0, x1, x2 = phase_space_par_list.T
 
         me = m_electron
         mV = self.event_info["mV"]
@@ -425,7 +431,7 @@ class dsigma_radiative_return_du:
             the factor of 2 comes from splitting the [y,1] integration into [y,sqrt(y)] + [sqrt(y),1], 
             and using x-> y/x in the first part comes from splitting the [y,1] integration into [y,sqrt(y)] + [sqrt(y),1]
         """
-        u0 = phase_space_par_list
+        u0 = np.array(phase_space_par_list)
         x1 = 1.0 - np.power(u0 * umax, 2.0 / beta)
         x2 = mV**2 / (x1 * s)
 
@@ -442,9 +448,10 @@ class dsigma_radiative_return_du:
 
 @vg.lbatchintegrand
 class dsigma_annihilation_dCT:
-    def __init__(self, event_info, ndim):
+    def __init__(self, event_info, ndim, batch_mode=False):
         self.event_info = event_info
         self.ndim = ndim
+        self.batch_mode = batch_mode
 
     def __call__(self, phase_space_par_list):
         """Annihilation of a Positron and Electron into a Photon and a (Dark) Photon
@@ -481,7 +488,13 @@ class dsigma_annihilation_dCT:
 
         b = np.sqrt(1.0 - 4.0 * m_electron**2 / s)
 
-        ct = phase_space_par_list[:, 0]
+        if self.batch_mode:
+            ct = phase_space_par_list[:, 0]
+        else:
+            ct = phase_space_par_list[0]
+        #ct = np.asarray(phase_space_par_list)
+        #if self.batch_mode:
+        #    ct = ct[:, 0]
         forbidden_kinematics = ct > ctMax
 
         dSigs = np.where(
@@ -514,7 +527,10 @@ class dsigma_pairprod_dimensionless:
 
         w = self.event_info["E_inc"]
 
-        x1, x2, x3, x4 = phase_space_par_list.T
+        try:
+            x1, x2, x3, x4 = phase_space_par_list
+        except:
+            x1, x2, x3, x4 = phase_space_par_list.T
         epp, dp, dm, ph = (
             m_electron + x1 * (w - 2 * m_electron),
             w / (2 * m_electron) * (x2 + x3),
@@ -587,7 +603,7 @@ class dsigma_pairprod_dimensionless:
 
 @vg.lbatchintegrand
 class dsigma_compton_dCT:
-    def __init__(self, event_info, ndim):
+    def __init__(self, event_info, ndim, batch_mode=False):
         """Compton Scattering of a Photon off an at-rest Electron, producing either a photon or a Dark Vector
         gamma (Eg) + e- (me) -> e- + gamma/V
 
@@ -598,6 +614,7 @@ class dsigma_compton_dCT:
         self.event_info = event_info
         self.ndim = ndim
         self.mV = self.event_info["mV"] if "mV" in self.event_info.keys() else 0
+        self.batch_mode = batch_mode
 
     def __call__(self, phase_space_par_list):
 
@@ -610,7 +627,13 @@ class dsigma_compton_dCT:
             else:
                 return np.zeros(shape=len(phase_space_par_list))
 
-        ct = phase_space_par_list[:, 0]
+        if self.batch_mode:
+            ct = phase_space_par_list[:, 0]
+        else:
+            ct = phase_space_par_list[0]
+        #ct = np.asarray(phase_space_par_list)
+        #if self.batch_mode:
+        #    ct = ct[:, 0]
 
         jacobian = (
             (s - m_electron**2)
@@ -742,7 +765,7 @@ def dsigma_compton_dxdpt(event_info, phase_space_par_list):
 
 @vg.lbatchintegrand
 class dsigma_moller_dCT:
-    def __init__(self, event_info, ndim):
+    def __init__(self, event_info, ndim, batch_mode=False):
         """Moller Scattering of an Electron off an at-rest Electron
         e- (Einc) + e- (me) -> e- + e-
 
@@ -751,6 +774,7 @@ class dsigma_moller_dCT:
         """
         self.event_info = event_info
         self.ndim = ndim
+        self.batch_mode = batch_mode
 
     def __call__(self, phase_space_par_list):
 
@@ -762,7 +786,14 @@ class dsigma_moller_dCT:
 
         delta_ct_limit = 2.0 * DE / (Ee - m_electron)
 
-        ct = phase_space_par_list[:, 0]
+        if self.batch_mode:
+            ct = phase_space_par_list[:, 0]
+        else:
+            ct = phase_space_par_list[0]
+        #ct = np.asarray(phase_space_par_list)
+        #if self.batch_mode:
+        #    ct = ct[:, 0]
+
         allowed_kinematics = (ct > -1 + delta_ct_limit) & (ct < 1.0 - delta_ct_limit)
         s = m_electron**2 + 2 * Ee * m_electron
         dSigs = np.where(
@@ -831,7 +862,7 @@ def sigma_moller(event_info):
 
 @vg.lbatchintegrand
 class dsigma_bhabha_dCT:
-    def __init__(self, event_info, ndim):
+    def __init__(self, event_info, ndim, batch_mode=False):
         """Bhabha Scattering of a Positron off an at-rest Electron
         e+ (Einc) + e- (me) -> e+ + e-
 
@@ -840,6 +871,7 @@ class dsigma_bhabha_dCT:
         """
         self.event_info = event_info
         self.ndim = ndim
+        self.batch_mode = batch_mode
 
     def __call__(self, phase_space_par_list):
 
@@ -850,7 +882,13 @@ class dsigma_bhabha_dCT:
             DE = 0.010
         delta_ct_limit = 2.0 * DE / (Ee - m_electron)
 
-        ct = phase_space_par_list[:, 0]
+        if self.batch_mode:
+            ct = phase_space_par_list[:, 0]
+        else:
+            ct = phase_space_par_list[0]
+        #ct = np.asarray(phase_space_par_list)
+        #if self.batch_mode:
+        #    ct = ct[:, 0]
 
         allowed_kinematics = (ct > -1 + delta_ct_limit) & (ct < 1.0 - delta_ct_limit)
         s = m_electron**2 + 2 * Ee * m_electron
