@@ -489,7 +489,7 @@ class DarkShower(Shower):
                 if self._target_material in outer_dict[self._mV_estimator].keys():
                     d_rate_dict_elec_brem = outer_dict[self._mV_estimator][self._target_material]['brem_elec_drate']
                     d_rate_dict_positron_brem = outer_dict[self._mV_estimator][self._target_material]['brem_positron_drate']
-                    if self.bound_electron is False and 'annihilation_drate' in outer_dict[self._mV_estimator['self._target_material']].keys():
+                    if self.bound_electron is False and 'annihilation_drate' in outer_dict[self._mV_estimator][self._target_material].keys():
                         d_rate_dict_positron_ann = outer_dict[self._mV_estimator][self._target_material]['annihilation_drate']
                     elif self.bound_electron is False and 'annihilation_drate' not in outer_dict[self._mV_estimator][self._target_material].keys():
                         d_rate_dict_positron_ann = self._d_rate_d_E_positron_ann_array()
