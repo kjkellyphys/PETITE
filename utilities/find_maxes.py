@@ -70,6 +70,7 @@ def do_find_max_work(params, process_file):
 
     integrand = vegas.Integrator(map=integrand_or_map, **proc.vegas_integrator_options[event_info['process']])#nstrat=nstrat_options[params['process']])
     save_copy = copy.deepcopy(integrand_or_map)
+    integrand.set(max_nhcube=1, neval=params["neval"])
 
     max_F_TM = {}
     xSec = {}
@@ -77,24 +78,23 @@ def do_find_max_work(params, process_file):
         xSec[tm] = 0.0
         max_F_TM[tm] = 0.0
 
-    batch_f = diff_xsec(
-        event_info, len(proc.integration_range(event_info, event_info["process"]))
-    )
-    integrand.set(max_nhcube=1, neval=params["neval"])
-    for trial_number in range(params["n_trials"]):
-        for x, wgt in integrand.random_batch():  # scan over integrand
+    for tm in params['process_targets']:
+        event_info_target = copy.deepcopy(event_info)
+        event_info_target["Z_T"] = target_information[tm]["Z_T"]
+        event_info_target["A_T"] = target_information[tm]["A_T"]
+        event_info_target["mT"] = target_information[tm]["mT"]
+        if "mV" in params:
+            event_info_target["mV"] = params["mV"]
 
-            for tm in params["process_targets"]:
-                event_info_target = copy.deepcopy(event_info)
-                event_info_target["Z_T"] = target_information[tm]["Z_T"]
-                event_info_target["A_T"] = target_information[tm]["A_T"]
-                event_info_target["mT"] = target_information[tm]["mT"]
-                if "mV" in params:
-                    event_info_target["mV"] = params["mV"]
-                MM = np.max(wgt * batch_f(x))
-                if MM > max_F_TM[tm]:
-                    max_F_TM[tm] = MM
-                xSec[tm] += MM / params["n_trials"]
+        batch_f = diff_xsec(
+            event_info_target, len(proc.integration_range(event_info_target, event_info_target["process"])), batch_mode=True
+        )
+        for trial_number in range(params["n_trials"]):
+            for x, wgt in integrand.random_batch():  # scan over integrand
+                MM = wgt * batch_f(x)
+                if np.max(MM) > max_F_TM[tm]:
+                    max_F_TM[tm] = np.max(MM)
+                xSec[tm] += np.sum(MM) / params["n_trials"]
 
     samp_dict_info = {"neval":params['neval'], "max_F": {tm:max_F_TM[tm] for tm in params['process_targets']}, "adaptive_map": save_copy}
     if "Eg_min" in event_info.keys():
@@ -148,7 +148,7 @@ def main(params):
     # Loop over all processes
     for process in params['process']:
         # Get the path to the directory containing the adaptive maps
-        path = params['save_location'] + '/auxiliary/' + process + '/'
+        path = params['save_location'] + '/auxiliary/' + process + '/data/'
         # Get adaptive map main file (created by stitch_integrators)
         adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
         # Load adaptive map file. Format: list of [params, adaptive_map]
@@ -159,7 +159,7 @@ def main(params):
             print(
                 f"Tried to load adaptive maps {adaptive_maps_file} but could not find them.",
             )
-            path = params["save_location"] + process + "/"
+            path = params["save_location"] + '/' + process + "/"
             adaptive_maps_file = path + process + "_AdaptiveMaps.npy"
             print(f"Trying again at {adaptive_maps_file}")
             adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)

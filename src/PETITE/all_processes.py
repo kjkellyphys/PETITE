@@ -134,7 +134,7 @@ def Gelastic_inelastic_over_tsquared(EI, t):
 
 @vg.lbatchintegrand
 class dsigma_brem_dimensionless:
-    def __init__(self, event_info, ndim):
+    def __init__(self, event_info, ndim, batch_mode=False):
         """Standard Model Bremsstrahlung in the Small-Angle Approximation
         e (ep) + Z -> e (epp) + gamma (w) + Z
         Outgoing kinematics given by w, d (delta), dp (delta'), and ph (phi)
@@ -144,6 +144,7 @@ class dsigma_brem_dimensionless:
         """
         self.event_info = event_info
         self.ndim = ndim
+        self.batch_mode = batch_mode
     
     def __call__(self, phase_space_par_list):
         # return c_dsigma_brem_dimensionless(
@@ -151,14 +152,13 @@ class dsigma_brem_dimensionless:
         # )
         ep = self.event_info["E_inc"]
         Egamma_min = self.event_info["Eg_min"]
-        mV = 0  # NOTE: not needed?
-        if len(np.shape(phase_space_par_list)) == 1:
-            phase_space_par_list = np.array([phase_space_par_list])
+        #if len(np.shape(phase_space_par_list)) == 1:
+        #    phase_space_par_list = np.array([phase_space_par_list])
         # for variables in phase_space_par_list:
-        try:
-            x1, x2, x3, x4 = phase_space_par_list
-        except:
+        if self.batch_mode:
             x1, x2, x3, x4 = phase_space_par_list.T
+        else:
+            x1, x2, x3, x4 = phase_space_par_list
         w, d, dp, ph = (
             Egamma_min + x1 * (ep - m_electron - Egamma_min),
             ep / (2 * m_electron) * (x2 + x3),
@@ -511,7 +511,7 @@ class dsigma_annihilation_dCT:
 
 @vg.lbatchintegrand
 class dsigma_pairprod_dimensionless:
-    def __init__(self, event_info, ndim):
+    def __init__(self, event_info, ndim, batch_mode=False):
         """Standard Model Pair Production in the Small-Angle Approximation
         gamma (w) + Z -> e+ (epp) + e- (epm) + Z
         Outgoing kinematics given by epp, dp (delta+), dm (delta-), and ph (phi)
@@ -522,15 +522,16 @@ class dsigma_pairprod_dimensionless:
         """
         self.event_info = event_info
         self.ndim = ndim
+        self.batch_mode = batch_mode
 
     def __call__(self, phase_space_par_list):
 
         w = self.event_info["E_inc"]
 
-        try:
-            x1, x2, x3, x4 = phase_space_par_list
-        except:
+        if self.batch_mode:
             x1, x2, x3, x4 = phase_space_par_list.T
+        else:
+            x1, x2, x3, x4 = phase_space_par_list
         epp, dp, dm, ph = (
             m_electron + x1 * (w - 2 * m_electron),
             w / (2 * m_electron) * (x2 + x3),
@@ -1113,7 +1114,7 @@ def vegas_integration(event_info, process, verbose=False, mode="XSec"):
             f"Could not find process {process} in available processes: {diff_xsection_options.keys()}"
         )
     integ = vg.Integrator(igrange)
-    f_integrand = diff_xsec_func(event_info=event_info, ndim=len(igrange))
+    f_integrand = diff_xsec_func(event_info=event_info, ndim=len(igrange), batch_mode=True)
 
     if mode == "Pickle" or mode == "XSec":
         if verbose:
