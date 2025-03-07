@@ -118,4 +118,4 @@ def main(doSM=True, doDark=True, Ee_min=0.0016, Ee_max=100.0, Npoints=100, path=
         genint.call_find_maxes(processing_params, processes_to_do)
 
 if __name__ == "__main__":
-    main(doSM=True, doDark=True, path=DEFAULT_PATH+"/data_test/")
+    main(doSM=True, doDark=True, path=DEFAULT_PATH)

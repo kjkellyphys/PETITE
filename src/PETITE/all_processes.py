@@ -204,7 +204,7 @@ class dsigma_brem_dimensionless:
         return dSigs
 
 class dsig_dx_dcostheta_dark_brem_exact_tree_level:
-    def __init__(self, event_info, ndim):
+    def __init__(self, event_info, ndim, batch_mode=False):
         """
         Exact Tree-Level Dark Photon Bremsstrahlung
         e (ep) + Z -> e (epp) + V (w) + Z
@@ -221,12 +221,13 @@ class dsig_dx_dcostheta_dark_brem_exact_tree_level:
         """
         self.event_info = event_info
         self.ndim = ndim
+        self.batch_mode = batch_mode
 
     def __call__(self, phase_space_par_list):
-        try:
-            x0, x1, x2 = phase_space_par_list
-        except:
+        if self.batch_mode:
             x0, x1, x2 = phase_space_par_list.T
+        else:
+            x0, x1, x2 = phase_space_par_list
 
         me = m_electron
         mV = self.event_info["mV"]
@@ -385,7 +386,7 @@ def dsigma_radiative_return_dx(event_info, x):
 
 @vg.lbatchintegrand
 class dsigma_radiative_return_du:
-    def __init__(self, event_info, ndim):
+    def __init__(self, event_info, ndim, batch_mode=False):
         """
         Radiative return cross-section e^+ e^- > V differential with respect to the longitudinal momentum fraction
         carried by one of beam particles
