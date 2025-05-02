@@ -20,22 +20,27 @@ def main(doSM=True, doDark=True, Ee_min=0.0016, Ee_max=100.0, Npoints=100, path=
                     'save_location':path + '/data',
                     'run_find_maxes':True}
     # Necessary parameters for processing the integrators to determine cross sections
-    processing_params = {'process_targets':['graphite','lead','iron','aluminum','molybdenum'], 'save_location':path + '/data'}
+    processing_params = {'process_targets':['graphite','lead','iron','aluminum','molybdenum'], 'save_location':path + '/data/'}
     #args = training_params.update(processing_params)
     # List of processes to do
-    processes_to_do = ['Comp', 'Ann', 'Moller', 'Bhabha', 'Brem', 'PairProd']
+    processes_to_do = ['MuonBrem', 'MuonE','Comp', 'Ann', 'Moller', 'Bhabha', 'Brem', 'PairProd']
     # Loop over processes, carrying out each step of the calculation, they can also be called in one command generate_integrators
     if doSM:
         for process in processes_to_do:
-            if os.path.exists(training_params['save_location'] + '/auxiliary/' + process + "/" + process + "_AdaptiveMaps.npy"):
+            path1 = training_params['save_location'] + '/auxiliary/' + process + "/" + process + "_AdaptiveMaps.npy"
+            path2 = training_params['save_location'] + '/' + process + '/' + process + "_AdaptiveMaps.npy"
+            if os.path.exists(path1) or os.path.exists(path2):
                 print("Already finished this whole process, skipping")
                 continue
             else:
+                if process == "MuonBrem" or process == "MuonE":
+                    energy_list_new = np.geomspace(0.200, Ee_max, Npoints)
+                    training_params.update({"initial_energy_list": energy_list_new})
                 genint.make_integrators(training_params, process)
                 genint.stitch_integrators(training_params['save_location'] + '/' + process + '/')
                 genint.cleanup(training_params['save_location'] + "/" + process + "/")
         # List of processes to run find_maxes on, need not be the same as list above
-        find_maxes_processes_to_do = ['Brem', 'PairProd', 'Comp', 'Ann', 'Moller', 'Bhabha']
+        find_maxes_processes_to_do = ['MuonBrem', 'MuonE','Brem', 'PairProd', 'Comp', 'Ann', 'Moller', 'Bhabha']
         genint.call_find_maxes(processing_params, find_maxes_processes_to_do)
 
     ##################################
@@ -49,8 +54,7 @@ def main(doSM=True, doDark=True, Ee_min=0.0016, Ee_max=100.0, Npoints=100, path=
     training_params = {'verbosity':True, 'initial_energy_list':initial_energy_list_general,
                     'save_location':save_location,
                     'run_find_maxes':True, 'mV_list':mV_list, 'training_target':'hydrogen', 'mT':200.0}
-    processes_to_do = ['DarkAnn', 'DarkComp', 'DarkBrem']
-
+    processes_to_do = ['DarkAnn', 'DarkComp', 'DarkBrem', 'DarkMuonBrem']
     if doDark:
         for mV in mV_list:
             for process in processes_to_do:
@@ -71,6 +75,10 @@ def main(doSM=True, doDark=True, Ee_min=0.0016, Ee_max=100.0, Npoints=100, path=
                     Emax = np.max([Ee_max, 100 * Eg0])
                     energy_list = Eg0 * (
                         1 + np.geomspace(1e-4, (Emax - Eg0) / Eg0, len(energy_list))
+                    )
+                if process == "DarkMuonBrem":
+                    energy_list = np.geomspace(
+                        1.25 * (mV + const.m_muon), energy_list[-1], len(energy_list)
                     )
                 training_params.update({"initial_energy_list": energy_list})
                 training_params.update({"mV": mV})

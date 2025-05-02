@@ -10,7 +10,7 @@
 import os
 
 import PETITE.all_processes as proc
-from PETITE.physical_constants import target_information
+from PETITE.physical_constants import target_information, m_electron, m_muon
 import pickle
 import copy
 import numpy as np
@@ -24,10 +24,13 @@ from tqdm import tqdm
 process_info ={    'PairProd' : {'diff_xsection': proc.dsigma_pairprod_dimensionless},
                    'Comp'     : {'diff_xsection': proc.dsigma_compton_dCT},
                     'Brem'     : {'diff_xsection': proc.dsigma_brem_dimensionless},
+                    'MuonBrem' : {'diff_xsection': proc.dsigma_brem_dimensionless},
                     'Ann'      : {'diff_xsection': proc.dsigma_annihilation_dCT},
                     'Moller'   : {'diff_xsection': proc.dsigma_moller_dCT},
                     'Bhabha'   : {'diff_xsection': proc.dsigma_bhabha_dCT},
+                    'MuonE'    : {'diff_xsection': proc.dsigma_muonelectron_dCT},
                     'DarkBrem': {'diff_xsection': proc.dsig_dx_dcostheta_dark_brem_exact_tree_level},
+                    'DarkMuonBrem': {'diff_xsection': proc.dsig_dx_dcostheta_dark_brem_exact_tree_level},
                     'DarkAnn':  {'diff_xsection': proc.dsigma_radiative_return_du},
                     'DarkComp': {'diff_xsection':proc.dsigma_compton_dCT}}
 
@@ -83,6 +86,16 @@ def do_find_max_work(params, process_file):
         event_info_target["Z_T"] = target_information[tm]["Z_T"]
         event_info_target["A_T"] = target_information[tm]["A_T"]
         event_info_target["mT"] = target_information[tm]["mT"]
+        if event_info['process'] == "Brem":
+            event_info_target["m_lepton"] = m_electron
+        elif event_info['process'] == "MuonBrem":
+            event_info_target["m_lepton"] = m_muon
+        if event_info['process'] == "DarkBrem":
+            event_info_target["m_lepton"] = m_electron
+        elif event_info['process'] == "DarkMuonBrem":
+            event_info_target["m_lepton"] = m_muon
+
+
         if "mV" in params:
             event_info_target["mV"] = params["mV"]
 
@@ -142,13 +155,13 @@ def main(params):
     # Before starting, check for invalid processes
     for process in params['process']:
         # if process is not in list of processes, raise an error
-        if process not in ['PairProd', 'Comp', 'Ann', 'Brem', 'Moller', 'Bhabha']:
+        if process not in ['PairProd', 'Comp', 'Ann', 'Brem', 'Moller', 'Bhabha', 'MuonE', 'MuonBrem']:
             raise ValueError('Process \'', process ,'\' not in list of available processes for standard model showers.')
 
     # Loop over all processes
     for process in params['process']:
         # Get the path to the directory containing the adaptive maps
-        path = params['save_location'] + '/auxiliary/' + process + '/data/'
+        path = params['save_location'] + '/auxiliary/' + process + '/'
         # Get adaptive map main file (created by stitch_integrators)
         adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
         # Load adaptive map file. Format: list of [params, adaptive_map]
@@ -241,7 +254,7 @@ def main_dark(params):
         # Before starting, check for invalid processes
         for process in params['process']:
             # if process is not in list of processes, raise an error
-            if process not in ['DarkBrem', 'DarkAnn', 'DarkComp']:
+            if process not in ['DarkBrem', 'DarkAnn', 'DarkComp', 'DarkMuonBrem']:
                 raise ValueError('Process \'', process ,'\' not in list of available processes for dark showers.')
 
         # Loop over all processes

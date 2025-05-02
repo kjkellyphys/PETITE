@@ -20,7 +20,13 @@ from PETITE.shower import Shower
 import PETITE.all_processes as proc
 from copy import deepcopy
 from numpy.random import random as draw_U
-from PETITE.physical_constants import alpha_em, m_electron
+from PETITE.physical_constants import (
+    GeVsqcm2,
+    cmtom,
+    m_electron,
+    m_muon,
+    alpha_em,
+)
 
 class interpolate1d(interp1d):
     """Extend scipy interp1d to interpolate/extrapolate per axis in log space"""
@@ -39,35 +45,22 @@ class interpolate1d(interp1d):
         else:
             return super().__call__(x, *args, **kwargs)
         
-Z = {
-    "hydrogen": 1.0,
-    "graphite": 6.0,
-    "lead": 82.0,
-    "iron": 26.0,
-}  # atomic number of different targets
-A = {
-    "hydrogen": 1.0,
-    "graphite": 12.0,
-    "lead": 207.2,
-    "iron": 56.0,
-}  # atomic mass of different targets
-GeVsqcm2 = 1.0 / (5.06e13) ** 2  # Conversion between cross sections in GeV^{-2} to cm^2
-cmtom = 0.01
-mp0 = 1.673e-24  # g
 
-dark_process_codes = ["DarkBrem", "DarkAnn", "DarkComp", "TwoBody_BSMDecay"]
+dark_process_codes = ["DarkBrem", "DarkAnn", "DarkComp", "TwoBody_BSMDecay", "DarkMuonBrem"]
 
 dark_kinematic_function = {
     "DarkBrem": e_to_eV_fourvecs,
     "DarkAnn": radiative_return_fourvecs,
     "DarkComp": compton_fourvecs,
+    "DarkMuonBrem": e_to_eV_fourvecs,
 }
-diff_xsection_options = {
+dark_diff_xsection_options = {
     "DarkComp": proc.dsigma_compton_dCT,
     "DarkBrem": proc.dsig_dx_dcostheta_dark_brem_exact_tree_level,
     "DarkAnn": proc.dsigma_radiative_return_du,
+    "DarkMuonBrem": proc.dsig_dx_dcostheta_dark_brem_exact_tree_level,
 }
-dimensionalities_dark = {"DarkComp": 1, "DarkBrem": 3, "DarkAnn": 1}
+dimensionalities_dark = {"DarkComp": 1, "DarkBrem": 3, "DarkAnn": 1, "DarkMuonBrem": 3}
 
 class DarkShower(Shower):
     """ A class to reprocess an existing EM shower to generate dark photons
@@ -202,7 +195,7 @@ class DarkShower(Shower):
 
     def set_dark_samples(self):
         self._loaded_dark_samples={}
-        for process in diff_xsection_options.keys():
+        for process in dark_diff_xsection_options.keys():
             self._loaded_dark_samples[process]= \
                 self.load_dark_sample(self._dict_dir, process)
             
@@ -231,13 +224,16 @@ class DarkShower(Shower):
         self._dark_brem_cross_section = self.load_dark_cross_section(self._dict_dir, 'DarkBrem', self._target_material)
         self._dark_annihilation_cross_section  = self.load_dark_cross_section(self._dict_dir, 'DarkAnn', self._target_material) 
         self._dark_compton_cross_section = self.load_dark_cross_section(self._dict_dir, 'DarkComp', self._target_material) 
+        self._dark_muon_brem_cross_section = self.load_dark_cross_section(self._dict_dir, 'DarkMuonBrem', self._target_material)
 
         self._resonant_annihilation_energy = (self._mV**2-2*m_electron**2)/(2*m_electron)
         self._compton_threshold_energy = self._mV**2/(2*m_electron) + self._mV
         self._minimum_calculable_dark_energy = {11:{"DarkBrem":self._dark_brem_cross_section[0][0]},
                                                 -11:{"DarkBrem":self._dark_brem_cross_section[0][0], "DarkAnn":self._resonant_annihilation_energy},
                                                 22:{"DarkComp":self._dark_compton_cross_section[0][0]},
-                                                111:{"TwoBody_BSMDecay":-1}}
+                                                111:{"TwoBody_BSMDecay":-1},
+                                                13:{"DarkMuonBrem":self._dark_muon_brem_cross_section[0][0]},
+                                                -13:{"DarkMuonBrem":self._dark_muon_brem_cross_section[0][0]}}
         
         if self.bound_electron:
             self._minimum_calculable_dark_energy[-11]["DarkAnn"] = self._resonant_annihilation_energy/1000.0
@@ -246,6 +242,9 @@ class DarkShower(Shower):
     def get_DarkBremXSec(self):
         """ Returns array of [energy,cross-section] values for brem """ 
         return self._dark_brem_cross_section 
+    def get_DarkMuonBremXSec(self):
+        """ Returns array of [energy,cross-section] values for muon brem """ 
+        return self._dark_muon_brem_cross_section
 
     def set_DarkAnnXSec(self):
         """ Returns array of [energy,cross-section] values for e+e- annihilation with a bound electron """ 
@@ -301,6 +300,9 @@ class DarkShower(Shower):
             self._NSigmaDarkAnn = interpolate1d(np.transpose(DAnnS)[0] - self._resonant_annihilation_energy, ne*GeVsqcm2*np.transpose(DAnnS)[1], xspace='log', yspace='log', fill_value=-20.0, bounds_error=False)
         self._NSigmaDarkComp = interpolate1d(np.transpose(DCS)[0], ne*GeVsqcm2*np.transpose(DCS)[1], xspace='log', yspace='log', fill_value=-20.0, bounds_error=False)
 
+        DMBSD = self.get_DarkMuonBremXSec()
+        self._NSigmaDarkMuonBrem = interpolate1d(np.transpose(DMBSD)[0], nZ*GeVsqcm2*np.transpose(DMBSD)[1], xspace='log', yspace='log', fill_value=-20.0, bounds_error=False)
+
     def _dark_ann_integrand(self, E, Ei):
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
         if self.bound_electron:
@@ -313,6 +315,10 @@ class DarkShower(Shower):
     def _dark_brem_integrand_positron(self, E, Ei):
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
         return self._NSigmaDarkBrem(E)/dEdxT_GeVpercm*self._positron_exponential_factor(E, Ei)
+
+    def _dark_muon_brem_integrand(self, E, Ei):
+        dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
+        return self._NSigmaDarkMuonBrem(E)/dEdxT_GeVpercm*self._muon_exponential_factor(E, Ei)
 
     def construct_brem_weight_array(self):
         DBS = self.get_DarkBremXSec()
@@ -340,6 +346,24 @@ class DarkShower(Shower):
                                                   quad(self._dark_brem_integrand_positron, energy_break_positrons[i], initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
 
         return [initial_energies, brem_elec_weight_array, brem_positron_weight_array]
+
+    def construct_muon_brem_weight_array(self):
+        DMBSD = self.get_DarkMuonBremXSec()
+        initial_energies = np.transpose(DMBSD)[0]
+
+        dEdxT_GeVperm = self.get_material_properties()[3]*(0.1)
+        mfp_muon_EI = np.array([self.get_mfp([13, Ei]) for Ei in initial_energies])
+        energy_loss_ten_mfp_muon = 10*mfp_muon_EI*dEdxT_GeVperm
+        minimum_energy_0 = initial_energies[0]
+        energy_break_muons = np.ones(len(initial_energies))*minimum_energy_0
+        for i in range(len(energy_break_muons)):
+            Eb_muon = initial_energies[i] - energy_loss_ten_mfp_muon[i]
+            if Eb_muon > minimum_energy_0:
+                energy_break_muons[i] = Eb_muon
+
+        dark_brem_weight_array = np.array([quad(self._dark_muon_brem_integrand, minimum_energy_0, energy_break_muons[i], args=(initial_energies[i]), full_output=1)[0] +
+                                                quad(self._dark_muon_brem_integrand, energy_break_muons[i], initial_energies[i], args=(initial_energies[i]), full_output=1)[0] for i in range(len(initial_energies))])
+        return [initial_energies, dark_brem_weight_array]
 
     def construct_annihilation_weight_array(self):
         DAnnS = self.get_DarkAnnXSec()
@@ -374,6 +398,7 @@ class DarkShower(Shower):
                 if self._target_material in outer_dict[self._mV_estimator].keys():
                     initial_energies_brem_elec, brem_elec_weight_array = np.transpose(outer_dict[self._mV_estimator][self._target_material]['brem_elec_weights'])
                     initial_energies_brem_positron, brem_positron_weight_array = np.transpose(outer_dict[self._mV_estimator][self._target_material]['brem_positron_weights'])
+                    initial_energies_muon_brem, muon_brem_weight_array = np.transpose(outer_dict[self._mV_estimator][self._target_material]['muon_brem_weights'])
                     if self.bound_electron is False and 'annihilation_weights' in outer_dict[self._mV_estimator][self._target_material].keys():
                         initial_energies_annihilation, annihilation_weight_array = np.transpose(outer_dict[self._mV_estimator][self._target_material]['annihilation_weights'])
                     elif self.bound_electron is False and 'annihilation_weights' not in outer_dict[self._mV_estimator][self._target_material].keys():
@@ -388,15 +413,18 @@ class DarkShower(Shower):
             initial_energies_brem_elec, brem_elec_weight_array, brem_positron_weight_array = self.construct_brem_weight_array()
             initial_energies_brem_positron = initial_energies_brem_elec
             initial_energies_annihilation, annihilation_weight_array = self.construct_annihilation_weight_array()
+            initial_energies_muon_brem, muon_brem_weight_array = self.construct_muon_brem_weight_array()
             if self._mV_estimator not in outer_dict.keys():
                 outer_dict[self._mV_estimator] = {}
             if self.bound_electron:
                 outer_dict[self._mV_estimator][self._target_material] = {'brem_elec_weights':np.transpose([initial_energies_brem_elec, brem_elec_weight_array]),
-                                                                        'brem_positron_weights':np.transpose([initial_energies_brem_positron, brem_positron_weight_array])}
+                                                                        'brem_positron_weights':np.transpose([initial_energies_brem_positron, brem_positron_weight_array]),
+                                                                        'muon_brem_weights': np.transpose([initial_energies_muon_brem, muon_brem_weight_array])}
             else: #only save the annihilation case if dealing with a free-electron calculation
                 outer_dict[self._mV_estimator][self._target_material] = {'brem_elec_weights':np.transpose([initial_energies_brem_elec, brem_elec_weight_array]),
                                                                         'brem_positron_weights':np.transpose([initial_energies_brem_positron, brem_positron_weight_array]),
-                                                                        'annihilation_weights':np.transpose([initial_energies_annihilation, annihilation_weight_array])}
+                                                                        'annihilation_weights':np.transpose([initial_energies_annihilation, annihilation_weight_array]),
+                                                                        'muon_brem_weights':np.transpose([initial_energies_muon_brem, muon_brem_weight_array])}
             
             sample_file=open(weights_file_name, 'wb')
             pickle.dump(outer_dict, sample_file)
@@ -404,6 +432,7 @@ class DarkShower(Shower):
 
         self._brem_elec_numerical_weight = interp1d(initial_energies_brem_elec, brem_elec_weight_array, fill_value=0.0, bounds_error=False)
         self._brem_positron_numerical_weight = interp1d(initial_energies_brem_positron, brem_positron_weight_array, fill_value=0.0, bounds_error=False)
+        self._muon_brem_numerical_weight = interp1d(initial_energies_muon_brem, muon_brem_weight_array, fill_value=0.0, bounds_error=False)
         if self.bound_electron: #explicitly calculate annihilation weight arrays if dealing with a bound-electron case
             initial_energies_annihilation, annihilation_weight_array = self.construct_annihilation_weight_array()
         self._annihilation_numerical_weight = interp1d(initial_energies_annihilation, annihilation_weight_array, fill_value=0.0, bounds_error=False)            
@@ -427,7 +456,18 @@ class DarkShower(Shower):
 
         brem_positron_weights = np.array([quad(self._dark_brem_integrand_positron, energy_array[i], energy_array[i+1], args=(Ei), full_output=1)[0] for i in range(len(energy_array)-1)])
         return np.transpose([energy_center_array, brem_positron_weights])
-    
+
+    def _d_rate_d_E_muon_brem(self, Ei):
+        dEdxT_GeVperm = self.get_material_properties()[3]*(0.1)
+        mfp_muon_EI = self.get_mfp([13, Ei])
+        energy_loss_ten_mfp = 10*mfp_muon_EI*dEdxT_GeVperm
+        energy_array = np.linspace(np.max([Ei-energy_loss_ten_mfp, self.get_DarkMuonBremXSec()[0][0]]), Ei, 11)
+        energy_center_array = np.array([(energy_array[i] + energy_array[i+1])/2. for i in range(len(energy_array)-1)])
+
+        muon_brem_weights = np.array([quad(self._dark_muon_brem_integrand, energy_array[i], energy_array[i+1], args=(Ei), full_output=1)[0] for i in range(len(energy_array)-1)])
+        return np.transpose([energy_center_array, muon_brem_weights])
+
+
     def _d_rate_d_E_positron_ann_bound(self, Ei):
         dEdxT_GeVperm = self.get_material_properties()[3]*(0.1)
         mfp_positron_EI = self.get_mfp([-11, Ei])
@@ -465,6 +505,9 @@ class DarkShower(Shower):
     def _d_rate_d_E_elec_brem_array(self):
         Ei_samp = np.transpose(self.get_DarkBremXSec())[0]
         return {Ei:self._d_rate_d_E_elec_brem(Ei) for Ei in Ei_samp}
+    def _d_rate_d_E_muon_brem_array(self):
+        Ei_samp = np.transpose(self.get_DarkMuonBremXSec())[0]
+        return {Ei:self._d_rate_d_E_muon_brem(Ei) for Ei in Ei_samp}
     def _d_rate_d_E_positron_brem_array(self):
         Ei_samp = np.transpose(self.get_DarkBremXSec())[0]
         return {Ei:self._d_rate_d_E_positron_brem(Ei) for Ei in Ei_samp}
@@ -489,7 +532,8 @@ class DarkShower(Shower):
                 if self._target_material in outer_dict[self._mV_estimator].keys():
                     d_rate_dict_elec_brem = outer_dict[self._mV_estimator][self._target_material]['brem_elec_drate']
                     d_rate_dict_positron_brem = outer_dict[self._mV_estimator][self._target_material]['brem_positron_drate']
-                    if self.bound_electron is False and 'annihilation_drate' in outer_dict[self._mV_estimator][self._target_material].keys():
+                    d_rate_dict_muon_brem = outer_dict[self._mV_estimator][self._target_material]['muon_brem_drate']
+                    if self.bound_electron is False and 'annihilation_drate' in outer_dict[self._mV_estimator['self._target_material']].keys():
                         d_rate_dict_positron_ann = outer_dict[self._mV_estimator][self._target_material]['annihilation_drate']
                     elif self.bound_electron is False and 'annihilation_drate' not in outer_dict[self._mV_estimator][self._target_material].keys():
                         d_rate_dict_positron_ann = self._d_rate_d_E_positron_ann_array()
@@ -506,6 +550,7 @@ class DarkShower(Shower):
             print("dRate not previously calculated, calculating now...")
             d_rate_dict_elec_brem = self._d_rate_d_E_elec_brem_array()
             d_rate_dict_positron_brem = self._d_rate_d_E_positron_brem_array()
+            d_rate_dict_muon_brem = self._d_rate_d_E_muon_brem_array()
             if self.bound_electron:
                 d_rate_dict_positron_ann = self._d_rate_d_E_positron_ann_bound_array()
             elif self.bound_electron == False:
@@ -516,10 +561,12 @@ class DarkShower(Shower):
             
             if self.bound_electron:
                 outer_dict[self._mV_estimator][self._target_material] = {'brem_elec_drate':d_rate_dict_elec_brem,
-                                                                        'brem_positron_drate':d_rate_dict_positron_brem}
+                                                                        'brem_positron_drate':d_rate_dict_positron_brem,
+                                                                        'muon_brem_drate':d_rate_dict_muon_brem}
             else: #only save the annihilation case if dealing with a free-electron calculation
                 outer_dict[self._mV_estimator][self._target_material] = {'brem_elec_drate':d_rate_dict_elec_brem,
                                                                          'brem_positron_drate':d_rate_dict_positron_brem,
+                                                                         'muon_brem_drate':d_rate_dict_muon_brem,
                                                                           'annihilation_drate':d_rate_dict_positron_ann}
 
             sample_file=open(drate_file_name, 'wb')
@@ -529,6 +576,7 @@ class DarkShower(Shower):
         self._d_rate_dict_elec_brem = d_rate_dict_elec_brem
         self._d_rate_dict_positron_brem = d_rate_dict_positron_brem
         self._d_rate_dict_positron_ann = d_rate_dict_positron_ann
+        self._d_rate_dict_muon_brem = d_rate_dict_muon_brem
 
     def GetBSMWeights(self, particle, process):
         if isinstance(particle, list) or isinstance(particle, np.ndarray):
@@ -572,8 +620,13 @@ class DarkShower(Shower):
                 return 2*(self.kinetic_mixing)**2*(1.0 - mass_ratio**2)**3*meson_twobody_branchingratios[particle.get_ids()["PID"]]
             else:
                 return 0.0
+        #if np.abs(PID) == 13 and process == "DarkMuonBrem":
+        #    return (self.g_e**2/(4*np.pi*alpha_em))*self._muon_brem_numerical_weight(energy_initial)
         else:
-            return 0.0
+            if np.abs(PID) == 13 and process == "DarkMuonBrem":
+                return (self.g_e**2/(4*np.pi*alpha_em))*self._muon_brem_numerical_weight(energy_initial)
+            else:      
+                return 0.0
 
     def draw_dark_sample(self,Einc,LU_Key=-1,process="DarkBrem",VB=False):
         dark_sample_list=self._loaded_dark_samples 
@@ -599,9 +652,13 @@ class DarkShower(Shower):
 
 
         event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min, 'Zeff':self.Zeff}
-        
-        if process in diff_xsection_options:
-            diff_xsec_func = diff_xsection_options[process]
+        if process == "DarkBrem":
+            event_info['m_lepton'] = m_electron
+        elif process == "DarkMuonBrem":
+            event_info['m_lepton'] = m_muon
+
+        if process in dark_diff_xsection_options:
+            diff_xsec_func = dark_diff_xsection_options[process]
         else:
             raise Exception("Your process is not in the list")
         f_integrand = diff_xsec_func(event_info=event_info, ndim=dimensionalities_dark[process])
@@ -656,6 +713,8 @@ class DarkShower(Shower):
                 dict_samp = self._d_rate_dict_elec_brem
             else:
                 dict_samp = self._d_rate_dict_positron_brem
+        elif process == "DarkMuonBrem":
+            dict_samp = self._d_rate_dict_muon_brem
         if dict_samp is not None:
             energies_saved = np.array(list(dict_samp.keys()))
 
