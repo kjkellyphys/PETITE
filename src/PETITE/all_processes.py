@@ -2,7 +2,7 @@ import numpy as np
 import vegas as vg
 import random as rnd
 
-from PETITE.physical_constants import m_electron, m_proton, GeV, alpha_em
+from PETITE.physical_constants import m_electron, m_muon, m_proton, GeV, alpha_em
 from PETITE.radiative_return import lepton_luminosity_integrand
 from PETITE.radiative_return import transformed_lepton_luminosity_integrand
 
@@ -41,7 +41,7 @@ def pair_production_q_sq_dimensionless(xx, EI):
     )
 
 def brem_q_sq_dimensionless(xx, EI):
-    """Momentum Transfer Squared for electron/positron bremsstrahlung
+    """Momentum Transfer Squared for lepton/antilepton bremsstrahlung
     Args:
         xx: tuple consisting of kinematic rescaled kinematic variables
         EI: dictionary with incident energy 'E_inc' and minimum photon energy 'Eg_min'
@@ -51,17 +51,18 @@ def brem_q_sq_dimensionless(xx, EI):
     x1, x2, x3, x4 = xx
     Egamma_min = EI["Eg_min"]
     ep = EI["E_inc"]
+    m_lep = EI["m_lepton"] if "m_lepton" in EI.keys() else m_electron
     w, d, dp, ph = (
-        Egamma_min + x1 * (ep - m_electron - Egamma_min),
-        ep / (2 * m_electron) * (x2 + x3),
-        ep / (2 * m_electron) * (x2 - x3),
+        Egamma_min + x1 * (ep - m_lep - Egamma_min),
+        ep / (2 * m_lep) * (x2 + x3),
+        ep / (2 * m_lep) * (x2 - x3),
         (x4 - 1 / 2) * 2 * np.pi,
     )
 
     epp = ep - w
-    return m_electron**2 * (
+    return m_lep**2 * (
         (d**2 + dp**2 - 2 * d * dp * np.cos(ph))
-        + m_electron**2 * ((1 + d**2) / (2 * ep) - (1 + dp**2) / (2 * epp)) ** 2
+        + m_lep**2 * ((1 + d**2) / (2 * ep) - (1 + dp**2) / (2 * epp)) ** 2
     )
 
 def darkbrem_qsq(xx, EI):
@@ -76,13 +77,14 @@ def darkbrem_qsq(xx, EI):
 
     Ebeam = EI["E_inc"]
     MTarget = EI["mT"]
-    
+    m_lep = EI["m_lepton"] if "m_lepton" in EI.keys() else m_electron
+
     tconv = (
         2
         * MTarget
         * (MTarget + Ebeam)
-        * np.sqrt(Ebeam**2 + m_electron**2)
-        / (MTarget * (MTarget + 2 * Ebeam) + m_electron**2)
+        * np.sqrt(Ebeam**2 + m_lep**2)
+        / (MTarget * (MTarget + 2 * Ebeam) + m_lep**2)
     ) ** 2
     return ttilde * tconv
 
@@ -113,6 +115,8 @@ def Gelastic_inelastic_over_tsquared(EI, t):
     Rescaled by 1/t^2 to make it easier to integrate over t
     (Scales like Z^2 in the small-t limit)
     See Eq. (9) of Gninenko et al (Phys. Lett. B 782 (2018) 406-411)
+    Note: m_electron factors here are empirically determined and related to atomic form factors
+          --they do *not* change when considering muon scattering off nucleus
     """
     Z = EI["Z_T"]
     A = EI["A_T"]
@@ -134,7 +138,7 @@ def Gelastic_inelastic_over_tsquared(EI, t):
 
 @vg.lbatchintegrand
 class dsigma_brem_dimensionless:
-    def __init__(self, event_info, ndim):
+    def __init__(self, event_info, ndim, batch_mode=False):
         """Standard Model Bremsstrahlung in the Small-Angle Approximation
         e (ep) + Z -> e (epp) + gamma (w) + Z
         Outgoing kinematics given by w, d (delta), dp (delta'), and ph (phi)
@@ -144,6 +148,7 @@ class dsigma_brem_dimensionless:
         """
         self.event_info = event_info
         self.ndim = ndim
+        self.batch_mode = batch_mode
     
     def __call__(self, phase_space_par_list):
         # return c_dsigma_brem_dimensionless(
@@ -151,45 +156,43 @@ class dsigma_brem_dimensionless:
         # )
         ep = self.event_info["E_inc"]
         Egamma_min = self.event_info["Eg_min"]
-        mV = 0  # NOTE: not needed?
-        if len(np.shape(phase_space_par_list)) == 1:
-            phase_space_par_list = np.array([phase_space_par_list])
-        # for variables in phase_space_par_list:
-        try:
-            x1, x2, x3, x4 = phase_space_par_list
-        except:
+        m_lepton = self.event_info["m_lepton"] 
+        
+        if self.batch_mode:
             x1, x2, x3, x4 = phase_space_par_list.T
+        else:
+            x1, x2, x3, x4 = phase_space_par_list
         w, d, dp, ph = (
-            Egamma_min + x1 * (ep - m_electron - Egamma_min),
-            ep / (2 * m_electron) * (x2 + x3),
-            ep / (2 * m_electron) * (x2 - x3),
+            Egamma_min + x1 * (ep - m_lepton - Egamma_min),
+            ep / (2 * m_lepton) * (x2 + x3),
+            ep / (2 * m_lepton) * (x2 - x3),
             (x4 - 1 / 2) * 2 * np.pi,
         )
 
         epp = ep - w
         allowed_kinematics = (
             (Egamma_min < w)
-            & (w < ep - m_electron)
-            & (m_electron < epp)
+            & (w < ep - m_lepton)
+            & (m_lepton < epp)
             & (epp < ep)
             & (d > 0.0)
             & (dp > 0.0)
         )
-        qsq = m_electron**2 * (
+        qsq = m_lepton**2 * (
             (d**2 + dp**2 - 2 * d * dp * np.cos(ph))
-            + m_electron**2 * ((1 + d**2) / (2 * ep) - (1 + dp**2) / (2 * epp)) ** 2
+            + m_lepton**2 * ((1 + d**2) / (2 * ep) - (1 + dp**2) / (2 * epp)) ** 2
         )
         PF = (
             8.0
             / np.pi
             * alpha_em
-            * (alpha_em / m_electron) ** 2
-            * (epp * m_electron**4)
+            * (alpha_em / m_lepton) ** 2
+            * (epp * m_lepton**4)
             / (w * ep * qsq**2)
             * d
             * dp
         )
-        jacobian_factor = np.pi * ep**2 * (ep - m_electron - Egamma_min) / m_electron**2
+        jacobian_factor = np.pi * ep**2 * (ep - m_lepton - Egamma_min) / m_lepton**2
         FF = g2_elastic(self.event_info, qsq)
         T1 = d**2 / (1 + d**2) ** 2
         T2 = dp**2 / (1 + dp**2) ** 2
@@ -200,35 +203,35 @@ class dsigma_brem_dimensionless:
             print(dSigs, PF, T1, T2, T3, T4, qsq, jacobian_factor, FF)
             print([x1, x2, x3, x4])
             print([w, d, dp, ph])
-            # dSigs.append(dSig0) # NOTE: not needed?
         return dSigs
 
 class dsig_dx_dcostheta_dark_brem_exact_tree_level:
-    def __init__(self, event_info, ndim):
+    def __init__(self, event_info, ndim, batch_mode=False):
         """
         Exact Tree-Level Dark Photon Bremsstrahlung
-        e (ep) + Z -> e (epp) + V (w) + Z
+        ell (ep) + Z -> ell (epp) + V (w) + Z
         result it dsigma/dx/dcostheta where x=E_darkphoton/E_beam and theta is angle between beam and dark photon
         Input parameters needed:
             x0, x1, x2:  kinematic parameters related to energy of emitted vector, cosine of its angle
                             and the momentum transfer to the nucleus (precise relation depends on event_info['Method'] see below.
-            me (mass of electron)
+            mlepton (mass of incident lepton)
             mV (mass of dark photon)
-            Ebeam (incident electron energy)
+            Ebeam (incident lepton energy)
             ZTarget (Target charge)
             ATarget (Target Atomic mass number)
             MTarget (Target mass)
         """
         self.event_info = event_info
         self.ndim = ndim
+        self.batch_mode = batch_mode
 
     def __call__(self, phase_space_par_list):
-        try:
-            x0, x1, x2 = phase_space_par_list
-        except:
+        if self.batch_mode:
             x0, x1, x2 = phase_space_par_list.T
+        else:
+            x0, x1, x2 = phase_space_par_list
 
-        me = m_electron
+        m_lepton = self.event_info["m_lepton"] 
         mV = self.event_info["mV"]
         Ebeam = self.event_info["E_inc"]
         MTarget = self.event_info["mT"]
@@ -246,7 +249,7 @@ class dsig_dx_dcostheta_dark_brem_exact_tree_level:
             Jacobian = 1.0
 
         k = np.sqrt((x * Ebeam) ** 2 - mV**2)
-        p = np.sqrt(Ebeam**2 - me**2)
+        p = np.sqrt(Ebeam**2 - m_lepton**2)
         V = np.sqrt(p**2 + k**2 - 2 * p * k * costheta)
 
         utilde = -2 * (x * Ebeam**2 - k * p * costheta) + mV**2
@@ -278,8 +281,8 @@ class dsig_dx_dcostheta_dark_brem_exact_tree_level:
             2
             * MTarget
             * (MTarget + Ebeam)
-            * np.sqrt(Ebeam**2 + m_electron**2)
-            / (MTarget * (MTarget + 2 * Ebeam) + m_electron**2)
+            * np.sqrt(Ebeam**2 + m_lepton**2)
+            / (MTarget * (MTarget + 2 * Ebeam) + m_lepton**2)
         ) ** 2
 
         t = ttilde * tconv
@@ -287,15 +290,15 @@ class dsig_dx_dcostheta_dark_brem_exact_tree_level:
         q0 = -t / (2 * MTarget)
         q = np.sqrt(t**2 / (4 * MTarget**2) + t)
 
-        costhetaq = -(V**2 + q**2 + me**2 - (Ebeam + q0 - x * Ebeam) ** 2) / (2 * V * q)
+        costhetaq = -(V**2 + q**2 + m_lepton**2 - (Ebeam + q0 - x * Ebeam) ** 2) / (2 * V * q)
 
-        mVsq2mesq = mV**2 + 2 * me**2
+        mVsq2mlepsq = mV**2 + 2 * m_lepton**2
 
         Am2 = (
             -8
             * MTarget
             * (4 * Ebeam**2 * MTarget - t * (2 * Ebeam + MTarget))
-            * mVsq2mesq
+            * mVsq2mlepsq
         )
         A1 = 8 * MTarget**2 / utilde
         Am1 = (8 / utilde) * (
@@ -303,16 +306,16 @@ class dsig_dx_dcostheta_dark_brem_exact_tree_level:
             * (
                 2 * t * utilde
                 + utilde**2
-                + 4 * Ebeam**2 * (2 * (x - 1) * mVsq2mesq - t * ((x - 2) * x + 2))
-                + 2 * t * (-(mV**2) + 2 * me**2 + t)
+                + 4 * Ebeam**2 * (2 * (x - 1) * mVsq2mlepsq - t * ((x - 2) * x + 2))
+                + 2 * t * (-(mV**2) + 2 * m_lepton**2 + t)
             )
-            - 2 * Ebeam * MTarget * t * ((1 - x) * utilde + (x - 2) * (mVsq2mesq + t))
+            - 2 * Ebeam * MTarget * t * ((1 - x) * utilde + (x - 2) * (mVsq2mlepsq + t))
             + t**2 * (utilde - mV**2)
         )
         A0 = (8 / utilde**2) * (
             MTarget**2
-            * (2 * t * utilde + (t - 4 * Ebeam**2 * (x - 1) ** 2) * mVsq2mesq)
-            + 2 * Ebeam * MTarget * t * (utilde - (x - 1) * mVsq2mesq)
+            * (2 * t * utilde + (t - 4 * Ebeam**2 * (x - 1) ** 2) * mVsq2mlepsq)
+            + 2 * Ebeam * MTarget * t * (utilde - (x - 1) * mVsq2mlepsq)
         )
         Y = -t + 2 * q0 * Ebeam - 2 * q * p * (p - k * costheta) * costhetaq / V
         W = (
@@ -327,9 +330,24 @@ class dsig_dx_dcostheta_dark_brem_exact_tree_level:
         #         [Y, q, p, k, costheta, costhetaq, V],
         #     )
 
-        phi_integral = (A0 + Y * A1 + Am1 / np.sqrt(W) + Y * Am2 / W**1.5) / (
-            8 * MTarget**2
+        # kinematic boundaries
+        allowed_kinematics = (
+            (x * Ebeam >= mV)
+            & (discr >= 0)
+            & (tplus > tminus)
+            & (t > tminus)
+            & (t < tplus)
+            & (np.fabs(costhetaq) <= 1.0)
+            & (W > 0)
         )
+        phi_integral = np.where(allowed_kinematics, 
+                                (A0 + Y * A1 + Am1 / np.sqrt(W) + Y * Am2 / W**1.5) / (
+                                8 * MTarget**2
+                                ),
+                                0.0)
+        #phi_integral = (A0 + Y * A1 + Am1 / np.sqrt(W) + Y * Am2 / W**1.5) / (
+        #    8 * MTarget**2
+        #)
 
         formfactor_separate_over_tsquared = Gelastic_inelastic_over_tsquared(
             self.event_info, t
@@ -342,17 +360,6 @@ class dsig_dx_dcostheta_dark_brem_exact_tree_level:
             * Ebeam
             * phi_integral
             / (p * np.sqrt(k**2 + p**2 - 2 * p * k * costheta))
-        )
-
-        # kinematic boundaries
-        allowed_kinematics = (
-            (x * Ebeam >= mV)
-            & (discr >= 0)
-            & (tplus > tminus)
-            & (t > tminus)
-            & (t < tplus)
-            & (np.fabs(costhetaq) <= 1.0)
-            & (W > 0)
         )
 
         return np.where(allowed_kinematics, ans * tconv * Jacobian, 0)
@@ -385,7 +392,7 @@ def dsigma_radiative_return_dx(event_info, x):
 
 @vg.lbatchintegrand
 class dsigma_radiative_return_du:
-    def __init__(self, event_info, ndim):
+    def __init__(self, event_info, ndim, batch_mode=False):
         """
         Radiative return cross-section e^+ e^- > V differential with respect to the longitudinal momentum fraction
         carried by one of beam particles
@@ -399,6 +406,7 @@ class dsigma_radiative_return_du:
         """
         self.event_info = event_info
         self.ndim = ndim
+        self.batch_mode = batch_mode
             
     def __call__(self, phase_space_par_list):
 
@@ -431,7 +439,11 @@ class dsigma_radiative_return_du:
             the factor of 2 comes from splitting the [y,1] integration into [y,sqrt(y)] + [sqrt(y),1], 
             and using x-> y/x in the first part comes from splitting the [y,1] integration into [y,sqrt(y)] + [sqrt(y),1]
         """
-        u0 = np.array(phase_space_par_list)
+        if self.batch_mode:
+            u0 = phase_space_par_list[:, 0]
+        else:
+            u0 = phase_space_par_list[0]
+        #u0 = np.array(phase_space_par_list)
         x1 = 1.0 - np.power(u0 * umax, 2.0 / beta)
         x2 = mV**2 / (x1 * s)
 
@@ -511,7 +523,7 @@ class dsigma_annihilation_dCT:
 
 @vg.lbatchintegrand
 class dsigma_pairprod_dimensionless:
-    def __init__(self, event_info, ndim):
+    def __init__(self, event_info, ndim, batch_mode=False):
         """Standard Model Pair Production in the Small-Angle Approximation
         gamma (w) + Z -> e+ (epp) + e- (epm) + Z
         Outgoing kinematics given by epp, dp (delta+), dm (delta-), and ph (phi)
@@ -522,15 +534,16 @@ class dsigma_pairprod_dimensionless:
         """
         self.event_info = event_info
         self.ndim = ndim
+        self.batch_mode = batch_mode
 
     def __call__(self, phase_space_par_list):
 
         w = self.event_info["E_inc"]
 
-        try:
-            x1, x2, x3, x4 = phase_space_par_list
-        except:
+        if self.batch_mode:
             x1, x2, x3, x4 = phase_space_par_list.T
+        else:
+            x1, x2, x3, x4 = phase_space_par_list
         epp, dp, dm, ph = (
             m_electron + x1 * (w - 2 * m_electron),
             w / (2 * m_electron) * (x2 + x3),
@@ -818,7 +831,71 @@ class dsigma_moller_dCT:
         )
 
         return dSigs
+    
+@vg.lbatchintegrand
+class dsigma_muonelectron_dCT:
+    def __init__(self, event_info, ndim, batch_mode=False):
+        """Moller Scattering of a Muon off an at-rest Electron
+        mu- (Einc) + e- (me) -> mu- + e-
 
+        Input parameters needed:
+            Einc (incident muonon energy)
+        """
+        self.event_info = event_info
+        self.ndim = ndim
+        self.batch_mode = batch_mode
+
+    def __call__(self, phase_space_par_list):
+
+        Emu = self.event_info["E_inc"]
+        s = m_electron**2 + m_muon**2 + 2*m_electron*Emu
+        if "Ee_min" in self.event_info.keys():
+            DE = self.event_info["Ee_min"]
+        else:
+            DE = 0.010
+
+        t_limit = 2.0*m_electron*(m_electron - DE)
+        #delta_ct_limit = 2.0 * DE / (Ee - m_electron)
+
+        if self.batch_mode:
+            ct = phase_space_par_list[:, 0]
+        else:
+            ct = phase_space_par_list[0]
+
+        t = - 2.0*(1 - ct)*((s + m_electron**2 - m_muon**2)**2/(4.0*s) - m_electron**2)
+        #ct = np.asarray(phase_space_par_list)
+        #if self.batch_mode:
+        #    ct = ct[:, 0]
+
+        allowed_kinematics = (t < t_limit)
+        #allowed_kinematics = (ct > -1 + delta_ct_limit) & (ct < 1.0 - delta_ct_limit)
+        #s = m_electron**2 + 2 * Ee * m_electron
+        dSigs = np.where(
+            allowed_kinematics,
+            16*np.pi**2*alpha_em**2*(s**2 + 2*(m_electron**2 + m_muon**2)*(2*t + m_muon**2 - 3*m_electron**2) + (s + t - 4*m_electron**2)**2)/(16*np.pi*s*t**2),
+            0,
+        )
+        
+        return dSigs
+
+def sigma_muone(event_info):
+    """Total cross section for Muon-electron scattering"""
+    Emu = event_info["E_inc"]
+    EeMIN = event_info["Ee_min"]
+
+    threshold = 1.0/(2.0*m_electron)*(m_electron*(EeMIN - m_electron) + np.sqrt(m_electron*(EeMIN+m_electron)*(m_electron*(EeMIN-m_electron) + 2*m_muon**2)))
+
+    s = m_electron**2 + m_muon**2 + 2*m_electron*Emu
+    t_max = 2.0*m_electron*(m_electron - EeMIN)
+    t_min = -4.0*((s + m_electron**2 - m_muon**2)**2/(4*s) - m_electron**2)
+
+    PF = 16*np.pi**2*alpha_em**2/(8.0*np.pi*((s-m_muon**2)**2 + m_electron**4 - 2*(s+m_muon**2)*m_electron**2))
+
+    T1 = -2.0*(s**2 + m_muon**4 + 5*m_electron**4 - 2*m_electron**2*(2*s+m_muon**2))*(1.0/t_max - 1.0/t_min)
+    T2 = 2.0*(s + 2*m_muon**2 - 2*m_electron**2)*np.log(t_max/t_min)
+    T3 = t_max - t_min
+
+    return PF*(T1+T2+T3)*np.heaviside(Emu - threshold, 1)
 
 def sigma_moller(event_info):
     """Total cross section for Moller scattering"""
@@ -987,27 +1064,33 @@ diff_xsection_options = {
     "PairProd": dsigma_pairprod_dimensionless,
     "Comp": dsigma_compton_dCT,
     "Moller": dsigma_moller_dCT,
+    "MuonE": dsigma_muonelectron_dCT,
     "Bhabha": dsigma_bhabha_dCT,
     "Brem": dsigma_brem_dimensionless,
+    "MuonBrem": dsigma_brem_dimensionless,
     "Ann": dsigma_annihilation_dCT,
     "DarkAnn": dsigma_radiative_return_du,  # dsigma_radiative_return_dx,
     "DarkComp": dsigma_compton_dCT,
     "DarkBrem": dsig_dx_dcostheta_dark_brem_exact_tree_level,
+    "DarkMuonBrem": dsig_dx_dcostheta_dark_brem_exact_tree_level,
 }
 
 vegas_integrator_options = {"PairProd":{"nitn":10, "nstrat":[60, 50, 40, 50]},
                             "Brem":{"nitn":10, "nstrat":[60, 50, 50, 50]},
+                            "MuonBrem":{"nitn":10, "nstrat":[60, 50, 50, 50]},
                             "DarkBrem":{"nitn":20, "nstrat":[100, 100, 40]},
+                            "DarkMuonBrem":{"nitn":20, "nstrat":[100, 100, 40]},
                             "Comp":{"nitn":20, "nstrat":[1000]},
                             "Moller":{"nitn":20, "nstrat":[1000]},
+                            "MuonE":{"nitn":20, "nstrat":[1000]},
                             "Bhabha":{"nitn":20, "nstrat":[1000]},
                             "Ann":{"nitn":20, "nstrat":[1000]},
                             "DarkAnn":{"nitn":10, "neval":10000},
                             "DarkComp":{"nitn":20, "nstrat":[1000]}}
       
-four_dim = {"PairProd", "Brem"}
-three_dim = {"DarkBrem"}
-one_dim = {"Comp", "Ann","Moller","Bhabha", "DarkAnn", "DarkComp"}
+four_dim = {"PairProd", "Brem", "MuonBrem"}
+three_dim = {"DarkBrem", "DarkMuonBrem"}
+one_dim = {"Comp", "Ann","Moller","MuonE","Bhabha", "DarkAnn", "DarkComp"}
 
 def integration_range(event_info, process):
     """Defines the integration range for the VEGAS integrator given a specific process
@@ -1047,7 +1130,7 @@ def integration_range(event_info, process):
             xmin = 0.
         return [[max(xmin, mV/EInc), 1.-m_electron/EInc],[-12.0, l1mct_max], [-20.0, 0.0]]
     elif process in one_dim:
-        if process == "Comp" or process == "Ann" or process == "DarkComp":
+        if process == "Comp" or process == "Ann" or process == "DarkComp" or process == "MuonE":
             return [[-1., 1.0]]
         elif process == "DarkAnn":
             #beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
@@ -1073,6 +1156,7 @@ def vegas_integration(event_info, process, verbose=False, mode="XSec"):
 
     Available Processes ('Process'):
      -- 'Brem': Standard Model e + Z -> e + gamma + Z
+     -- 'MuonBrem': Standard Model mu + Z -> mu + gamma + Z
      -- 'DarkBrem': BSM e + Z -> e + V + Z
      -- 'PairProd': SM gamma + Z -> e^+ + e^- + Z
      -- 'Comp': SM/BSM gamma + e -> e + gamma/V
@@ -1106,6 +1190,10 @@ def vegas_integration(event_info, process, verbose=False, mode="XSec"):
             event_info["Eg_min"] = 0.001
         if not ("Ee_min" in event_info.keys()):
             event_info["Ee_min"] = 0.005
+        if not ("m_lepton" in event_info.keys()):
+            event_info["m_lepton"] = m_electron
+        if process == "MuonBrem":
+            event_info["m_lepton"] = m_muon
         igrange = integration_range(event_info, process)
         diff_xsec_func = diff_xsection_options[process]
     else:
@@ -1113,7 +1201,7 @@ def vegas_integration(event_info, process, verbose=False, mode="XSec"):
             f"Could not find process {process} in available processes: {diff_xsection_options.keys()}"
         )
     integ = vg.Integrator(igrange)
-    f_integrand = diff_xsec_func(event_info=event_info, ndim=len(igrange))
+    f_integrand = diff_xsec_func(event_info=event_info, ndim=len(igrange), batch_mode=True)
 
     if mode == "Pickle" or mode == "XSec":
         if verbose:

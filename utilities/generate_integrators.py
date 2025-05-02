@@ -95,7 +95,7 @@ def make_integrators(params, process, paralellize=True, overwrite=False):
         mV = 0.0
     else:
         mV = params['mV']
-    if process == 'DarkBrem' or process == 'DarkAnn' or process == 'DarkComp':
+    if process == 'DarkBrem' or process == 'DarkAnn' or process == 'DarkComp' or process == 'DarkMuonBrem':
         if 'training_target' not in params:
             raise ValueError("Training target must be specified when running DarkBrem")
         else:
@@ -207,6 +207,7 @@ def call_find_maxes(params, list_of_processes, verbose=False):
         ("DarkBrem" in list_of_processes)
         or ("DarkAnn" in list_of_processes)
         or ("DarkComp" in list_of_processes)
+        or ("DarkMuonBrem" in list_of_processes)
     ):
         find_maxes.main_dark(find_maxes_params)
     else:

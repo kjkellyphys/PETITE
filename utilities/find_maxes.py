@@ -10,7 +10,7 @@
 import os
 
 import PETITE.all_processes as proc
-from PETITE.physical_constants import target_information
+from PETITE.physical_constants import target_information, m_electron, m_muon
 import pickle
 import copy
 import numpy as np
@@ -24,10 +24,13 @@ from tqdm import tqdm
 process_info ={    'PairProd' : {'diff_xsection': proc.dsigma_pairprod_dimensionless},
                    'Comp'     : {'diff_xsection': proc.dsigma_compton_dCT},
                     'Brem'     : {'diff_xsection': proc.dsigma_brem_dimensionless},
+                    'MuonBrem' : {'diff_xsection': proc.dsigma_brem_dimensionless},
                     'Ann'      : {'diff_xsection': proc.dsigma_annihilation_dCT},
                     'Moller'   : {'diff_xsection': proc.dsigma_moller_dCT},
                     'Bhabha'   : {'diff_xsection': proc.dsigma_bhabha_dCT},
+                    'MuonE'    : {'diff_xsection': proc.dsigma_muonelectron_dCT},
                     'DarkBrem': {'diff_xsection': proc.dsig_dx_dcostheta_dark_brem_exact_tree_level},
+                    'DarkMuonBrem': {'diff_xsection': proc.dsig_dx_dcostheta_dark_brem_exact_tree_level},
                     'DarkAnn':  {'diff_xsection': proc.dsigma_radiative_return_du},
                     'DarkComp': {'diff_xsection':proc.dsigma_compton_dCT}}
 
@@ -70,6 +73,7 @@ def do_find_max_work(params, process_file):
 
     integrand = vegas.Integrator(map=integrand_or_map, **proc.vegas_integrator_options[event_info['process']])#nstrat=nstrat_options[params['process']])
     save_copy = copy.deepcopy(integrand_or_map)
+    integrand.set(max_nhcube=1, neval=params["neval"])
 
     max_F_TM = {}
     xSec = {}
@@ -77,24 +81,33 @@ def do_find_max_work(params, process_file):
         xSec[tm] = 0.0
         max_F_TM[tm] = 0.0
 
-    batch_f = diff_xsec(
-        event_info, len(proc.integration_range(event_info, event_info["process"]))
-    )
-    integrand.set(max_nhcube=1, neval=params["neval"])
-    for trial_number in range(params["n_trials"]):
-        for x, wgt in integrand.random_batch():  # scan over integrand
+    for tm in params['process_targets']:
+        event_info_target = copy.deepcopy(event_info)
+        event_info_target["Z_T"] = target_information[tm]["Z_T"]
+        event_info_target["A_T"] = target_information[tm]["A_T"]
+        event_info_target["mT"] = target_information[tm]["mT"]
+        if event_info['process'] == "Brem":
+            event_info_target["m_lepton"] = m_electron
+        elif event_info['process'] == "MuonBrem":
+            event_info_target["m_lepton"] = m_muon
+        if event_info['process'] == "DarkBrem":
+            event_info_target["m_lepton"] = m_electron
+        elif event_info['process'] == "DarkMuonBrem":
+            event_info_target["m_lepton"] = m_muon
 
-            for tm in params["process_targets"]:
-                event_info_target = copy.deepcopy(event_info)
-                event_info_target["Z_T"] = target_information[tm]["Z_T"]
-                event_info_target["A_T"] = target_information[tm]["A_T"]
-                event_info_target["mT"] = target_information[tm]["mT"]
-                if "mV" in params:
-                    event_info_target["mV"] = params["mV"]
-                MM = np.max(wgt * batch_f(x))
-                if MM > max_F_TM[tm]:
-                    max_F_TM[tm] = MM
-                xSec[tm] += MM / params["n_trials"]
+
+        if "mV" in params:
+            event_info_target["mV"] = params["mV"]
+
+        batch_f = diff_xsec(
+            event_info_target, len(proc.integration_range(event_info_target, event_info_target["process"])), batch_mode=True
+        )
+        for trial_number in range(params["n_trials"]):
+            for x, wgt in integrand.random_batch():  # scan over integrand
+                MM = wgt * batch_f(x)
+                if np.max(MM) > max_F_TM[tm]:
+                    max_F_TM[tm] = np.max(MM)
+                xSec[tm] += np.sum(MM) / params["n_trials"]
 
     samp_dict_info = {"neval":params['neval'], "max_F": {tm:max_F_TM[tm] for tm in params['process_targets']}, "adaptive_map": save_copy}
     if "Eg_min" in event_info.keys():
@@ -142,7 +155,7 @@ def main(params):
     # Before starting, check for invalid processes
     for process in params['process']:
         # if process is not in list of processes, raise an error
-        if process not in ['PairProd', 'Comp', 'Ann', 'Brem', 'Moller', 'Bhabha']:
+        if process not in ['PairProd', 'Comp', 'Ann', 'Brem', 'Moller', 'Bhabha', 'MuonE', 'MuonBrem']:
             raise ValueError('Process \'', process ,'\' not in list of available processes for standard model showers.')
 
     # Loop over all processes
@@ -159,7 +172,7 @@ def main(params):
             print(
                 f"Tried to load adaptive maps {adaptive_maps_file} but could not find them.",
             )
-            path = params["save_location"] + process + "/"
+            path = params["save_location"] + '/' + process + "/"
             adaptive_maps_file = path + process + "_AdaptiveMaps.npy"
             print(f"Trying again at {adaptive_maps_file}")
             adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
@@ -241,7 +254,7 @@ def main_dark(params):
         # Before starting, check for invalid processes
         for process in params['process']:
             # if process is not in list of processes, raise an error
-            if process not in ['DarkBrem', 'DarkAnn', 'DarkComp']:
+            if process not in ['DarkBrem', 'DarkAnn', 'DarkComp', 'DarkMuonBrem']:
                 raise ValueError('Process \'', process ,'\' not in list of available processes for dark showers.')
 
         # Loop over all processes

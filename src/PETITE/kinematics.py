@@ -10,7 +10,7 @@ Egamma_min = 0.001
 def e_to_egamma_fourvecs(p0, sampled_event):
     """Reconstruct electron and photon four vectors from 
     mc-sampled kinematic variables for electron/positron 
-    SM brem e N -> e N gamma
+    SM brem l N -> l N gamma
     Args:
         p0: incoming electron/positron Particle object
         sampled_event: MC event sample of outgoing kinematics
@@ -19,16 +19,17 @@ def e_to_egamma_fourvecs(p0, sampled_event):
         momenta in that order
     """
     ep = p0.get_pf()[0]
+    m_lepton = p0.get_ids()['mass']
     x1, x2, x3, x4 = sampled_event[:4]
-    w = Egamma_min + x1*(ep - m_electron - Egamma_min)
+    w = Egamma_min + x1*(ep - m_lepton - Egamma_min)
     ct = np.cos((x2+x3)/2)
     ctp = np.cos((x2-x3)*ep/(2*(ep-w)))
     ph = (x4-1/2)*2.0*np.pi
 
     epp = ep - w
-    p, pp = np.sqrt(ep**2 - m_electron**2), np.sqrt(epp**2 - m_electron**2)
+    p, pp = np.sqrt(ep**2 - m_lepton**2), np.sqrt(epp**2 - m_lepton**2)
 
-    Em4v = [ep, 0, 0, p] #Four-vector of electron
+    Em4v = [ep, 0, 0, p] #Four-vector of incoming electron
     al = np.random.uniform(0, 2.0*np.pi)
     cal, sal = np.cos(al), np.sin(al)
     st, stp = np.sqrt(1.0 - ct**2), np.sqrt(1.0 - ctp**2)
@@ -53,9 +54,10 @@ def e_to_eV_fourvecs(p0, sampled_event, mV=0.0):
     """
 
     ep = p0.get_pf()[0]
+    m_lepton = p0.get_ids()['mass']
     w = sampled_event[0]*ep
     ct = (1 - 10**sampled_event[1])
-    p, k = np.sqrt(ep**2 - m_electron**2), np.sqrt(w**2 - mV**2)
+    p, k = np.sqrt(ep**2 - m_lepton**2), np.sqrt(w**2 - mV**2)
 
     Em4v = [ep, 0, 0, p] #Four-vector of electron
     al = np.random.uniform(0, 2.0*np.pi)
@@ -233,6 +235,34 @@ def ee_to_ee_fourvecs(p0, sampled_event):
     new_electron_fourvector = [g0*Ee0 - b0*g0*pF*ct, pF*np.sqrt(1-ct**2)*np.sin(ph), pF*np.sqrt(1-ct**2)*np.cos(ph), b0*g0*Ee0 - g0*pF*ct]
 
     return [outgoing_particle_fourvector, new_electron_fourvector]
+
+def mue_to_mue_fourvecs(p0, sampled_event):
+    """Reconstruct final muon and electron four vectors from 
+    mc-sampled kinematic variables for SM mu^- e^- > mu^- e^-
+    Args:
+        p0: incoming electron/positron Particle object
+        sampled_event: list including cos(theta) of outpoing particle as zero'th element
+    Returns:
+        List of four four-vectors representing the final state electron and 
+        positron/electron
+    """
+    Einc = p0.get_pf()[0]
+    ct = sampled_event[0]
+
+    s = m_electron**2 + m_muon**2 + 2*Einc*m_electron
+    Ee0 = (s + m_electron**2 - m_muon**2)/(2.0*np.sqrt(s))
+    Em0 = (s + m_muon**2 - m_electron**2)/(2.0*np.sqrt(s))
+    pe = np.sqrt(Ee0**2 - m_electron**2)
+    pm = np.sqrt(Em0**2 - m_muon**2)
+
+    g0 = Ee0/m_electron
+    b0 = 1.0/g0*np.sqrt(g0**2 - 1.0)
+
+    ph = np.random.uniform(0, 2.0*np.pi)
+    outgoing_muon_fourvector = [g0*Em0 + b0*g0*pm*ct, pm*np.sqrt(1 - ct**2)*np.sin(ph), pm*np.sqrt(1 - ct**2)*np.cos(ph), b0*g0*Em0 + g0*pm*ct]
+    new_electron_fourvector = [g0*Ee0 - b0*g0*pe*ct, -pe*np.sqrt(1-ct**2)*np.sin(ph), -pe*np.sqrt(1-ct**2)*np.cos(ph), b0*g0*Ee0 - g0*pe*ct]
+
+    return [outgoing_muon_fourvector, new_electron_fourvector]
 
 def radiative_return_fourvecs(pe, sampled_event, mV=0.0):
     """

@@ -193,7 +193,7 @@ def get_chic_squared(t, beta, A, Z, z):
 
     return 4.*np.pi*n_avogadro * alpha_em**2 * t * Z * (Z+1.) * z**2 / (A * p**2 * beta**2)
 
-def get_chic_squared_alt(t, beta, A, Z, z):
+def get_chic_squared_alt(t, beta, A, Z, z, m_lepton=m_electron):
     """
     Eq. 1 in Lynch & Dahl, 1991
     t - path length in g/cm^2 (t[cm] * rho[g/cm^3] = t[g/cm^2])
@@ -202,11 +202,11 @@ def get_chic_squared_alt(t, beta, A, Z, z):
     Z - nuclear charge number
     z - particle charge (+/- 1 for electrons/positrons)
     """
-    me_in_MeV = m_electron/MeV
+    me_in_MeV = m_lepton/MeV
     p = me_in_MeV * beta / np.sqrt(1. - beta**2) # momentum has to be in MeV, see below Eq. 2 in Lynch & Dahl, 1991
     return 0.157 * Z * (Z+1)*(t/A)*np.power(z/(p*beta),2.)
 
-def get_chia_squared_alt(beta, A, Z, z):
+def get_chia_squared_alt(beta, A, Z, z, m_lepton=m_electron):
     """
     Eq. 2 in Lynch & Dahl, 1991
     beta - particle velocity
@@ -214,11 +214,11 @@ def get_chia_squared_alt(beta, A, Z, z):
     Z - nuclear charge number
     z - particle charge (+/- 1 for electrons/positrons)
     """
-    me_in_MeV = m_electron/MeV 
+    me_in_MeV = m_lepton/MeV 
     p = me_in_MeV * beta / np.sqrt(1. - beta**2) # momentum has to be in MeV, see below Eq. 2 in Lynch & Dahl, 1991
     return 2.007e-5 * np.power(Z,2./3.) * (1. + 3.34*np.power(Z*z*alpha_em/beta,2.))/p**2
 
-def generate_moliere_angle(t, beta, A, Z, z):
+def generate_moliere_angle(t, beta, A, Z, z, m_lepton=m_electron):
     """
     Generate the physical angle in radians by sampling from the Moliere distribution
     Note that Bethe used Gaussian units for his electromagnetic charge
@@ -241,7 +241,7 @@ def generate_moliere_angle(t, beta, A, Z, z):
         x = generate_moliere_x(B)
 
         # squared critical angle for Rutherford scattering, eq. 10 in Bethe, 1953
-        chic2 = get_chic_squared(t, beta, A, Z, z)
+        chic2 = get_chic_squared(t, beta, A, Z, z, m_lepton=m_lepton)
     
         theta = random.choice([-1,1])*np.sqrt(x*chic2*B)
     
@@ -262,7 +262,7 @@ def generate_moliere_angle_simplified(t_over_X0, beta, z):
     return random.choice([-1,1])*np.sqrt(2.*random.expovariate(1./(theta0**2)))
     #return random.choice([-1,1])*np.sqrt(random.gauss(0.,theta0)**2 + random.gauss(0.,theta0)**2)
 
-def generate_moliere_angle_simplified_alt(t, beta, A, Z, z):
+def generate_moliere_angle_simplified_alt(t, beta, A, Z, z, m_lepton=m_electron):
     """
     Lynch and Dahl, 1991
     Eq. 7 - note that there's a typo, it should be sigma^2! not sigma
@@ -273,8 +273,8 @@ def generate_moliere_angle_simplified_alt(t, beta, A, Z, z):
     z - charge of beam particle
     """
     F = 0.98
-    chic2 = get_chic_squared_alt(t, beta, A, Z, z)
-    chia2 = get_chia_squared_alt(beta, A, Z, z)
+    chic2 = get_chic_squared_alt(t, beta, A, Z, z, m_lepton=m_lepton)
+    chia2 = get_chia_squared_alt(beta, A, Z, z, m_lepton=m_lepton)
     omega = chic2/chia2 
     v = 0.5*omega/(1.-F)
     theta0 = np.sqrt(chic2 * ((1.+v)*math.log(1.+v)/v -1)/(1.+F**2))
@@ -347,7 +347,7 @@ def get_rotation_matrix(v):
     
     return np.matmul(Rb,Ra)
    
-def get_scattered_momentum_fast(p4, t, A, Z,  rescale_MCS=1):
+def get_scattered_momentum_fast(p4, t, A, Z,  rescale_MCS=1, m_lepton=m_electron):
     """
     generate a multiple-scattered four-vector from an input four-vector p4 
     after the particle has traversed t [g/cm^2] radiation lengths of material with atomic weight A [g/mol] and 
@@ -377,7 +377,7 @@ def get_scattered_momentum_fast(p4, t, A, Z,  rescale_MCS=1):
     #theta = generate_moliere_angle(t, beta, A, Z, Z_part)
     
     # this is fast, but approximate -- it excludes the rare large angle scatters
-    theta = generate_moliere_angle_simplified_alt(t, beta, A, Z, Z_part)*rescale_MCS
+    theta = generate_moliere_angle_simplified_alt(t, beta, A, Z, Z_part, m_lepton=m_lepton)*rescale_MCS
 
     phi = random.uniform(0.,2.*np.pi)
     
@@ -400,7 +400,7 @@ def get_scattered_momentum_fast(p4, t, A, Z,  rescale_MCS=1):
     return p4_new
 
 
-def get_scattered_momentum_Bethe(p4, t, A, Z, rescale_MCS=1):
+def get_scattered_momentum_Bethe(p4, t, A, Z, rescale_MCS=1, m_lepton=m_electron):
     """
     generate a multiple-scattered four-vector from an input four-vector p4 
     after the particle has traversed t [g/cm^2] radiation lengths of material with atomic weight A [g/mol] and 
@@ -427,7 +427,7 @@ def get_scattered_momentum_Bethe(p4, t, A, Z, rescale_MCS=1):
     Z_part = 1.
     
     # this is slow but more precise, since it includes large angle scatters
-    theta = generate_moliere_angle(t, beta, A, Z, Z_part)*rescale_MCS
+    theta = generate_moliere_angle(t, beta, A, Z, Z_part, m_lepton=m_lepton)*rescale_MCS
     
     # this is fast, but approximate -- it excludes the rare large angle scatters
     #theta = generate_moliere_angle_simplified_alt(t, beta, A, Z, Z_part)

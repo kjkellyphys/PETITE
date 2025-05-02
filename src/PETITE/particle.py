@@ -127,11 +127,13 @@ class Particle:
         E0, px0, py0, pz0 = self.get_pf()
         p30 = np.linalg.norm([px0, py0, pz0])
         E_updated = E0 - value
-        if E_updated < self.get_ids()["mass"]:
+        if E_updated <= self.get_ids()["mass"]:
             E_updated = self.get_ids()["mass"]
         p3f = np.sqrt(E_updated**2 - self.get_ids()["mass"]**2)
         if p3f > 0.0:
             self.set_pf([E_updated, px0/p30*p3f, py0/p30*p3f, pz0/p30*p3f])
+        elif p3f == 0.0:
+            self.set_pf([self.get_ids()["mass"], 0.0, 0.0, 0.0])
 
     def set_r0(self, value):
         self._r0 = value
