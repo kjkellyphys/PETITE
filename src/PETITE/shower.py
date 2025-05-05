@@ -679,6 +679,8 @@ class Shower:
                             choices0 = choices0/SC
                             draw = np.random.choice(["MuonE", "MuonBrem"], p=choices0)
                             newparticles = self.sample_scattering(ap, process=draw, VB=VB)
+                        elif np.abs(ap.get_ids()["PID"]) == 14:
+                            ap.set_ended(True)
 
                     if newparticles is None:
                         continue
