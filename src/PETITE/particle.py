@@ -9,6 +9,13 @@ mass_dict = {11: m_electron, -11:m_electron,
              223:m_omega,
              12:0.0, -12:0.0, 14:0.0, -14:0.0}
 
+int_length_dict = {211:1.796e-1,-211:1.796e-1,
+                   321:2.2875e-1,-321:2.2875e-1}
+
+decay_length_dict = {211:c_tau_pi_pm, -211:c_tau_pi_pm,
+                     321:c_tau_K_pm, -321:c_tau_K_pm,
+                     111:c_tau_pi0}
+
 default_ids = {"PID":11, "ID":1, "parent_PID":22, 
                "parent_ID":-1, "generation_number":0, 
                "generation_process":"Input", "weight":1.0, 
@@ -24,10 +31,15 @@ default_ids = {"PID":11, "ID":1, "parent_PID":22,
 #eta-prime (331) decays to gamma gamma with Br = 0.02307
 #                       to pi0 + pi0 + eta with Br = 0.224
 #                       to three pi0 with Br = 0.00250
+
+#pi+ (211) decays to mu+ + nu_mu with Br = 0.9998
+#pi- (-211) decays to mu- + nu_mu_bar with Br = 0.9998
 meson_decay_dict = {111: [[0.98823, [22,22]]],
                     221: [[0.3936, [22,22]], [0.3257, [111, 111, 111]]],
                     331: [[0.02307, [22,22]], [0.224, [111, 111, 221]], [0.00250, [111, 111, 111]]],
-                    223: [[0.0828, [22, 111]]]}
+                    223: [[0.0828, [22, 111]]],
+                    211: [[0.9998, [-13, 14]]],
+                    -211: [[0.9998, [13, -14]]],}
 meson_twobody_branchingratios = {pid0:meson_decay_dict[pid0][0][0] for pid0 in meson_decay_dict.keys()}
 
 class Particle:
@@ -324,6 +336,38 @@ class Particle:
         new_particle_3 = Particle(p3_four_vector_LF, self.get_rf(), p3_dict)
         
         return [new_particle_1, new_particle_2, new_particle_3]
+    
+    def decay_int_prob(self, x, int_length, ctau0):
+        # probability of decay or interaction
+        E = self.get_p0()[0]
+        gamma = E/self.get_ids()['mass']
+        beta = np.sqrt(1 - 1/gamma**2)
+        ctau = ctau0*gamma*beta
+        tot_rate = 1.0/ctau + 1.0/int_length
+        return tot_rate, tot_rate*np.exp(-tot_rate*x)
+
+    def draw_x_sample(self, int_length, ctau0):
+        # max value of the decay&int pdf
+        c = self.decay_int_prob(0, int_length, ctau0)[0]
+        x_max = 4/self.decay_int_prob(0, int_length, ctau0)[1]
+        while True:
+            x = np.random.uniform(0, x_max)
+            u = np.random.uniform(0, 1)
+            # accept-reject sampling
+            if u < self.decay_int_prob(x, int_length, ctau0)[1] / (c):
+                return x
+
+    def prob_decay_b_int(self, int_length, ctau0):
+        x = self.draw_x_sample(int_length, ctau0)
+        # probability of decay before interaction for (relatively) long-lived particles such as pi+ and pi-
+        E = self.get_p0()[0]
+        gamma = E/self.get_ids()['mass']
+        beta = np.sqrt(1 - 1/gamma**2)
+        ctau = ctau0*gamma*beta
+        tot_rate = 1.0/ctau + 1.0/int_length
+        numerator = 1 - np.exp(-tot_rate*x)
+        denominator = 1 + ctau/int_length
+        return numerator/denominator
 
     def decay_particle(self):
         if self.get_ids()["PID"] not in meson_decay_dict.keys():
@@ -340,9 +384,22 @@ class Particle:
         if len(decay) > 2:
             raise ValueError("Three-body (and above) decays not yet implemented")
         elif len(decay) == 2:
-            p1_dict = {"PID":decay[0], "mass":mass_dict[decay[0]], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"]), "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1), "production_time":self.get_ids()["decay_time"]}
-            p2_dict = {"PID":decay[1], "mass":mass_dict[decay[1]], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"])+1, "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1), "production_time":self.get_ids()["decay_time"]}
-            new_particles = self.two_body_decay(p1_dict=p1_dict, p2_dict=p2_dict)
-        
+            if self.get_ids()["stability"] == "short-lived":
+                p1_dict = {"PID":decay[0], "mass":mass_dict[decay[0]], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"]), "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1), "production_time":self.get_ids()["decay_time"]}
+                p2_dict = {"PID":decay[1], "mass":mass_dict[decay[1]], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"])+1, "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1), "production_time":self.get_ids()["decay_time"]}
+                new_particles = self.two_body_decay(p1_dict=p1_dict, p2_dict=p2_dict)
+            elif self.get_ids()["stability"] == "long-lived":
+                # first propagate the particle to the point at which it decays before interaction
+                delta_z = self.draw_x_sample(int_length_dict[self.get_ids()["PID"]], decay_length_dict[self.get_ids()["PID"]])
+                pfx, pfy, pfz = self.get_pf()[1:]
+                pf0 = np.linalg.norm([pfx, pfy, pfz])
+                if pf0 > 0.0:
+                    x_current, y_current, z_current = self.get_rf()
+                    self.set_rf([x_current + pfx/pf0*delta_z, \
+                                    y_current + pfy/pf0*delta_z, z_current + pfz/pf0*delta_z])
+                # then decay the particle
+                p1_dict = {"PID":decay[0], "mass":mass_dict[decay[0]], "weight":self.get_ids()["weight"]*br_sum*self.prob_decay_b_int(int_length_dict[self.get_ids()["PID"]], decay_length_dict[self.get_ids()["PID"]]), "ID":2*(self.get_ids()["ID"]), "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1), "production_time":self.get_ids()["decay_time"]}
+                p2_dict = {"PID":decay[1], "mass":mass_dict[decay[1]], "weight":self.get_ids()["weight"]*br_sum*self.prob_decay_b_int(int_length_dict[self.get_ids()["PID"]], decay_length_dict[self.get_ids()["PID"]]), "ID":2*(self.get_ids()["ID"])+1, "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1), "production_time":self.get_ids()["decay_time"]}
+                new_particles = self.two_body_decay(p1_dict=p1_dict, p2_dict=p2_dict)
         self.set_ended(True)
         return new_particles        

@@ -621,7 +621,7 @@ class Shower:
                 else:
                     newparticles = None
 
-                    if ap.get_ids()["stability"] == "short-lived":
+                    if ap.get_ids()["stability"] in ["short-lived", "long-lived"]:
                         newparticles = ap.decay_particle()
                     
                     elif ap.get_ids()["stability"] == "stable":
