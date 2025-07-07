@@ -369,14 +369,19 @@ class Shower:
             PID, Energy = particle
         else:
             PID, Energy = particle.get_ids()["PID"], particle.get_pf()[0]
+        
         if PID == 22:
-            return cmtom*(self._NSigmaPP(Energy) + self._NSigmaComp(Energy))**-1
+            NSigma = self._NSigmaPhoton(Energy)
         elif PID == 11:
-            return cmtom*(self._NSigmaBrem(Energy) + self._NSigmaMoller(Energy))**-1
+            NSigma = self._NSigmaElectron(Energy)
         elif PID == -11:
-            return cmtom*(self._NSigmaBrem(Energy) + self._NSigmaAnn(Energy) + self._NSigmaBhabha(Energy))**-1
+            NSigma = self._NSigmaPositron(Energy)
         elif np.abs(PID) == 13:
-            return cmtom*(self._NSigmaMuonBrem(Energy) + self._NSigmaMuonE(Energy))**-1
+            NSigma = self._NSigmaMuon(Energy)
+        if NSigma <= 0.0:
+            return 1.0e12 #return a large number if the cross section is zero
+        #n_sigma is in 1/cm, convert to mfp in meters
+        return cmtom/NSigma
         
     def BF_positron_brem(self, Energy):
         """Branching fraction for a positron to undergo brem vs annihilation"""
