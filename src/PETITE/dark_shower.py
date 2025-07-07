@@ -11,7 +11,7 @@ from PETITE.particle import Particle, meson_twobody_branchingratios
 from PETITE.atomic_annihilation import sigma_atomic
 from PETITE.atomic_compton import sigma_atomic_comp
 from PETITE.kinematics import (
-    e_to_eV_fourvecs,
+    l_to_lV_fourvecs,
     compton_fourvecs,
     radiative_return_fourvecs,
     compton_fourvecs_boundelectron,
@@ -49,10 +49,10 @@ class interpolate1d(interp1d):
 dark_process_codes = ["DarkBrem", "DarkAnn", "DarkComp", "TwoBody_BSMDecay", "DarkMuonBrem"]
 
 dark_kinematic_function = {
-    "DarkBrem": e_to_eV_fourvecs,
+    "DarkBrem": l_to_lV_fourvecs,
     "DarkAnn": radiative_return_fourvecs,
     "DarkComp": compton_fourvecs,
-    "DarkMuonBrem": e_to_eV_fourvecs,
+    "DarkMuonBrem": l_to_lV_fourvecs,
 }
 dark_diff_xsection_options = {
     "DarkComp": proc.dsigma_compton_dCT,
@@ -195,7 +195,8 @@ class DarkShower(Shower):
 
     def set_dark_samples(self):
         self._loaded_dark_samples={}
-        for process in dark_diff_xsection_options.keys():
+        #for process in dark_diff_xsection_options.keys():
+        for process in self.active_processes:
             self._loaded_dark_samples[process]= \
                 self.load_dark_sample(self._dict_dir, process)
             
@@ -583,6 +584,10 @@ class DarkShower(Shower):
             PID, energy_initial = particle
         else:
             PID, energy_initial = particle.get_ids()["PID"], particle.get_p0()[0]
+
+        if PID not in [-11, 11, 13, -13, 22, 111, 221, 331]:
+            return 0.0
+
         if process not in (self._minimum_calculable_dark_energy[PID]).keys():
             return 0.0
         if energy_initial < self._minimum_calculable_dark_energy[PID][process]:

@@ -248,7 +248,10 @@ class dsig_dx_dcostheta_dark_brem_exact_tree_level:
             x, costheta, ttilde = x0, x1, x2
             Jacobian = 1.0
 
-        k = np.sqrt((x * Ebeam) ** 2 - mV**2)
+        # Kevin 7/7/25: including fabs to avoid RuntimeWarning: invalid value encountered in sqrt
+        # Situations where x * Ebeam < mV lead to negative values under the sqrt
+        # This kinematic space is killed off later, so this is just a workaround
+        k = np.sqrt(np.fabs((x * Ebeam) ** 2 - mV**2))
         p = np.sqrt(Ebeam**2 - m_lepton**2)
         V = np.sqrt(p**2 + k**2 - 2 * p * k * costheta)
 

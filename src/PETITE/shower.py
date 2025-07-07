@@ -131,6 +131,12 @@ class Shower:
         self.set_NSigmas()
         self.set_MCS_momentum(fast_MCS_mode)
         self.set_MCS_rescale_factor(rescale_MCS)
+
+        self._exponential_factor = {}
+        self._exponential_factor[11] = self._electron_exponential_factor
+        self._exponential_factor[-11] = self._positron_exponential_factor
+        self._exponential_factor[13] = self._muon_exponential_factor
+
         
         self._maxF_fudge_global = maxF_fudge_global
         self._max_n_integrators = max_n_integrators
@@ -341,6 +347,7 @@ class Shower:
             return 0.0
         dEdxT = self.get_material_properties()[3]*(0.1) #Converting MeV/cm to GeV/m
         return np.exp(-n_sigma_diff/dEdxT/cmtom)
+        
 
     def _NSigmaElectron(self, E):
         """Returns n sigma for electrons as a function of energy in GeV"""

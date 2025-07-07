@@ -260,20 +260,18 @@ def main_dark(params):
         # Loop over all processes
         for process in params['process']:
             # Get the path to the directory containing the adaptive maps
-            path = params['save_location'] + '/auxiliary/' + process + '/mV_' + str(int(1000.*mV)) + "MeV/"
-            adaptive_maps_file = path + process + '_AdaptiveMaps.npy'
+            if params['mode'] == 'MeV':
+                path1 = params['save_location'] + '/auxiliary/' + process + '/mV_' + str(int(1000.*mV)) + "MeV/"
+                path2 = params['save_location'] + process + '/mV_' + str(int(1000.*mV)) + "MeV/"
+            elif params['mode'] == 'keV':
+                path1 = params['save_location'] + '/auxiliary/' + process + '/mV_' + str(int(1000000.*mV)) + "keV/"
+                path2 = params['save_location'] + process + '/mV_' + str(int(1000000.*mV)) + "keV/"
+            adaptive_maps_file = path1 + process + '_AdaptiveMaps.npy'
             # Load adaptive map file. Format: list of [params, adaptive_map]
             try:
                 adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
             except Exception as e:
-                path = (
-                    params["save_location"]
-                    + process
-                    + "/mV_"
-                    + str(int(1000.0 * mV))
-                    + "MeV/"
-                )
-                adaptive_maps_file = path + process + "_AdaptiveMaps.npy"
+                adaptive_maps_file = path2 + process + "_AdaptiveMaps.npy"
                 adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
             final_sampling_dict[mV][process] = []
             final_xsec_dict[mV][process] = {}

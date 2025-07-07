@@ -16,8 +16,13 @@ import argparse
 import datetime
 
 # helper function to turn float to string
-def generate_vector_mass_string(mV):
-    return str(int(np.floor(mV*1000.)))+"MeV"
+def generate_vector_mass_string(mV, mode="MeV"):
+    if mode == "MeV":
+        return str(int(np.floor(mV*1000.)))+"MeV"
+    elif mode == "keV":
+        return str(int(np.floor(mV*1000000.)))+"keV"
+    else:
+        raise ValueError("Mode must be either 'MeV' or 'keV'")
 
 def make_readme(params, process, process_directory):
     """Creates a readme file to accompany the integrators with supplementary information on the parameters used to generate the integrators (Z, A, mV, etc.)
@@ -107,8 +112,10 @@ def make_integrators(params, process, paralellize=True, overwrite=False):
         else:
             params['mT'] = target_information[params['training_target']]['mT']
         # Create process specific directory in mother directory for saving VEGAS adaptive maps for dark sector production
-        process_directory = params['save_location'] + '/' + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/"
-
+        if params['mode'] == 'MeV':
+            process_directory = params['save_location'] + '/' + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/"
+        elif params['mode'] == 'keV':
+            process_directory = params['save_location'] + '/' + process + '/mV_' + str(int(np.floor(mV*1000000.))) + "keV/"
     else:
         if 'training_target' in params:
             raise ValueError("Training target redundant for SM processes")

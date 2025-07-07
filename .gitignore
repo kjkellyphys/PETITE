@@ -16,9 +16,7 @@ lightmasses_fine*
 TODO*
 examples/.ipynb_checkpoints/*
 examples/beams/*400GeVProtons*.npy
-data_v3/*
-data_v2f/*
-data_v2f_annihilationredo/*
-data_v2/*
 dark_shower_bound_electron.py
 examples/tutorial_vegasdebug.ipynb
+data_400GeV_manymasses*
+*bsm_shower*

@@ -40,7 +40,7 @@ def e_to_egamma_fourvecs(p0, sampled_event):
 
     return [Ep4v, g4v]
 
-def e_to_eV_fourvecs(p0, sampled_event, mV=0.0):
+def l_to_lV_fourvecs(p0, sampled_event, mV=0.0):
     """Reconstruct electron and photon four vectors from 
     mc-sampled kinematic variables for electron/positron 
     dark sector brem e N -> e N V
