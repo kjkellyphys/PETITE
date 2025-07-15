@@ -321,9 +321,13 @@ class dsig_dx_dcostheta_dark_brem_exact_tree_level:
             + 2 * Ebeam * MTarget * t * (utilde - (x - 1) * mVsq2mlepsq)
         )
         Y = -t + 2 * q0 * Ebeam - 2 * q * p * (p - k * costheta) * costhetaq / V
+        #taking the absolute value of W for safer square rooting later -- Kevin 7/7/25
+        #points where W < 0 are killed by allowed_kinematics
         W = (
-            Y**2
-            - 4 * q**2 * p**2 * k**2 * (1 - costheta**2) * (1 - costhetaq**2) / V**2
+            np.fabs(
+                Y**2
+                - 4 * q**2 * p**2 * k**2 * (1 - costheta**2) * (1 - costhetaq**2) / V**2
+            )
         )
 
         # if W == 0.0:

@@ -30,6 +30,7 @@ def fl_kf(x,s):
     """
     
     beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
+    x = np.where(x >= 1.0, 1.-1e-10, x) # avoid singularity at x=1
     return (beta/16.)*((8. + 3.*beta)*np.power(1. - x,beta/2.-1.) - 4.*(1. + x))
 
 def fl_kf_scaled(x,s):

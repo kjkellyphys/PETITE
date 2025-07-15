@@ -223,9 +223,13 @@ class DarkShower(Shower):
 
         # These contain only the cross sections for the chosen target material
         self._dark_brem_cross_section = self.load_dark_cross_section(self._dict_dir, 'DarkBrem', self._target_material)
+        while self._dark_brem_cross_section[0][1] == 0.0:
+            self._dark_brem_cross_section = self._dark_brem_cross_section[1:] #remove first element if it has zero cross-section
         self._dark_annihilation_cross_section  = self.load_dark_cross_section(self._dict_dir, 'DarkAnn', self._target_material) 
         self._dark_compton_cross_section = self.load_dark_cross_section(self._dict_dir, 'DarkComp', self._target_material) 
         self._dark_muon_brem_cross_section = self.load_dark_cross_section(self._dict_dir, 'DarkMuonBrem', self._target_material)
+        while self._dark_muon_brem_cross_section[0][1] == 0.0:
+            self._dark_muon_brem_cross_section = self._dark_muon_brem_cross_section[1:] #remove first element if it has zero cross-section
 
         self._resonant_annihilation_energy = (self._mV**2-2*m_electron**2)/(2*m_electron)
         self._compton_threshold_energy = self._mV**2/(2*m_electron) + self._mV
@@ -312,14 +316,23 @@ class DarkShower(Shower):
             return self._NSigmaDarkAnn(E - self._resonant_annihilation_energy)/dEdxT_GeVpercm*self._positron_exponential_factor(E, Ei)
     def _dark_brem_integrand_elec(self, E, Ei):
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
-        return self._NSigmaDarkBrem(E)/dEdxT_GeVpercm*self._electron_exponential_factor(E, Ei)
+        nsigma = self._NSigmaDarkBrem(E)
+        if nsigma < 1.0e-18:
+            return 0.0
+        return nsigma/dEdxT_GeVpercm*self._electron_exponential_factor(E, Ei)
     def _dark_brem_integrand_positron(self, E, Ei):
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
-        return self._NSigmaDarkBrem(E)/dEdxT_GeVpercm*self._positron_exponential_factor(E, Ei)
+        nsigma = self._NSigmaDarkBrem(E)
+        if nsigma < 1.0e-18:
+            return 0.0
+        return nsigma/dEdxT_GeVpercm*self._positron_exponential_factor(E, Ei)
 
     def _dark_muon_brem_integrand(self, E, Ei):
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
-        return self._NSigmaDarkMuonBrem(E)/dEdxT_GeVpercm*self._muon_exponential_factor(E, Ei)
+        nsigma = self._NSigmaDarkMuonBrem(E)
+        if nsigma < 1.0e-18:
+            return 0.0
+        return nsigma/dEdxT_GeVpercm*self._muon_exponential_factor(E, Ei)
 
     def construct_brem_weight_array(self):
         DBS = self.get_DarkBremXSec()
@@ -593,7 +606,7 @@ class DarkShower(Shower):
         if energy_initial < self._minimum_calculable_dark_energy[PID][process]:
             return 0.0
         if PID == 22:
-            if process != "DarkComp":
+            if process != "DarkComp" or energy_initial < self._minimum_calculable_energy[22]:
                 return 0.0
             return (self.g_e**2/(4*np.pi*alpha_em))*self._NSigmaDarkComp(energy_initial)/(self._NSigmaPP(energy_initial) + self._NSigmaComp(energy_initial))
         if process == "DarkBrem":
@@ -682,7 +695,9 @@ class DarkShower(Shower):
                     sample_found = True
                     break
         if sample_found is False:
-            raise Exception("No Sample Found", process, Einc, LU_Key)
+            #raise Exception("No Sample Found", process, Einc, LU_Key)
+            print("No Sample Found", process, Einc, LU_Key)
+            return None
         if VB:
             return np.concatenate([list(x), [sampcount]])
         else:
@@ -753,6 +768,8 @@ class DarkShower(Shower):
             EVf, pVxfZF, pVyfZF, pVzfZF = self._resonant_annihilation_energy, 0, 0, np.sqrt(self._resonant_annihilation_energy**2 - self._mV**2)
         else:
             sample_event = self.draw_dark_sample(E0, process=process, VB=VB)
+            if sample_event is None:
+                return None
             #dark-production is estabilished such that the last particle returned corresponds to the dark vector
             if process == "DarkComp" and self.bound_electron:
                 pe = self.draw_pe_sample()

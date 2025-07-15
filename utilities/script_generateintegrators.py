@@ -15,12 +15,8 @@ def main(doSM=True, doDark=True, Ee_min=0.0016, Ee_max=100.0, Npoints=100, path=
     ##         SM processes         ##
     ##################################
     # List of incoming particle energies at which to calculate integrators for each process
-    initial_energy_list = np.geomspace(Ee_min, Ee_max, Npoints)
-    # Necessary parameters for generating the integrators, note save_location should be altered as preferred
-    training_params = {'verbosity':True, 'initial_energy_list':initial_energy_list,
-                    'save_location':path,
-                    'run_find_maxes':True}
     # Necessary parameters for processing the integrators to determine cross sections
+    training_params = {"save_location": path}
     processing_params = {'process_targets':['graphite','lead','iron','aluminum','molybdenum'], 'save_location':path}
     #args = training_params.update(processing_params)
     # List of processes to do
@@ -30,6 +26,13 @@ def main(doSM=True, doDark=True, Ee_min=0.0016, Ee_max=100.0, Npoints=100, path=
         for process in processes_to_do:
             path1 = training_params['save_location'] + '/auxiliary/' + process + "/" + process + "_AdaptiveMaps.npy"
             path2 = training_params['save_location'] + '/' + process + '/' + process + "_AdaptiveMaps.npy"
+
+            initial_energy_list = np.geomspace(Ee_min, Ee_max, Npoints)
+            # Necessary parameters for generating the integrators, note save_location should be altered as preferred
+            training_params = {'verbosity':True, 'initial_energy_list':initial_energy_list,
+                            'save_location':path,
+                            'run_find_maxes':True}
+
             if os.path.exists(path1) or os.path.exists(path2):
                 print("Already finished this whole process, skipping")
                 continue
