@@ -83,7 +83,11 @@ def expr2(a, b):
 def combine(a, b):
     # return expr1(a, b)*np.heaviside(b - (a^2+1)/a, 1) + expr2(a, b)*np.heaviside((a^2+1)/a - b, 1)
     if a**2 + 1 < a*b:
-        return expr1(a, b)
+        e1 = expr1(a, b)
+        #KJK some poor numerical behavior of expr1(a,b) for small k (large b).
+        if e1 < 0.0 or (a**2 + 1 < 0.01*a*b):
+            e1 = (-145 + 1015*a**2 + 330*a*b + 64*b**2)/(420*b**8)
+        return e1
     else:
         return expr2(a, b)
 
@@ -101,5 +105,6 @@ def sigma_atomic_comp(k,mV, Zeff):
     s=2*k*m_e+m_e**2
 
     beta = 2*alpha_em/np.pi*(np.log(s/m_e**2) - 1.0)
+    if beta < 0.0: beta = 0.0
 
     return( (4.0*np.pi*alpha_em)*((mV**2+2*m_e**2)* (2/3/Lambda/m_e)*(1/k**2)*(beta/4)*combine(a,b)) )

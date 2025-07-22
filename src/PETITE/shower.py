@@ -235,6 +235,9 @@ class Shower:
         self._bhabha_cross_section = self.load_cross_section(self._dict_dir, 'Bhabha', self._target_material) 
         self._muonbrem_cross_section = self.load_cross_section(self._dict_dir, 'MuonBrem', self._target_material)
         self._muone_cross_section = self.load_cross_section(self._dict_dir, 'MuonE', self._target_material)
+        while self._muone_cross_section[0][1] == 0.0:
+            self._muone_cross_section = self._muone_cross_section[1:] #remove first element if it has zero cross-section
+        
 
         self._minimum_calculable_energy = {11:np.min([self._brem_cross_section[0][0], self._moller_cross_section[0][0]]),
                                            -11:np.min([self._brem_cross_section[0][0], self._bhabha_cross_section[0][0], self._annihilation_cross_section[0][0]]),
@@ -284,6 +287,8 @@ class Shower:
         self._NSigmaBhabha = interp1d(bhabha_moller_energies, ne*GeVsqcm2*proc.sigma_bhabha({"E_inc":bhabha_moller_energies, "Ee_min":self._Ee_min}), fill_value=0.0, bounds_error=False)
         
         self._muon_e_minimum = 1.0/(2.0*m_electron)*(m_electron*(self._Ee_min - m_electron) + np.sqrt(m_electron*(self._Ee_min+m_electron)*(m_electron*(self._Ee_min-m_electron) + 2*m_muon**2)))
+        if self._muon_e_minimum < MBES[0][0]:
+            self._muon_e_minimum = MBES[0][0]
         muon_e_energies        = np.geomspace(self._muon_e_minimum, bhabha_moller_energies[-1], len(BS))
         self._NSigmaMuonE  = interp1d(muon_e_energies,        ne*GeVsqcm2*proc.sigma_muone({"E_inc":muon_e_energies, "Ee_min":self._Ee_min}), fill_value=0.0, bounds_error=False)
 
