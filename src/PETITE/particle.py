@@ -2,7 +2,10 @@ import numpy as np
 from .physical_constants import *
 
 mass_dict = {11: m_electron, -11:m_electron,
-             22:0.0, 13:m_muon, -13:m_muon,
+             12: 0.0, -12:0.0,
+             22:0.0,
+             13:m_muon, -13:m_muon,
+             14:0.0, -14:0.0,
              111:m_pi0, 211:m_pi_pm, -211:m_pi_pm,
              321:m_K_pm, -321:m_K_pm,
              221:m_eta, 331:m_eta_prime, 2212:m_proton,
@@ -189,7 +192,10 @@ class Particle:
         m0 = self._mass
 
         gamma = E0/m0
-        beta = np.sqrt(1.0 - 1.0/gamma**2)
+        if gamma == 1.0: #Fixing error when gamma = 1 exactly
+            beta = 1.0
+        else:
+            beta = np.sqrt(1.0 - 1.0/gamma**2)
         pmag = np.linalg.norm([px0, py0, pz0])
         if pmag == 0.0:
             return np.identity(4)
@@ -285,8 +291,8 @@ class Particle:
                     raise ValueError("PID provided for unspecified particle.")
 
         m1, m2, m3 = p1_dict['mass'], p2_dict['mass'], p3_dict['mass']
-        if dalitz_information != "Flat":
-            raise ValueError("Matrix-element-level Dalitz sampling not yet implemented")
+
+        #defining the widest possible regions of the Dalitz space
         m12sq_min = (m1 + m2)**2
         m12sq_max = (mX - m3)**2
         m23sq_min = (m2 + m3)**2
@@ -295,9 +301,20 @@ class Particle:
         while sample_found is False:
             m12sq, m23sq = np.random.uniform(m12sq_min, m12sq_max), np.random.uniform(m23sq_min, m23sq_max)
             dr = self.dalitz_range(m12sq, m1, m2, m3, mX)
-            if m23sq > dr[0] and m23sq < dr[1]:
+            if m23sq < dr[0] or m23sq > dr[1]:
+                continue
+            if dalitz_information != "Flat":
+                try:
+                    #Can provide a set of (max_value, function) for matrix-element level accept/reject sampling
+                    #max_value should be greater than the maximum of the function over the entire Dalitz space
+                    #function should take in (m12sq, m23sq, m1, m2, m3, mX) as inputs
+                    dalitz_max, dalitz_function = dalitz_information
+                    if dalitz_function(m12sq, m23sq, m1, m2, m3, mX) > np.random.uniform(0, dalitz_max):
+                        sample_found = True
+                except:
+                    raise ValueError("Dalitz information must be a tuple of (max value, function) for matrix-element-level sampling")
+            else:
                 sample_found = True
-
         E1 = (mX**2 - m23sq + m1**2)/(2*mX)
         E3 = (mX**2 - m12sq + m3**2)/(2*mX)
         E2 = mX - E1 - E3
