@@ -5,7 +5,7 @@
 import numpy as np
 import sys, os
 
-from PETITE.all_processes import vegas_integration
+from PETITE.sm.sm_processes import vegas_integration
 from PETITE.physical_constants import target_information, m_electron, alpha_em
 from glob import glob
 
@@ -37,9 +37,9 @@ def make_readme(params, process, process_directory):
         line = "\nTarget has (Z, A, mass) = ({atomic_Z}, {atomic_A}, {atomic_mass})\n".\
             format(atomic_Z=params['Z_T'], atomic_A=params['A_T'], atomic_mass=params['mT'])
         readme_file.write(line)
-    readme_file.write("\n\nEnergy/GeV |  Filename\n\n")
-    for index, energy in enumerate(params['initial_energy_list']):
-        line = "{en:9.3f}  |  {proc}_{indx}.p\n".format(en = energy, indx = index, proc=process)
+    readme_file.write("\n\nKinetic Energy/GeV |  Filename\n\n")
+    for index, kinetic_energy in enumerate(params['initial_kinetic_energy_list']):
+        line = "{kinen:9.3f}  |  {proc}_{indx}.p\n".format(kinen = kinetic_energy, indx = index, proc=process)
         readme_file.write(line)
     readme_file.write(f'\nIntegrators made on {datetime.datetime.now()}')
     readme_file.close()
@@ -58,9 +58,9 @@ def run_vegas_in_parallel(params, process, verbosity_mode, process_directory, en
         process: string of process name
         verbosity_mode: boolean
         process_directory: directory where files should be saved
-        energy_index: index of energy in initial_energy_list
+        energy_index: index of kinetic energy in initial_kinetic_energy_list
     '''
-    params['E_inc'] = params['initial_energy_list'][energy_index]
+    params['T_inc'] = params['initial_kinetic_energy_list'][energy_index]
     file_name = process_directory + process + '_' + str(energy_index) + ".p"
     if os.path.exists(file_name) and not overwrite:
         print("Already generated integrator for this point\n")
@@ -131,16 +131,16 @@ def make_integrators(params, process, paralellize=True, overwrite=False):
     params['m_e'] = m_electron
     params['alpha_FS'] = alpha_em
 
-    initial_energy_list = params['initial_energy_list']
+    initial_kinetic_energy_list = params['initial_kinetic_energy_list']
     
-    energy_index_list = range(len(initial_energy_list))
+    kinetic_energy_index_list = range(len(initial_kinetic_energy_list))
 
     if verbosity_mode:
         print("Parameters:")
         print(params)
         print("Doing process: ", process)
 
-    # energy_index_list = range(len(initial_energy_list))
+    # kinetic_energy_index_list = range(len(initial_kinetic_energy_list))
     # vec_mass_string = generate_vector_mass_string(params['mV'])
     
     # If directory does not exist, create it
@@ -159,16 +159,16 @@ def make_integrators(params, process, paralellize=True, overwrite=False):
                 process_directory,
                 overwrite=overwrite,
             ),
-            energy_index_list,
+            kinetic_energy_index_list,
         )
     else:
-        for energy_index in energy_index_list:
+        for kinetic_energy_index in kinetic_energy_index_list:
             run_vegas_in_parallel(
                 params,
                 process,
                 verbosity_mode,
                 process_directory,
-                energy_index,
+                kinetic_energy_index,
                 overwrite=overwrite,
             )
     # make the human readable file contining info on params of run and put in directory
@@ -297,9 +297,9 @@ def main(args):
                 process_list_to_do = args.process
                 pass
         for process in process_list_to_do:
-            initial_energy_list = np.logspace(np.log10(args.min_energy), np.log10(args.max_energy), args.num_energy_pts)
+            initial_kinetic_energy_list = np.logspace(np.log10(args.min_kinetic_energy), np.log10(args.max_kinetic_energy), args.num_energy_pts)
             training_params.update({'mV' : 0})
-            training_params.update({'initial_energy_list': initial_energy_list})
+            training_params.update({'initial_kinetic_energy_list': initial_kinetic_energy_list})
             make_integrators(training_params, process)
             # stitch integrators for different energies together
             stitch_integrators(training_params['save_location'] + "/" + process + "/")
@@ -312,10 +312,10 @@ def main(args):
         for mV in args.mV:
             process = 'DarkBrem'
             print("Working on mV = ", mV)
-            min_energy = max(args.min_energy, 1.01 * mV)
-            initial_energy_list = np.logspace(np.log10(min_energy), np.log10(args.max_energy), args.num_energy_pts)
+            min_kinetic_energy = max(args.min_kinetic_energy, 1.01 * mV)
+            initial_kinetic_energy_list = np.logspace(np.log10(min_kinetic_energy), np.log10(args.max_kinetic_energy), args.num_energy_pts)
             training_params.update({'mV' : mV})
-            training_params.update({'initial_energy_list': initial_energy_list})
+            training_params.update({'initial_kinetic_energy_list': initial_kinetic_energy_list})
             make_integrators(training_params, process)
             # stitch integrators for different energies together (add mV to the name of output file)
             stitch_integrators(training_params['save_location'] + '/DarkBrem/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
@@ -347,8 +347,8 @@ if __name__ == '__main__':
     parser.add_argument('-process', nargs='+', type=str, default=['DarkBrem'], help='list of processes to be run "all" does whole list, if mV non-zero only DarkBrem \
         (choose from "PairProd", "Brem", "DarkBrem", "Comp", "Ann", "Moller", "Bhabha")')
     parser.add_argument('-mV', nargs='+', type=float, default=[0.05], help='dark vector mass in GeV (can be a space-separated list)')
-    parser.add_argument('-min_energy', type=float, default=0.01, help='minimum initial energy (in GeV) to evaluate (must be larger than mV)')
-    parser.add_argument('-max_energy', type=float, default=100., help='maximum initial energy (in GeV) to evaluate')
+    parser.add_argument('-min_kinetic_energy', type=float, default=0.01, help='minimum initial kinetic energy (in GeV) to evaluate (must be larger than mV)')
+    parser.add_argument('-max_kinetic_energy', type=float, default=100., help='maximum initial kinetic energy (in GeV) to evaluate')
     parser.add_argument('-num_energy_pts', type=int, default=100, help='number of initial energy values to evaluate, scan is done in log space')
     parser.add_argument('-run_find_maxes', type=bool, default=True,  help='run Find_Maxes.py after done')
     parser.add_argument('-verbosity', type=bool, default=False, help='verbosity mode')

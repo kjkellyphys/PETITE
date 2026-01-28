@@ -9,7 +9,7 @@
 """
 import os
 
-import PETITE.all_processes as proc
+import PETITE.sm.sm_processes as proc
 from PETITE.physical_constants import target_information, m_electron, m_muon
 import pickle
 import copy
@@ -29,10 +29,7 @@ process_info ={    'PairProd' : {'diff_xsection': proc.dsigma_pairprod_dimension
                     'Moller'   : {'diff_xsection': proc.dsigma_moller_dCT},
                     'Bhabha'   : {'diff_xsection': proc.dsigma_bhabha_dCT},
                     'MuonE'    : {'diff_xsection': proc.dsigma_muonelectron_dCT},
-                    'DarkBrem': {'diff_xsection': proc.dsig_dx_dcostheta_dark_brem_exact_tree_level},
-                    'DarkMuonBrem': {'diff_xsection': proc.dsig_dx_dcostheta_dark_brem_exact_tree_level},
-                    'DarkAnn':  {'diff_xsection': proc.dsigma_radiative_return_du},
-                    'DarkComp': {'diff_xsection':proc.dsigma_compton_dCT}}
+                    }
 
 def get_file_names(path):
     ''' Get the names of all the files in a directory.
@@ -62,10 +59,10 @@ def do_find_max_work(params, process_file):
             'neval': number of evaluations used in VEGAS (neval)
             'max_F': maximum value of the integrand (max_F)
             'Eg_min': minimum energy of the outgoing photon (Eg_min) if it was specified in the event_info
-            'Ee_min': minimum energy of the outgoing electron (Ee_min) if it was specified in the event_info
+            'Te_min': minimum kinetic energy of the outgoing electron (Te_min) if it was specified in the event_info
             'adaptive_map': adaptive map used in the sampling (adaptive_map)
         xSec: dictionary of cross sections for each target material
-        event_info['E_inc']: energy of the incoming particle
+        event_info['T_inc']: kinetic energy of the incoming particle
     """
 
     diff_xsec = params['diff_xsec']
@@ -112,11 +109,11 @@ def do_find_max_work(params, process_file):
     samp_dict_info = {"neval":params['neval'], "max_F": {tm:max_F_TM[tm] for tm in params['process_targets']}, "adaptive_map": save_copy}
     if "Eg_min" in event_info.keys():
         samp_dict_info['Eg_min'] = event_info['Eg_min']
-    if 'Ee_min' in event_info.keys():
-        samp_dict_info['Ee_min'] = event_info['Ee_min']
-    samp_dict = [event_info['E_inc'], samp_dict_info]
+    if 'Te_min' in event_info.keys():
+        samp_dict_info['Te_min'] = event_info['Te_min']
+    samp_dict = [event_info['T_inc'], samp_dict_info]
     #xSec_dict = [event_info['E_inc'], xSec]
-    return(samp_dict, xSec, event_info['E_inc'])
+    return(samp_dict, xSec, event_info['T_inc'])
 
 def main(params):
     """ Find the maximum value of the integrand for a given process by looking into the directory containing the adaptive maps.

@@ -6,11 +6,11 @@ import os
 from scipy.interpolate import interp1d
 from scipy.integrate import quad
 
-from PETITE.moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
+from PETITE.sm.moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
 from PETITE.particle import Particle, meson_twobody_branchingratios
 from PETITE.atomic_annihilation import sigma_atomic
 from PETITE.atomic_compton import sigma_atomic_comp
-from PETITE.kinematics import (
+from PETITE.sm.kinematics import (
     l_to_lV_fourvecs,
     compton_fourvecs,
     radiative_return_fourvecs,

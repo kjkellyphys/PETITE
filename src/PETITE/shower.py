@@ -5,20 +5,13 @@ import vegas as vg
 from scipy.interpolate import interp1d
 from scipy.integrate import quad
 
-from PETITE.moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
+from PETITE.sm.moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
 from PETITE.particle import Particle, mass_dict
-from PETITE.kinematics import (
-    e_to_egamma_fourvecs,
-    gamma_to_epem_fourvecs,
-    compton_fourvecs,
-    annihilation_fourvecs,
-    ee_to_ee_fourvecs,
-    mue_to_mue_fourvecs,
-)
-import PETITE.all_processes as proc
+from PETITE.sm.process_information import sm_process_info
+
+import PETITE.sm.sm_processes as proc
 from PETITE.physical_constants import (
     target_information,
-    TeV,
     m_proton_grams,
     GeVsqcm2,
     cmtom,
@@ -30,70 +23,32 @@ from PETITE.physical_constants import (
 from numpy.random import random as draw_U
 import copy
 
-# Maximum energy allowed for Bhabha and Moller scattering
-_Ee_MAX = 10e3 * TeV  # 10 TeV
+all_possible_processes = sm_process_info.keys()
+#------------------------------------------------------------
+#Determine the list of unique incident particle PIDs included
+#in the defined "sm_process_info" file
+#------------------------------------------------------------
+incident_particle_PIDS = []
+for proc_name in all_possible_processes:
+    i_p_PID = sm_process_info[proc_name]['incoming_particle_PID']
+    if type(i_p_PID) == int:
+        i_p_PID = np.array([i_p_PID])
+    for pid in i_p_PID:
+        incident_particle_PIDS.append(pid)
+incident_particle_PIDS = np.unique(incident_particle_PIDS)
 
-process_code = {"Brem": 0, "Ann": 1, "PairProd": 2, "Comp": 3, "Moller": 4, "Bhabha": 5, "MuonE": 6, "MuonBrem": 7}
-diff_xsection_options = {
-    "PairProd": proc.dsigma_pairprod_dimensionless,
-    "Comp": proc.dsigma_compton_dCT,
-    "Brem": proc.dsigma_brem_dimensionless,
-    "MuonBrem": proc.dsigma_brem_dimensionless,
-    "Ann": proc.dsigma_annihilation_dCT,
-    "Moller": proc.dsigma_moller_dCT,
-    "Bhabha": proc.dsigma_bhabha_dCT,
-    "MuonE": proc.dsigma_muonelectron_dCT,
-}
-dimensionalities = {
-    "PairProd": 4,
-    "Comp": 1,
-    "Brem": 4,
-    "MuonBrem": 4,
-    "Ann": 1,
-    "Moller": 1,
-    "Bhabha": 1,
-    "MuonE": 1,
-}
-formfactor_dict = {
-    "PairProd": proc.g2_elastic,
-    "Comp": proc.unity,
-    "Brem": proc.g2_elastic,
-    "MuonBrem": proc.g2_elastic,
-    "Ann": proc.unity,
-    "Moller": proc.unity,
-    "Bhabha": proc.unity,
-    "MuonE": proc.unity,
-}
-QSq_dict = {
-    "PairProd": proc.pair_production_q_sq_dimensionless,
-    "Brem": proc.brem_q_sq_dimensionless,
-    "MuonBrem": proc.brem_q_sq_dimensionless,
-    "Comp": proc.dummy,
-    "Ann": proc.dummy,
-    "Moller": proc.dummy,
-    "Bhabha": proc.dummy,
-    "MuonE": proc.dummy,
-}
-kinematic_function = {
-    "PairProd": gamma_to_epem_fourvecs,
-    "Brem": e_to_egamma_fourvecs,
-    "MuonBrem": e_to_egamma_fourvecs,
-    "Comp": compton_fourvecs,
-    "Ann": annihilation_fourvecs,
-    "Moller": ee_to_ee_fourvecs,
-    "Bhabha": ee_to_ee_fourvecs,
-    "MuonE": mue_to_mue_fourvecs,
-}
-process_PIDS = {
-    "PairProd": [-11, 11],
-    "Brem": [0, 22],
-    "MuonBrem": [0, 22],
-    "Comp": [11, 22],
-    "Ann": [22, 22],
-    "Moller": [0, 11],
-    "Bhabha": [0, 11],
-    "MuonE": [0, 11],
-}
+#---------------------------------------------------------------------
+#Determine the list of processes that each unique particle can undergo
+#---------------------------------------------------------------------
+processes_by_incident_PID = {}
+for pid in incident_particle_PIDS:
+    processes_by_incident_PID[pid] = []
+    for proc_name in all_possible_processes:
+        i_p_PID = sm_process_info[proc_name]['incoming_particle_PID']
+        if type(i_p_PID) == int:
+            i_p_PID = np.array([i_p_PID])
+        if pid in i_p_PID:
+            processes_by_incident_PID[pid].append(proc_name)
 
 class Shower:
     """Representation of a shower"""
@@ -101,7 +56,7 @@ class Shower:
         self,
         dict_dir,
         target_material,
-        min_energy,
+        min_kinetic_energy,
         maxF_fudge_global=1,
         max_n_integrators=int(1e4),
         fast_MCS_mode=True,
@@ -122,7 +77,7 @@ class Shower:
 
         self.set_dict_dir(dict_dir)
         self.set_target_material(target_material)
-        self.min_energy = min_energy
+        self.min_kinetic_energy = min_kinetic_energy
 
         self.set_material_properties()
         self.set_n_targets()
@@ -132,12 +87,11 @@ class Shower:
         self.set_MCS_momentum(fast_MCS_mode)
         self.set_MCS_rescale_factor(rescale_MCS)
 
-        self._exponential_factor = {}
-        self._exponential_factor[11] = self._electron_exponential_factor
-        self._exponential_factor[-11] = self._positron_exponential_factor
-        self._exponential_factor[13] = self._muon_exponential_factor
+        #self._exponential_factor = {}
+        #self._exponential_factor[11] = self._electron_exponential_factor
+        #self._exponential_factor[-11] = self._positron_exponential_factor
+        #self._exponential_factor[13] = self._muon_exponential_factor
 
-        
         self._maxF_fudge_global = maxF_fudge_global
         self._max_n_integrators = max_n_integrators
 
@@ -209,10 +163,10 @@ class Shower:
 
     def set_samples(self):
         self._loaded_samples = {}
-        for Process in process_code.keys():
+        for Process in sm_process_info.keys():
             self._loaded_samples[Process] = self.load_sample(self._dict_dir, Process)
         self._Egamma_min = self._loaded_samples["Brem"][0][1]["Eg_min"]
-        self._Ee_min = self._loaded_samples["Brem"][0][1]["Ee_min"]
+        self._Te_min = self._loaded_samples["Brem"][0][1]["Te_min"]
         
     def get_n_targets(self):
         """Returns nuclear and electron target densities for the 
@@ -226,25 +180,40 @@ class Shower:
         and extracts the minimum/maximum values of initial energies
         """
 
+        self._cross_section_dict = {}
+        for process in sm_process_info.keys():
+            self._cross_section_dict[process] = self.load_cross_section(self._dict_dir, process, self._target_material)
+            while self._cross_section_dict[process][0][1] == 0.0:
+                self._cross_section_dict[process] = self._cross_section_dict[process][1:] #remove first element if it has zero cross-section
+
         # These contain only the cross sections for the chosen target material
-        self._brem_cross_section = self.load_cross_section(self._dict_dir, 'Brem', self._target_material)
-        self._pair_production_cross_section   = self.load_cross_section(self._dict_dir, 'PairProd', self._target_material)
-        self._annihilation_cross_section  = self.load_cross_section(self._dict_dir, 'Ann', self._target_material) 
-        self._compton_cross_section = self.load_cross_section(self._dict_dir, 'Comp', self._target_material) 
-        self._moller_cross_section = self.load_cross_section(self._dict_dir, 'Moller', self._target_material) 
-        self._bhabha_cross_section = self.load_cross_section(self._dict_dir, 'Bhabha', self._target_material) 
-        self._muonbrem_cross_section = self.load_cross_section(self._dict_dir, 'MuonBrem', self._target_material)
-        self._muone_cross_section = self.load_cross_section(self._dict_dir, 'MuonE', self._target_material)
-        while self._muone_cross_section[0][1] == 0.0:
-            self._muone_cross_section = self._muone_cross_section[1:] #remove first element if it has zero cross-section
+        #self._brem_cross_section = self.load_cross_section(self._dict_dir, 'Brem', self._target_material)
+        #self._pair_production_cross_section   = self.load_cross_section(self._dict_dir, 'PairProd', self._target_material)
+        #self._annihilation_cross_section  = self.load_cross_section(self._dict_dir, 'Ann', self._target_material) 
+        #self._compton_cross_section = self.load_cross_section(self._dict_dir, 'Comp', self._target_material) 
+        #self._moller_cross_section = self.load_cross_section(self._dict_dir, 'Moller', self._target_material) 
+        #self._bhabha_cross_section = self.load_cross_section(self._dict_dir, 'Bhabha', self._target_material) 
+        #self._muonbrem_cross_section = self.load_cross_section(self._dict_dir, 'MuonBrem', self._target_material)
+        #self._muone_cross_section = self.load_cross_section(self._dict_dir, 'MuonE', self._target_material)
+        #while self._cross_section_dict['MuonE'][0][1] == 0.0:
+        #    self._cross_section_dict['MuonE'] = self._cross_section_dict['MuonE'][1:] #remove first element if it has zero cross-section
+        #while self._muone_cross_section[0][1] == 0.0:
+        #    self._muone_cross_section = self._muone_cross_section[1:] #remove first element if it has zero cross-section
         
+        self._minimum_calculable_kinetic_energy = {}
+        for pid in incident_particle_PIDS:
+            self._minimum_calculable_kinetic_energy[pid] = np.min([self._cross_section_dict[process][0][0] for process in processes_by_incident_PID[pid]])
 
-        self._minimum_calculable_energy = {11:np.min([self._brem_cross_section[0][0], self._moller_cross_section[0][0]]),
-                                           -11:np.min([self._brem_cross_section[0][0], self._bhabha_cross_section[0][0], self._annihilation_cross_section[0][0]]),
-                                           13:np.max([np.min([self._muonbrem_cross_section[0][0], self._muone_cross_section[0][0]]), 0.120]),
-                                           -13:np.max([np.min([self._muonbrem_cross_section[0][0], self._muone_cross_section[0][0]]), 0.120]),
-                                           22:np.min([self._pair_production_cross_section[0][0], self._compton_cross_section[0][0]])}
+        #self._minimum_calculable_energy = {11:np.min([self._brem_cross_section[0][0], self._moller_cross_section[0][0]]),
+        #                                   -11:np.min([self._brem_cross_section[0][0], self._bhabha_cross_section[0][0], self._annihilation_cross_section[0][0]]),
+        #                                   13:np.max([np.min([self._muonbrem_cross_section[0][0], self._muone_cross_section[0][0]]), 0.120]),
+        #                                   -13:np.max([np.min([self._muonbrem_cross_section[0][0], self._muone_cross_section[0][0]]), 0.120]),
+        #                                   22:np.min([self._pair_production_cross_section[0][0], self._compton_cross_section[0][0]])}
 
+    def get_cross_section(self, process):
+        """ Returns array of [energy,cross-section] values for given process """ 
+        return self._cross_section_dict[process]
+    '''
     def get_brem_cross_section(self):
         """ Returns array of [energy,cross-section] values for brem """ 
         return self._brem_cross_section
@@ -269,56 +238,84 @@ class Shower:
     def get_muone_cross_section(self):
         """ Returns array of [energy,cross-section] values for MuonE """ 
         return self._muone_cross_section
+    '''
 
     def set_NSigmas(self):
         """Constructs interpolations of n_T sigma (in 1/cm) as a functon of 
         incoming particle energy for each process
         """
-        BS, PPS, AnnS, CS, MS, BhS = self.get_brem_cross_section(), self.get_pairprod_cross_section(), self.get_annihilation_cross_section(), self.get_compton_cross_section(), self.get_moller_cross_section(), self.get_bhabha_cross_section()
-        MBS, MBES = self.get_muonbrem_cross_section(), self.get_muone_cross_section()
         nZ, ne = self.get_n_targets()
-        self._NSigmaBrem = interp1d(np.transpose(BS)[0], nZ*GeVsqcm2*np.transpose(BS)[1], fill_value=0.0, bounds_error=False)
-        self._NSigmaPP = interp1d(np.transpose(PPS)[0], nZ*GeVsqcm2*np.transpose(PPS)[1], fill_value=0.0, bounds_error=False)
-        self._NSigmaAnn = interp1d(np.transpose(AnnS)[0], ne*GeVsqcm2*np.transpose(AnnS)[1], fill_value=0.0, bounds_error=False)
-        self._NSigmaComp = interp1d(np.transpose(CS)[0], ne*GeVsqcm2*np.transpose(CS)[1], fill_value=0.0, bounds_error=False)
-        #bhabha_moller_energies = np.logspace(np.log10(3*m_electron + self.min_energy), 2, 101)
-        bhabha_moller_energies = np.geomspace(3.0*m_electron + self._Ee_min, np.transpose(BS)[0][-1], len(BS))
-        self._NSigmaMoller = interp1d(bhabha_moller_energies, ne*GeVsqcm2*proc.sigma_moller({"E_inc":bhabha_moller_energies, "Ee_min":self._Ee_min}), fill_value=0.0, bounds_error=False)
-        self._NSigmaBhabha = interp1d(bhabha_moller_energies, ne*GeVsqcm2*proc.sigma_bhabha({"E_inc":bhabha_moller_energies, "Ee_min":self._Ee_min}), fill_value=0.0, bounds_error=False)
-        
-        self._muon_e_minimum = 1.0/(2.0*m_electron)*(m_electron*(self._Ee_min - m_electron) + np.sqrt(m_electron*(self._Ee_min+m_electron)*(m_electron*(self._Ee_min-m_electron) + 2*m_muon**2)))
-        if self._muon_e_minimum < MBES[0][0]:
-            self._muon_e_minimum = MBES[0][0]
-        muon_e_energies        = np.geomspace(self._muon_e_minimum, bhabha_moller_energies[-1], len(BS))
-        self._NSigmaMuonE  = interp1d(muon_e_energies,        ne*GeVsqcm2*proc.sigma_muone({"E_inc":muon_e_energies, "Ee_min":self._Ee_min}), fill_value=0.0, bounds_error=False)
+        self._NSigma = {}
+        for process in sm_process_info.keys():
+            cross_section = self.get_cross_section(process)
+            if sm_process_info[process]['scattering_target'] == 'nucleus':
+                n_target = nZ
+            elif sm_process_info[process]['scattering_target'] == 'electron':
+                n_target = ne
+            else:
+                raise Exception("Unknown scattering target type: must be 'nucleus' or 'electron'")
+            #NB: _NSigma is now interpolating with respect to _kinetic energy_ (as of Jan. 28, 2026)
+            self._NSigma[process] = interp1d(np.transpose(cross_section)[0], n_target*GeVsqcm2*np.transpose(cross_section)[1], fill_value=0.0, bounds_error=False)
 
-        self._NSigmaMuonBrem = interp1d(np.transpose(MBS)[0], nZ*GeVsqcm2*np.transpose(MBS)[1], fill_value=0.0, bounds_error=False)
+        #bhabha_moller_energies = np.geomspace(3.0*m_electron + self._Ee_min, np.transpose(BS)[0][-1], len(BS))
+        #self._NSigmaMoller = interp1d(bhabha_moller_energies, ne*GeVsqcm2*proc.sigma_moller({"E_inc":bhabha_moller_energies, "Ee_min":self._Ee_min}), fill_value=0.0, bounds_error=False)
+        #self._NSigmaBhabha = interp1d(bhabha_moller_energies, ne*GeVsqcm2*proc.sigma_bhabha({"E_inc":bhabha_moller_energies, "Ee_min":self._Ee_min}), fill_value=0.0, bounds_error=False)
+        
+        #self._muon_e_minimum = 1.0/(2.0*m_electron)*(m_electron*(self._Ee_min - m_electron) + np.sqrt(m_electron*(self._Ee_min+m_electron)*(m_electron*(self._Ee_min-m_electron) + 2*m_muon**2)))
+        #if self._muon_e_minimum < MBES[0][0]:
+        #    self._muon_e_minimum = MBES[0][0]
+        #muon_e_energies        = np.geomspace(self._muon_e_minimum, bhabha_moller_energies[-1], len(BS))
+        #self._NSigmaMuonE  = interp1d(muon_e_energies,        ne*GeVsqcm2*proc.sigma_muone({"E_inc":muon_e_energies, "Ee_min":self._Ee_min}), fill_value=0.0, bounds_error=False)
+
+        #self._NSigmaMuonBrem = interp1d(np.transpose(MBS)[0], nZ*GeVsqcm2*np.transpose(MBS)[1], fill_value=0.0, bounds_error=False)
         #self._NSigmaMuonE    = interp1d(np.transpose(MBES)[0], ne*GeVsqcm2*np.transpose(MBES)[1], fill_value=0.0, bounds_error=False)
 
-        II_y_Brem = np.array([quad(self._NSigmaBrem, BS[0][0],   BS[i][0], full_output=1)[0]   for i in range(len(BS))])
-        self._interaction_integral_Brem = interp1d(np.transpose(BS)[0],   II_y_Brem, fill_value=0.0, bounds_error=False)
+        II_y = {}
+        self._interaction_integral = {}
+        for process in sm_process_info.keys():
+            II_y[process] = np.array([quad(self._NSigma[process], self._cross_section_dict[process][0][0], self._cross_section_dict[process][i][0], full_output=1)[0] for i in range(len(self._cross_section_dict[process]))])
+            #As with _NSigma, _interaction_integral is now with respect to _kinetic energy_ (as of Jan. 28, 2026)
+            self._interaction_integral[process] = interp1d(np.transpose(self._cross_section_dict[process])[0], II_y[process], fill_value=0.0, bounds_error=False)
 
-        II_y_PP = np.array([quad(self._NSigmaPP, PPS[0][0],   PPS[i][0], full_output=1)[0]   for i in range(len(PPS))])
-        self._interaction_integral_PP = interp1d(np.transpose(PPS)[0],   II_y_PP, fill_value=0.0, bounds_error=False)
+        #II_y_Brem = np.array([quad(self._NSigmaBrem, BS[0][0],   BS[i][0], full_output=1)[0]   for i in range(len(BS))])
+        #self._interaction_integral_Brem = interp1d(np.transpose(BS)[0],   II_y_Brem, fill_value=0.0, bounds_error=False)
 
-        II_y_Ann = np.array([quad(self._NSigmaAnn, AnnS[0][0],   AnnS[i][0], full_output=1)[0]   for i in range(len(AnnS))])
-        self._interaction_integral_Ann = interp1d(np.transpose(AnnS)[0],   II_y_Ann, fill_value=0.0, bounds_error=False)
+        #II_y_PP = np.array([quad(self._NSigmaPP, PPS[0][0],   PPS[i][0], full_output=1)[0]   for i in range(len(PPS))])
+        #self._interaction_integral_PP = interp1d(np.transpose(PPS)[0],   II_y_PP, fill_value=0.0, bounds_error=False)
 
-        II_y_Comp = np.array([quad(self._NSigmaComp, CS[0][0],   CS[i][0], full_output=1)[0]   for i in range(len(CS))])
-        self._interaction_integral_Comp = interp1d(np.transpose(CS)[0],   II_y_Comp, fill_value=0.0, bounds_error=False)
+        #II_y_Ann = np.array([quad(self._NSigmaAnn, AnnS[0][0],   AnnS[i][0], full_output=1)[0]   for i in range(len(AnnS))])
+        #self._interaction_integral_Ann = interp1d(np.transpose(AnnS)[0],   II_y_Ann, fill_value=0.0, bounds_error=False)
 
-        II_y_Moller = np.array([quad(self._NSigmaMoller, bhabha_moller_energies[0], bhabha_moller_energies[i], full_output=1)[0] for i in range(len(bhabha_moller_energies))])
-        self._interaction_integral_Moller = interp1d(bhabha_moller_energies, II_y_Moller, fill_value=0.0, bounds_error=False)
+        #II_y_Comp = np.array([quad(self._NSigmaComp, CS[0][0],   CS[i][0], full_output=1)[0]   for i in range(len(CS))])
+        #self._interaction_integral_Comp = interp1d(np.transpose(CS)[0],   II_y_Comp, fill_value=0.0, bounds_error=False)
+
+        #II_y_Moller = np.array([quad(self._NSigmaMoller, bhabha_moller_energies[0], bhabha_moller_energies[i], full_output=1)[0] for i in range(len(bhabha_moller_energies))])
+        #self._interaction_integral_Moller = interp1d(bhabha_moller_energies, II_y_Moller, fill_value=0.0, bounds_error=False)
         
-        II_y_Bhabha = np.array([quad(self._NSigmaBhabha, bhabha_moller_energies[0], bhabha_moller_energies[i], full_output=1)[0] for i in range(len(bhabha_moller_energies))])
-        self._interaction_integral_Bhabha = interp1d(bhabha_moller_energies, II_y_Bhabha, fill_value=0.0, bounds_error=False)
+        #II_y_Bhabha = np.array([quad(self._NSigmaBhabha, bhabha_moller_energies[0], bhabha_moller_energies[i], full_output=1)[0] for i in range(len(bhabha_moller_energies))])
+        #self._interaction_integral_Bhabha = interp1d(bhabha_moller_energies, II_y_Bhabha, fill_value=0.0, bounds_error=False)
 
-        II_y_MuonBrem = np.array([quad(self._NSigmaMuonE, MBS[0][0], MBS[i][0], full_output=1)[0] for i in range(len(MBS))])
-        self._interaction_integral_MuonBrem = interp1d(np.transpose(MBS)[0], II_y_MuonBrem, fill_value=0.0, bounds_error=False)
+        #II_y_MuonBrem = np.array([quad(self._NSigmaMuonE, MBS[0][0], MBS[i][0], full_output=1)[0] for i in range(len(MBS))])
+        #self._interaction_integral_MuonBrem = interp1d(np.transpose(MBS)[0], II_y_MuonBrem, fill_value=0.0, bounds_error=False)
 
-        II_y_MuonE = np.array([quad(self._NSigmaMuonE, MBES[0][0], MBES[i][0], full_output=1)[0] for i in range(len(MBES))])
-        self._interaction_integral_MuonE = interp1d(np.transpose(MBES)[0], II_y_MuonE, fill_value=0.0, bounds_error=False)
+        #II_y_MuonE = np.array([quad(self._NSigmaMuonE, MBES[0][0], MBES[i][0], full_output=1)[0] for i in range(len(MBES))])
+        #self._interaction_integral_MuonE = interp1d(np.transpose(MBES)[0], II_y_MuonE, fill_value=0.0, bounds_error=False)
         
+    def _particle_exponential_factor(self, PID, T, Ti):
+        """Returns the exponential factor for particle non-interaction probability
+        over a kinetic energy interval [T, Ti]"""
+        list_of_processes = processes_by_incident_PID[PID]
+        n_sigma_diff = 0.0
+        for process in list_of_processes:
+            n_sigma_diff += (self._interaction_integral[process](Ti) - self._interaction_integral[process](T))
+        if n_sigma_diff < 0.0 or T > Ti:
+            return 0.0
+        #dEdxT has units of GeV/m
+        dEdxT = self.get_material_properties()[3]*(0.1) #Converting MeV/cm to GeV/m
+        #the ratio n_sigma_diff/dEdxT has units of (GeV/cm)/(GeV/m) = m/cm = 100
+        return np.exp(-n_sigma_diff/dEdxT/cmtom)
+
+    '''
     def _positron_exponential_factor(self, E, Ei):
         """Returns the exponential factor for positron non-interaction probability
         over an energy interval [E, Ei]"""
@@ -352,60 +349,67 @@ class Shower:
             return 0.0
         dEdxT = self.get_material_properties()[3]*(0.1) #Converting MeV/cm to GeV/m
         return np.exp(-n_sigma_diff/dEdxT/cmtom)
-        
+    '''    
+    def _NSigmaParticle(self, PID, T):
+        """Returns n sigma for a particle with given PID as a function of kinetic energy in GeV"""
+        return np.sum([self._NSigma[process](T) for process in processes_by_incident_PID[PID]])   
 
-    def _NSigmaElectron(self, E):
-        """Returns n sigma for electrons as a function of energy in GeV"""
-        return self._NSigmaBrem(E) + self._NSigmaMoller(E)
-    def _NSigmaPhoton(self, E):
-        """Returns n sigma for photons as a function of energy in GeV"""
-        return self._NSigmaPP(E) + self._NSigmaComp(E)
-    def _NSigmaPositron(self, E):
-        """Returns n sigma for positrons as a function of energy in GeV"""
-        return self._NSigmaBrem(E) + self._NSigmaBhabha(E) + self._NSigmaAnn(E)
-    def _NSigmaMuon(self, E):
-        """Returns n sigma for muons as a function of energy in GeV"""
-        return self._NSigmaMuonBrem(E) + self._NSigmaMuonE(E)
+    #def _NSigmaElectron(self, E):
+    #    """Returns n sigma for electrons as a function of energy in GeV"""
+    #    return self._NSigmaBrem(E) + self._NSigmaMoller(E)
+    #def _NSigmaPhoton(self, E):
+    #    """Returns n sigma for photons as a function of energy in GeV"""
+    #    return self._NSigmaPP(E) + self._NSigmaComp(E)
+    #def _NSigmaPositron(self, E):
+    #    """Returns n sigma for positrons as a function of energy in GeV"""
+    #    return self._NSigmaBrem(E) + self._NSigmaBhabha(E) + self._NSigmaAnn(E)
+    #def _NSigmaMuon(self, E):
+    #    """Returns n sigma for muons as a function of energy in GeV"""
+    #    return self._NSigmaMuonBrem(E) + self._NSigmaMuonE(E)
 
     def get_mfp(self, particle): 
         """Returns particle mean free path in meters for PID=22 (photons), 
         11 (electrons) or -11 (positrons) as a function of energy in GeV"""
         if type(particle) is not Particle and (type(particle) is list or type(particle) is np.ndarray):
             PID, Energy = particle
+            kinetic_energy = Energy - mass_dict[PID]
         else:
             PID, Energy = particle.get_ids()["PID"], particle.get_pf()[0]
-        
-        if PID == 22:
-            NSigma = self._NSigmaPhoton(Energy)
-        elif PID == 11:
-            NSigma = self._NSigmaElectron(Energy)
-        elif PID == -11:
-            NSigma = self._NSigmaPositron(Energy)
-        elif np.abs(PID) == 13:
-            NSigma = self._NSigmaMuon(Energy)
+            kinetic_energy = Energy - particle.get_ids()["mass"]
+
+        NSigma = self._NSigmaParticle(PID, kinetic_energy)
+
+        #if PID == 22:
+        #    NSigma = self._NSigmaPhoton(Energy)
+        #elif PID == 11:
+        #    NSigma = self._NSigmaElectron(Energy)
+        #elif PID == -11:
+        #    NSigma = self._NSigmaPositron(Energy)
+        #elif np.abs(PID) == 13:
+        #    NSigma = self._NSigmaMuon(Energy)
         if NSigma <= 0.0:
             return 1.0e12 #return a large number if the cross section is zero
         #n_sigma is in 1/cm, convert to mfp in meters
         return cmtom/NSigma
         
-    def BF_positron_brem(self, Energy):
+    def BF_positron_brem(self, T):
         """Branching fraction for a positron to undergo brem vs annihilation"""
-        b0, b1 = self._NSigmaBrem(Energy), self._NSigmaAnn(Energy)
+        b0, b1 = self._NSigmaBrem(T), self._NSigmaAnn(T)
         return b0/(b0+b1)
-    def BF_photon_pairprod(self, Energy):
+    def BF_photon_pairprod(self, T):
         """Branching fraction for a photon to undergo pair production vs compton"""
-        b0, b1 = self._NSigmaPP(Energy), self._NSigmaComp(Energy)
+        b0, b1 = self._NSigmaPP(T), self._NSigmaComp(T)
         return b0/(b0+b1)
 
 
-    def draw_sample(self,Einc,LU_Key=-1,process='PairProd',VB=False):
+    def draw_sample(self,T_inc,LU_Key=-1,process='PairProd',VB=False):
         """Draws a sample from the pre-computed VEGAS integrator for a given
         process and incoming energy.
         Inputs:
-            Einc: incoming particle energy in GeV
+            T_inc: incoming particle kinetic energy in GeV
             LU_Key: (look up key) index of the pre-computed VEGAS integrator corresponding to
-            the closest incoming energy. If LU_Key is negative, the look up key identifies
-            the closest incoming energy to Einc.
+            the closest incoming kinetic energy. If LU_Key is negative, the look up key identifies
+            the closest incoming kinetic energy to T_inc.
             process: string label of the process
             VB: boolean flag to print verbose output
         Returns:
@@ -417,7 +421,7 @@ class Shower:
             energies = sample_list[process][0:]
             energies = np.array([x[0] for x in energies])
 
-            LU_Key = np.argmin(np.abs(energies - Einc)) + 1
+            LU_Key = np.argmin(np.abs(energies - T_inc)) + 1
             if LU_Key < 0:
                 LU_Key = 0
                 print("Warning: sampling below minimum energy for process" + str(process))
@@ -430,19 +434,19 @@ class Shower:
         adaptive_map = sample_dict["adaptive_map"]
         max_F      = sample_dict["max_F"][self._target_material]*self._maxF_fudge_global
         neval_vegas= sample_dict["neval"]
-        integrand=vg.Integrator(map=adaptive_map, max_nhcube=1, nstrat=np.ones(dimensionalities[process]), neval=neval_vegas)
+        integrand=vg.Integrator(map=adaptive_map, max_nhcube=1, nstrat=np.ones(sm_process_info[process]['dimensionalities']), neval=neval_vegas)
 
-        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min, 'Ee_min':self._Ee_min}
+        event_info={'T_inc': T_inc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': 0, 'Eg_min':self._Egamma_min, 'Te_min':self._Te_min}
         if process == "Brem":
             event_info["m_lepton"] = m_electron
         if process == "MuonBrem":
             event_info['m_lepton'] = m_muon
                 
-        if process in diff_xsection_options:
-            diff_xsec_func = diff_xsection_options[process]
+        if process in sm_process_info.keys():
+            diff_xsec_func = sm_process_info[process]['differential_cross_section']
         else:
             raise Exception("Your process is not in the list")
-        f_integrand = diff_xsec_func(event_info=event_info, ndim=dimensionalities[process])
+        f_integrand = diff_xsec_func(event_info=event_info, ndim=sm_process_info[process]['dimensionalities'])
 
         if VB:
             sampcount = 0
@@ -458,7 +462,7 @@ class Shower:
                     sample_found = True
                     break
         if sample_found is False:
-            raise Exception("No Sample Found", process, Einc, LU_Key)
+            raise Exception("No Sample Found", process, T_inc, LU_Key)
         if VB:
             return np.concatenate([list(x), [sampcount]])
         else:
@@ -466,12 +470,14 @@ class Shower:
     
     def sample_scattering(self, p0, process, VB=False):
         E0 = p0.get_pf()[0]
-        if E0 <= np.max([self._minimum_calculable_energy[p0.get_ids()["PID"]], self.min_energy, p0.get_ids()["mass"]]):
+        T0 = E0 - p0.get_ids()["mass"]
+        if T0 <= np.max([self._minimum_calculable_kinetic_energy[p0.get_ids()["PID"]], self.min_kinetic_energy]):
+        #if E0 <= np.max([self._minimum_calculable_energy[p0.get_ids()["PID"]], self.min_energy, p0.get_ids()["mass"]]):
             return None
         RM = p0.rotation_matrix()
-        sample_event = self.draw_sample(E0, process=process, VB=VB)
+        sample_event = self.draw_sample(T0, process=process, VB=VB)
 
-        NFVs = kinematic_function[process](p0, sample_event)
+        NFVs = sm_process_info[process]['kinematic_function'](p0, sample_event)
 
         E1f, p1xZF, p1yZF, p1zZF = NFVs[0]
         E2f, p2xZF, p2yZF, p2zZF = NFVs[1]
@@ -481,7 +487,7 @@ class Shower:
 
         init_IDs = p0.get_ids()
         p1_dict = {}
-        p1_dict["PID"] = process_PIDS[process][0]
+        p1_dict["PID"] = sm_process_info[process]['outgoing_particle_PID'][0]
         p1_dict["parent_PID"] = init_IDs["PID"]
         p1_dict["ID"] = 2*(init_IDs["ID"]) + 0
         p1_dict["parent_ID"] = init_IDs["ID"]
@@ -490,7 +496,7 @@ class Shower:
         p1_dict["weight"] = init_IDs["weight"]
 
         p2_dict = p1_dict.copy()
-        p2_dict["PID"] = process_PIDS[process][1]
+        p2_dict["PID"] = sm_process_info[process]['outgoing_particle_PID'][1]
         p2_dict["ID"] = 2*(init_IDs["ID"]) + 1
 
         if p1_dict["PID"] == 0:
@@ -529,9 +535,11 @@ class Shower:
                 raise ValueError("propagate_particle() should only be called \
                 for a particle with pf = p0 and rf = r0 and get_ended() == False")
 
-            particle_min_energy = np.max([self._minimum_calculable_energy[Part0.get_ids()["PID"]],\
-                                          self.min_energy, Part0.get_ids()["mass"]])
-            if Part0.get_p0()[0] < particle_min_energy:
+            #particle_min_energy = np.max([self._minimum_calculable_energy[Part0.get_ids()["PID"]],\
+            #                              self.min_energy, Part0.get_ids()["mass"]])
+            particle_min_kinetic_energy = np.max([self._minimum_calculable_kinetic_energy[Part0.get_ids()["PID"]],\
+                                                  self.min_kinetic_energy])
+            if Part0.get_p0()[0] < particle_min_kinetic_energy + Part0.get_ids()["mass"]:
                 Part0.set_ended(True)
                 return Part0
             
@@ -556,7 +564,7 @@ class Shower:
                 z_travelled =0
                 hard_scatter=False
 
-                while not hard_scatter and Part0.get_pf()[0] >= particle_min_energy:
+                while not hard_scatter and Part0.get_pf()[0] >= particle_min_kinetic_energy + Part0.get_ids()["mass"]:
                     mfp = self.get_mfp(Part0)
                     random_number = np.random.uniform(0.0, 1.0)
                     delta_z = mfp/np.random.uniform(low=6, high=20)
@@ -581,7 +589,7 @@ class Shower:
                                                          self._ATarget, self._ZTarget, self._MCS_rescale_factor, m_lepton=mass_dict[Part0.get_ids()["PID"]]) )
 
                 distC = np.random.uniform(0.0, 1.0)
-                if Part0._pf[0] < particle_min_energy:
+                if Part0._pf[0] < particle_min_kinetic_energy + Part0.get_ids()["mass"]:
                     last_increment = distC*delta_z
                 else:
                     mfp = self.get_mfp(Part0)
@@ -627,7 +635,7 @@ class Shower:
             MS_e=False
             MS_g=False
 
-        if p0.get_p0()[0] < self.min_energy:
+        if p0.get_p0()[0] < self.min_kinetic_energy + p0.get_ids()["mass"]:
             p0.set_ended(True)
             return all_particles
 
@@ -655,13 +663,26 @@ class Shower:
 
                         if (
                             all([apC.get_ended() for apC in all_particles]) is True
-                            and ap.get_pf()[0] < self.min_energy
+                            and ap.get_pf()[0] < self.min_kinetic_energy + ap.get_ids()["mass"]
                         ):
                             break
 
                         # Generate secondaries for the hard interaction
                         # Note: secondaries include the scattered parent particle 
                         # (i.e. the original the parent is not modified)
+
+                        if ap.get_ids()['PID'] not in processes_by_incident_PID.keys():
+                            ap.set_ended(True)
+                            continue
+                        #choices0 = [self._NSigmaParticle(ap.get_ids()["PID"], ap.get_pf()[0]) for process in processes_by_incident_PID[ap.get_ids()["PID"]]]
+                        choices0 = [self._NSigma[process](ap.get_pf()[0] - ap.get_ids()["mass"]) for process in processes_by_incident_PID[ap.get_ids()["PID"]]]
+                        SC = np.sum(choices0)
+                        if SC == 0.0 or np.isnan(SC):
+                            continue
+                        choices0 = choices0/SC
+                        draw = np.random.choice(processes_by_incident_PID[ap.get_ids()["PID"]], p=choices0)
+                        newparticles = self.sample_scattering(ap, process=draw, VB=VB)
+                        '''
                         if ap.get_ids()["PID"] == 11:
                             choices0 = self._NSigmaBrem(ap.get_pf()[0]), self._NSigmaMoller(ap.get_pf()[0])
                             SC = np.sum(choices0)
@@ -698,11 +719,11 @@ class Shower:
                             newparticles = self.sample_scattering(ap, process=draw, VB=VB)
                         elif np.abs(ap.get_ids()["PID"]) == 14:
                             ap.set_ended(True)
-
+                        '''
                     if newparticles is None:
                         continue
                     for dp in newparticles:
-                        if dp.get_p0()[0] > self.min_energy:
+                        if dp.get_p0()[0] > self.min_kinetic_energy + dp.get_ids()["mass"]:
                             all_particles.append(dp)
                     
         return all_particles
