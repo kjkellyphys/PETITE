@@ -10,10 +10,10 @@ from PETITE.sm.moliere import get_scattered_momentum_fast, get_scattered_momentu
 from PETITE.particle import Particle, meson_twobody_branchingratios
 from PETITE.atomic_annihilation import sigma_atomic
 from PETITE.atomic_compton import sigma_atomic_comp
-from PETITE.sm.kinematics import (
-    l_to_lV_fourvecs,
-    compton_fourvecs,
-    radiative_return_fourvecs,
+from PETITE.dark_vector.bsm_kinematics import (
+    #l_to_lV_fourvecs,
+    #compton_fourvecs,
+    #radiative_return_fourvecs,
     compton_fourvecs_boundelectron,
 )
 from PETITE.shower import Shower
@@ -46,21 +46,22 @@ class interpolate1d(interp1d):
             return super().__call__(x, *args, **kwargs)
         
 
-dark_process_codes = ["DarkBrem", "DarkAnn", "DarkComp", "TwoBody_BSMDecay", "DarkMuonBrem"]
+from PETITE.dark_vector import bsm_process_information as bsm_info
 
-dark_kinematic_function = {
-    "DarkBrem": l_to_lV_fourvecs,
-    "DarkAnn": radiative_return_fourvecs,
-    "DarkComp": compton_fourvecs,
-    "DarkMuonBrem": l_to_lV_fourvecs,
-}
-dark_diff_xsection_options = {
-    "DarkComp": proc.dsigma_compton_dCT,
-    "DarkBrem": proc.dsig_dx_dcostheta_dark_brem_exact_tree_level,
-    "DarkAnn": proc.dsigma_radiative_return_du,
-    "DarkMuonBrem": proc.dsig_dx_dcostheta_dark_brem_exact_tree_level,
-}
-dimensionalities_dark = {"DarkComp": 1, "DarkBrem": 3, "DarkAnn": 1, "DarkMuonBrem": 3}
+dark_process_codes = bsm_info.bsm_process_info.keys()
+#dark_kinematic_function = {
+#    "DarkBrem": l_to_lV_fourvecs,
+#    "DarkAnn": radiative_return_fourvecs,
+#    "DarkComp": compton_fourvecs,
+#    "DarkMuonBrem": l_to_lV_fourvecs,
+#}
+#dark_diff_xsection_options = {
+#    "DarkComp": proc.dsigma_compton_dCT,
+#    "DarkBrem": proc.dsig_dx_dcostheta_dark_brem_exact_tree_level,
+#    "DarkAnn": proc.dsigma_radiative_return_du,
+#    "DarkMuonBrem": proc.dsig_dx_dcostheta_dark_brem_exact_tree_level,
+#}
+#dimensionalities_dark = {"DarkComp": 1, "DarkBrem": 3, "DarkAnn": 1, "DarkMuonBrem": 3}
 
 class DarkShower(Shower):
     """ A class to reprocess an existing EM shower to generate dark photons
@@ -253,7 +254,7 @@ class DarkShower(Shower):
 
     def set_DarkAnnXSec(self):
         """ Returns array of [energy,cross-section] values for e+e- annihilation with a bound electron """ 
-        E_min = np.max([self._minimum_calculable_energy[-11], 0.001*self._resonant_annihilation_energy])       
+        E_min = np.max([self._minimum_calculable_kinetic_energy[-11], 0.001*self._resonant_annihilation_energy])       
         E_max = self._dark_brem_cross_section[-1][0]
         energy_list = np.logspace(np.log10(E_min), np.log10(E_max), 200)
         #energy_list = np.logspace(np.log10(0.0016), np.log10(1000), 200)
@@ -273,7 +274,7 @@ class DarkShower(Shower):
 
     def set_DarkCompXSec(self):
         """ Returns array of [energy,cross-section] values for Compton scattering with a bound electron""" 
-        E_min = np.max([self._minimum_calculable_energy[22], 0.001*self._compton_threshold_energy])       
+        E_min = np.max([self._minimum_calculable_kinetic_energy[22], 0.001*self._compton_threshold_energy])       
         E_max = self._dark_compton_cross_section[-1][0]
         energy_list = np.logspace(np.log10(E_min), np.log10(E_max), 200)
         #energy_list = np.logspace(np.log10(0.0016), np.log10(1000), 200)
@@ -311,28 +312,28 @@ class DarkShower(Shower):
     def _dark_ann_integrand(self, E, Ei):
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
         if self.bound_electron:
-            return self._NSigmaDarkAnn(E)/dEdxT_GeVpercm*self._positron_exponential_factor(E, Ei)
+            return self._NSigmaDarkAnn(E)/dEdxT_GeVpercm*self._particle_exponential_factor(-11, E, Ei)
         elif self.bound_electron == False:
-            return self._NSigmaDarkAnn(E - self._resonant_annihilation_energy)/dEdxT_GeVpercm*self._positron_exponential_factor(E, Ei)
+            return self._NSigmaDarkAnn(E - self._resonant_annihilation_energy)/dEdxT_GeVpercm*self._particle_exponential_factor(-11, E, Ei)
     def _dark_brem_integrand_elec(self, E, Ei):
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
         nsigma = self._NSigmaDarkBrem(E)
         if nsigma < 1.0e-18:
             return 0.0
-        return nsigma/dEdxT_GeVpercm*self._electron_exponential_factor(E, Ei)
+        return nsigma/dEdxT_GeVpercm*self._particle_exponential_factor(11, E, Ei)
     def _dark_brem_integrand_positron(self, E, Ei):
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
         nsigma = self._NSigmaDarkBrem(E)
         if nsigma < 1.0e-18:
             return 0.0
-        return nsigma/dEdxT_GeVpercm*self._positron_exponential_factor(E, Ei)
+        return nsigma/dEdxT_GeVpercm*self._particle_exponential_factor(-11, E, Ei)
 
     def _dark_muon_brem_integrand(self, E, Ei):
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
         nsigma = self._NSigmaDarkMuonBrem(E)
         if nsigma < 1.0e-18:
             return 0.0
-        return nsigma/dEdxT_GeVpercm*self._muon_exponential_factor(E, Ei)
+        return nsigma/dEdxT_GeVpercm*self._particle_exponential_factor(13, E, Ei)
 
     def construct_brem_weight_array(self):
         DBS = self.get_DarkBremXSec()
@@ -509,7 +510,7 @@ class DarkShower(Shower):
         sMAX = 2*(m_electron*np.min([minimum_saved_energy, Ei]) + m_electron**2)
         beta = (2.*alpha_em/np.pi) * (np.log(sMAX/m_electron**2) - 1.)
         dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
-        weight_analytic = (1/dEdxT_GeVpercm)*(2*np.pi**2*alpha_em/m_electron)*(self.get_n_targets()[1])*GeVsqcm2*(sMAX - self._mV**2)**beta*self._positron_exponential_factor(self._resonant_annihilation_energy, Ei)
+        weight_analytic = (1/dEdxT_GeVpercm)*(2*np.pi**2*alpha_em/m_electron)*(self.get_n_targets()[1])*GeVsqcm2*(sMAX - self._mV**2)**beta*self._particle_exponential_factor(-11, self._resonant_annihilation_energy, Ei)
         darkann_weights = np.concatenate([[weight_analytic], darkann_weights])
         energy_center_array = np.concatenate([[resonant_bin_center], energy_center_array])
         energy_array = np.concatenate([[self._resonant_annihilation_energy, np.min([minimum_saved_energy, Ei])], energy_array])
@@ -606,9 +607,9 @@ class DarkShower(Shower):
         if energy_initial < self._minimum_calculable_dark_energy[PID][process]:
             return 0.0
         if PID == 22:
-            if process != "DarkComp" or energy_initial < self._minimum_calculable_energy[22]:
+            if process != "DarkComp" or energy_initial < self._minimum_calculable_kinetic_energy[22]:
                 return 0.0
-            return (self.g_e**2/(4*np.pi*alpha_em))*self._NSigmaDarkComp(energy_initial)/(self._NSigmaPP(energy_initial) + self._NSigmaComp(energy_initial))
+            return (self.g_e**2/(4*np.pi*alpha_em))*self._NSigmaDarkComp(energy_initial)/(self._NSigmaParticle(22, energy_initial))
         if process == "DarkBrem":
             if np.abs(PID) != 11:
                 return 0.0
@@ -624,7 +625,7 @@ class DarkShower(Shower):
                 sMAX = 2*(m_electron*np.min([minimum_saved_energy, energy_initial]) + m_electron**2)
                 beta = (2.*alpha_em/np.pi) * (np.log(sMAX/m_electron**2) - 1.)
                 dEdxT_GeVpercm = self.get_material_properties()[3]*(0.1)*cmtom #Converting MeV/cm to GeV/m to GeV/cm
-                weight_analytic = (1/dEdxT_GeVpercm)*(2*np.pi**2*alpha_em/m_electron)*(self.get_n_targets()[1])*GeVsqcm2*(sMAX - self._mV**2)**beta*self._positron_exponential_factor(self._resonant_annihilation_energy, energy_initial)
+                weight_analytic = (1/dEdxT_GeVpercm)*(2*np.pi**2*alpha_em/m_electron)*(self.get_n_targets()[1])*GeVsqcm2*(sMAX - self._mV**2)**beta*self._particle_exponential_factor(-11, self._resonant_annihilation_energy, energy_initial)
                 if energy_initial > minimum_saved_energy:
                     weight_numerical = self._annihilation_numerical_weight(energy_initial)
                 else:
@@ -646,19 +647,19 @@ class DarkShower(Shower):
             else:      
                 return 0.0
 
-    def draw_dark_sample(self,Einc,LU_Key=-1,process="DarkBrem",VB=False):
+    def draw_dark_sample(self,T_inc,LU_Key=-1,process="DarkBrem",VB=False):
         dark_sample_list=self._loaded_dark_samples 
         if LU_Key<0 or LU_Key > len(dark_sample_list[process]):
             energies = dark_sample_list[process][0:]
             energies = np.array([x[0] for x in energies])
 
-            LU_Key = np.argmin(np.abs(energies - Einc)) + 1
+            LU_Key = np.argmin(np.abs(energies - T_inc)) + 1
             if LU_Key < 0:
                 LU_Key = 0
-                print("Warning: sampling below minimum energy for process" + str(process) + " , Energy: " + str(Einc))
+                print("Warning: sampling below minimum energy for process" + str(process) + " , Kinetic Energy: " + str(T_inc))
             if LU_Key >= len(dark_sample_list[process]):
                 LU_Key = len(dark_sample_list[process]) - 1
-                print("Warning: sampling above maximum energy for process" + str(process) + " , Energy: " + str(Einc))
+                print("Warning: sampling above maximum energy for process" + str(process) + " , Kinetic Energy: " + str(T_inc))
 
         # this grabs the dictionary part rather than the energy. 
         dark_sample_dict=dark_sample_list[process][LU_Key][1]
@@ -666,20 +667,28 @@ class DarkShower(Shower):
         integrand = dark_sample_dict["adaptive_map"]
         max_F      = dark_sample_dict["max_F"][self._target_material]*self._maxF_fudge_global
         neval_vegas= dark_sample_dict["neval"]
-        integrand=vg.Integrator(map=integrand, max_nhcube=1, nstrat=np.ones(dimensionalities_dark[process]), neval=neval_vegas)
+        integrand=vg.Integrator(map=integrand, 
+                                max_nhcube=1, 
+                                #nstrat=np.ones(dimensionalities_dark[process]), 
+                                nstrat=np.ones(bsm_info.bsm_process_info[process]['dimensionalities']),
+                                neval=neval_vegas)
 
 
-        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min, 'Zeff':self.Zeff}
+        event_info={'T_inc': T_inc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min, 'Zeff':self.Zeff}
         if process == "DarkBrem":
             event_info['m_lepton'] = m_electron
         elif process == "DarkMuonBrem":
             event_info['m_lepton'] = m_muon
 
-        if process in dark_diff_xsection_options:
-            diff_xsec_func = dark_diff_xsection_options[process]
+        if process in self.active_processes:
+        #if process in dark_diff_xsection_options:
+            diff_xsec_func = bsm_info.bsm_process_info[process]['differential_cross_section']
+            #diff_xsec_func = dark_diff_xsection_options[process]
         else:
             raise Exception("Your process is not in the list")
-        f_integrand = diff_xsec_func(event_info=event_info, ndim=dimensionalities_dark[process])
+        f_integrand = diff_xsec_func(event_info=event_info,
+                                     #ndim=dimensionalities_dark[process])
+                                     ndim=bsm_info.bsm_process_info[process]['dimensionalities'])
 
         if VB:
             sampcount = 0
@@ -695,8 +704,8 @@ class DarkShower(Shower):
                     sample_found = True
                     break
         if sample_found is False:
-            #raise Exception("No Sample Found", process, Einc, LU_Key)
-            print("No Sample Found", process, Einc, LU_Key)
+            #raise Exception("No Sample Found", process, T_inc, LU_Key)
+            print("No Sample Found", process, T_inc, LU_Key)
             return None
         if VB:
             return np.concatenate([list(x), [sampcount]])
@@ -767,7 +776,7 @@ class DarkShower(Shower):
         elif process == "DarkAnn" and not self.bound_electron and E0 <= self.get_DarkAnnXSec()[0][0]:
             EVf, pVxfZF, pVyfZF, pVzfZF = self._resonant_annihilation_energy, 0, 0, np.sqrt(self._resonant_annihilation_energy**2 - self._mV**2)
         else:
-            sample_event = self.draw_dark_sample(E0, process=process, VB=VB)
+            sample_event = self.draw_dark_sample(E0 - p0.get_ids()['mass'], process=process, VB=VB)
             if sample_event is None:
                 return None
             #dark-production is estabilished such that the last particle returned corresponds to the dark vector
@@ -783,7 +792,8 @@ class DarkShower(Shower):
                 else:
                     EVf, pVxfZF, pVyfZF, pVzfZF = compton_fourvecs_boundelectron(p0, sample_event, mV=self._mV, Pe=pe, cte=c0)[-1]
             else:
-                EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1]
+                EVf, pVxfZF, pVyfZF, pVzfZF = bsm_info.bsm_process_info[process]['kinematic_function'](p0, sample_event, mV=self._mV)[-1]
+                #EVf, pVxfZF, pVyfZF, pVzfZF = dark_kinematic_function[process](p0, sample_event, mV=self._mV)[-1]
         pV4LF = np.concatenate([[EVf], np.dot(RM, [pVxfZF, pVyfZF, pVzfZF])])
 
         init_IDs = p0.get_ids()

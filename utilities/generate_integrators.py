@@ -6,6 +6,7 @@ import numpy as np
 import sys, os
 
 from PETITE.sm.sm_processes import vegas_integration
+from PETITE.dark_vector.bsm_processes import bsm_vegas_integration
 from PETITE.physical_constants import target_information, m_electron, alpha_em
 from glob import glob
 
@@ -67,9 +68,14 @@ def run_vegas_in_parallel(params, process, verbosity_mode, process_directory, en
     else:
         if params["verbosity"]:
             print("Starting VEGAS for energy index ", energy_index)
-        VEGAS_integrator = vegas_integration(
-            params, process, verbose=verbosity_mode, mode="Pickle"
-        )
+        if "mV" in params:
+            VEGAS_integrator = bsm_vegas_integration(
+                params, process, verbose=verbosity_mode, mode="Pickle"
+            )
+        else:   
+            VEGAS_integrator = vegas_integration(
+                params, process, verbose=verbosity_mode, mode="Pickle"
+            )
         # VEGAS_integrator = 0
         if params["verbosity"]:
             print("Done VEGAS for energy index ", energy_index)
@@ -136,9 +142,9 @@ def make_integrators(params, process, paralellize=True, overwrite=False):
     kinetic_energy_index_list = range(len(initial_kinetic_energy_list))
 
     if verbosity_mode:
-        print("Parameters:")
-        print(params)
         print("Doing process: ", process)
+        if mV != 0:
+            print("Dark Vector Mass: ", mV)
 
     # kinetic_energy_index_list = range(len(initial_kinetic_energy_list))
     # vec_mass_string = generate_vector_mass_string(params['mV'])

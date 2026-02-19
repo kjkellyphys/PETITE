@@ -213,6 +213,7 @@ def l_to_lV_fourvecs(p0, sampled_event, mV=0.0):
 
     return [Em4v, V4v]
 
+'''
 def radiative_return_fourvecs(pe, sampled_event, mV=0.0):
     """
     Reconstruct V four-momentum in the radiative return process e^+ e^- > gamma V working in the 
@@ -224,9 +225,9 @@ def radiative_return_fourvecs(pe, sampled_event, mV=0.0):
     Returns:
         pV : four momentum
     """
-    s = 2.*m_electron*(m_electron + pe.get_pf()[0])
+    s = 2.*ppc.m_electron*(ppc.m_electron + pe.get_pf()[0])
 
-    beta = (2.*alpha_em/np.pi) * (np.log(s/m_electron**2) - 1.)
+    beta = (2.*ppc.alpha_em/np.pi) * (np.log(s/ppc.m_electron**2) - 1.)
     umax = np.power(1.-mV**2/s,beta/2.)
 
     x1 = 1.- np.power(sampled_event[0]*umax,2./beta)
@@ -244,7 +245,7 @@ def radiative_return_fourvecs(pe, sampled_event, mV=0.0):
     p2 = np.array([E2, 0., 0., -E2])
     pV = p1 + p2
     # we boost to the "lab frame", which is the frame where the electron (before radiation) is at rest
-    pV_lab = boost(np.array([np.sqrt(s)/2., 0.,0., -np.sqrt(s/4. - m_electron**2)]), pV) 
+    pV_lab = boost(np.array([np.sqrt(s)/2., 0.,0., -np.sqrt(s/4. - ppc.m_electron**2)]), pV) 
     return(pV_lab, pV_lab)#returning two four-vectors just for proper handling in dark_shower.py
 
 def compton_fourvecs_boundelectron(p0, sampled_event, mV=0.0, Pe=0.0, cte=0.0):
@@ -262,15 +263,15 @@ def compton_fourvecs_boundelectron(p0, sampled_event, mV=0.0, Pe=0.0, cte=0.0):
     Eg = p0.get_pf()[0]
     ct = sampled_event[0]
 
-    s = m_electron**2 + 2*Eg*(np.sqrt(m_electron**2 + Pe**2) - cte*Pe)
+    s = ppc.m_electron**2 + 2*Eg*(np.sqrt(ppc.m_electron**2 + Pe**2) - cte*Pe)
     #s = m_electron**2 + 2*Eg*m_electron
-    Ee0 = (s + m_electron**2)/(2.0*np.sqrt(s))
-    Ee = (s - mV**2 + m_electron**2)/(2*np.sqrt(s))
-    EV = (s + mV**2 - m_electron**2)/(2*np.sqrt(s))
-    pF = np.sqrt(Ee**2 - m_electron**2)
+    Ee0 = (s + ppc.m_electron**2)/(2.0*np.sqrt(s))
+    Ee = (s - mV**2 + ppc.m_electron**2)/(2*np.sqrt(s))
+    EV = (s + mV**2 - ppc.m_electron**2)/(2*np.sqrt(s))
+    pF = np.sqrt(Ee**2 - ppc.m_electron**2)
 
     bnum = np.sqrt(Eg**2 + 2*cte*Eg*Pe + Pe**2)
-    bden = Eg + np.sqrt(m_electron**2 + Pe**2)
+    bden = Eg + np.sqrt(ppc.m_electron**2 + Pe**2)
     b0 = bnum/bden
     g0 = 1.0/np.sqrt(1.0 - b0**2)
 
@@ -297,3 +298,4 @@ def compton_fourvecs_boundelectron(p0, sampled_event, mV=0.0, Pe=0.0, cte=0.0):
     pV4v = np.concatenate([[EVLab], np.dot(P_rotation_matrix, pVLab3V)])
 
     return [pe4v, pV4v]
+'''

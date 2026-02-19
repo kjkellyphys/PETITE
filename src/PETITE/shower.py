@@ -86,7 +86,7 @@ class Shower:
         self.set_NSigmas()
         self.set_MCS_momentum(fast_MCS_mode)
         self.set_MCS_rescale_factor(rescale_MCS)
-
+       
         #self._exponential_factor = {}
         #self._exponential_factor[11] = self._electron_exponential_factor
         #self._exponential_factor[-11] = self._positron_exponential_factor

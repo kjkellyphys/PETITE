@@ -19,17 +19,23 @@ import random as rnd
 from datetime import datetime
 import vegas
 from tqdm import tqdm
+import PETITE.sm.process_information as sm_info
+import PETITE.dark_vector.bsm_process_information as bsm_info
+import PETITE.dark_vector.bsm_processes as bsm_proc
+
+#sm_processes = sm_info.sm_process_info.keys()
+#bsm_processes = bsm_info.bsm_process_info.keys()
 
 # Dictionary of proceses with corresponding x-secs, form factors and Q**2 functions
-process_info ={    'PairProd' : {'diff_xsection': proc.dsigma_pairprod_dimensionless},
-                   'Comp'     : {'diff_xsection': proc.dsigma_compton_dCT},
-                    'Brem'     : {'diff_xsection': proc.dsigma_brem_dimensionless},
-                    'MuonBrem' : {'diff_xsection': proc.dsigma_brem_dimensionless},
-                    'Ann'      : {'diff_xsection': proc.dsigma_annihilation_dCT},
-                    'Moller'   : {'diff_xsection': proc.dsigma_moller_dCT},
-                    'Bhabha'   : {'diff_xsection': proc.dsigma_bhabha_dCT},
-                    'MuonE'    : {'diff_xsection': proc.dsigma_muonelectron_dCT},
-                    }
+#process_info ={    'PairProd' : {'diff_xsection': proc.dsigma_pairprod_dimensionless},
+#                   'Comp'     : {'diff_xsection': proc.dsigma_compton_dCT},
+#                    'Brem'     : {'diff_xsection': proc.dsigma_brem_dimensionless},
+#                    'MuonBrem' : {'diff_xsection': proc.dsigma_brem_dimensionless},
+#                    'Ann'      : {'diff_xsection': proc.dsigma_annihilation_dCT},
+#                    'Moller'   : {'diff_xsection': proc.dsigma_moller_dCT},
+#                    'Bhabha'   : {'diff_xsection': proc.dsigma_bhabha_dCT},
+#                    'MuonE'    : {'diff_xsection': proc.dsigma_muonelectron_dCT},
+#                    }
 
 def get_file_names(path):
     ''' Get the names of all the files in a directory.
@@ -68,7 +74,10 @@ def do_find_max_work(params, process_file):
     diff_xsec = params['diff_xsec']
     event_info, integrand_or_map = process_file
 
-    integrand = vegas.Integrator(map=integrand_or_map, **proc.vegas_integrator_options[event_info['process']])#nstrat=nstrat_options[params['process']])
+    if "mV" in params:
+        integrand = vegas.Integrator(map=integrand_or_map, **bsm_proc.bsm_vegas_integrator_options[event_info['process']])
+    else:
+        integrand = vegas.Integrator(map=integrand_or_map, **proc.vegas_integrator_options[event_info['process']])#nstrat=nstrat_options[params['process']])
     save_copy = copy.deepcopy(integrand_or_map)
     integrand.set(max_nhcube=1, neval=params["neval"])
 
@@ -95,10 +104,13 @@ def do_find_max_work(params, process_file):
 
         if "mV" in params:
             event_info_target["mV"] = params["mV"]
-
-        batch_f = diff_xsec(
-            event_info_target, len(proc.integration_range(event_info_target, event_info_target["process"])), batch_mode=True
-        )
+            batch_f = diff_xsec(
+                event_info_target, len(bsm_proc.bsm_integration_range(event_info_target, event_info_target["process"])), batch_mode=True
+            )
+        else:
+            batch_f = diff_xsec(
+                event_info_target, len(proc.integration_range(event_info_target, event_info_target["process"])), batch_mode=True
+            )
         for trial_number in range(params["n_trials"]):
             for x, wgt in integrand.random_batch():  # scan over integrand
                 MM = wgt * batch_f(x)
@@ -152,7 +164,7 @@ def main(params):
     # Before starting, check for invalid processes
     for process in params['process']:
         # if process is not in list of processes, raise an error
-        if process not in ['PairProd', 'Comp', 'Ann', 'Brem', 'Moller', 'Bhabha', 'MuonE', 'MuonBrem']:
+        if process not in sm_info.sm_process_info.keys():
             raise ValueError('Process \'', process ,'\' not in list of available processes for standard model showers.')
 
     # Loop over all processes
@@ -181,7 +193,8 @@ def main(params):
         print('File being processed: ', adaptive_maps_file)
         # Add relevant info to params
         params['process']   = process
-        params['diff_xsec'] = process_info[process]['diff_xsection']
+        params['diff_xsec'] = sm_info.sm_process_info[process]['differential_cross_section']
+        #params['diff_xsec'] = process_info[process]['diff_xsection']
         #params['FF_func']   = process_info[process]['form_factor']
         #params['QSq_func']  = process_info[process]['QSq_func']
 
@@ -251,7 +264,7 @@ def main_dark(params):
         # Before starting, check for invalid processes
         for process in params['process']:
             # if process is not in list of processes, raise an error
-            if process not in ['DarkBrem', 'DarkAnn', 'DarkComp', 'DarkMuonBrem']:
+            if process not in bsm_info.bsm_process_info.keys():
                 raise ValueError('Process \'', process ,'\' not in list of available processes for dark showers.')
 
         # Loop over all processes
@@ -280,7 +293,8 @@ def main_dark(params):
             fm_params = copy.deepcopy(params)
             fm_params['process']   = process
             fm_params['mV']        = mV
-            fm_params['diff_xsec'] = process_info[process]['diff_xsection']
+            #fm_params['diff_xsec'] = process_info[process]['diff_xsection']
+            fm_params['diff_xsec'] = bsm_info.bsm_process_info[process]['differential_cross_section']
             #fm_params['FF_func']   = process_info[process]['form_factor']
             #fm_params['QSq_func']  = process_info[process]['QSq_func']
 

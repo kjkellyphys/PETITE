@@ -19,7 +19,6 @@ examples/beams/*400GeVProtons*.npy
 dark_shower_bound_electron.py
 examples/tutorial_vegasdebug.ipynb
 data_400GeV_manymasses*
-*bsm_shower*
 examples/beams/Pi0_120GeVProtons_1e5POT_HQCD.npy
 examples/beams/ship_mesons_*
 /data_5TeV

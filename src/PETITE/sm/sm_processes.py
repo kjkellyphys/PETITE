@@ -2,9 +2,7 @@ import numpy as np
 import vegas as vg
 import random as rnd
 
-from PETITE.physical_constants import m_electron, m_muon, m_proton, GeV, alpha_em
-from PETITE.radiative_return import lepton_luminosity_integrand
-from PETITE.radiative_return import transformed_lepton_luminosity_integrand
+from PETITE.physical_constants import m_electron, m_muon, alpha_em
 
 sm_process_info = {}
 sm_process_counter = 0

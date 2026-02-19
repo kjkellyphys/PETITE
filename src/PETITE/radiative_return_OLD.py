@@ -2,7 +2,7 @@ import numpy as np
 from scipy.interpolate import LinearNDInterpolator
 
 from PETITE.physical_constants import alpha_em, m_electron
-from PETITE.lumi_integral_data import lumi_integral_list
+from PETITE.lumi_integral_data_OLD import lumi_integral_list
 def lor_prod(p, v):
     return p[0] * v[0] - p[1] * v[1] - p[2] * v[2] - p[3] * v[3]
 
@@ -81,9 +81,9 @@ def transformed_lepton_luminosity_integrand(s,y,u):
 
 _lumi_int_fill_val = np.nan
 try:
-    from .lumi_integral_data import *
+    from .lumi_integral_data_OLD import *
 except:
-    from lumi_integral_data import *
+    from PETITE.lumi_integral_data_OLD import *
 log_lumi_integral_list = np.log10(lumi_integral_list+1e-99)
 log_lumi_integral_interp = LinearNDInterpolator(list(zip(log_lumi_integral_list[:,0], log_lumi_integral_list[:,1])),log_lumi_integral_list[:,2], fill_value=_lumi_int_fill_val)
 
