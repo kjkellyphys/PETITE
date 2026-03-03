@@ -108,3 +108,32 @@ def sigma_atomic_comp(k,mV, Zeff):
     if beta < 0.0: beta = 0.0
 
     return( (4.0*np.pi*alpha_em)*((mV**2+2*m_e**2)* (2/3/Lambda/m_e)*(1/k**2)*(beta/4)*combine(a,b)) )
+
+class sigma_atomic_compton:
+    def __init__(self, event_info):
+        self.event_info = event_info
+
+    def kinetic_energy_list(self, Eg_max, Npts):
+        Eg_threshold = self.event_info["mV"]*(1.0 + self.event_info["mV"]/(2*m_electron))
+        if Eg_threshold > Eg_max:
+            Eg_max = 100*Eg_threshold
+        Eg_min = Eg_threshold/1000.0
+        return np.geomspace(Eg_min, Eg_max, Npts)
+    
+    def __call__(self, info):
+        k = info['T_inc']
+        mV = info['mV']
+        try:
+            Zeff = self.event_info["Zeff"]
+        except:
+            Zeff = 1.0 #default to hydrogenic target if not specified
+        
+        Lambda = Zeff*alpha_em*m_electron
+        a = m_electron/Lambda
+        b = mV**2/(2*k*Lambda)
+
+        s = 2*k*m_electron + m_electron**2
+        beta = 2*alpha_em/np.pi*(np.log(s/m_electron**2) - 1.0)
+        if beta < 0.0: beta = 0.0
+
+        return( (4.0*np.pi*alpha_em)*((mV**2+2*m_electron**2)* (2/3/Lambda/m_electron)*(1/k**2)*(beta/4)*combine(a,b)) )

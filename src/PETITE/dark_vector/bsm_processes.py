@@ -65,8 +65,17 @@ class dsig_dx_dcostheta_dark_brem_exact_tree_level:
             MTarget (Target mass)
         """
         self.event_info = event_info
+        if "m_lepton" not in self.event_info.keys() and "process" in self.event_info.keys():
+            if self.event_info["process"] == "DarkBrem":
+                self.event_info["m_lepton"] = m_electron
+            elif self.event_info["process"] == "DarkMuonBrem":
+                self.event_info["m_lepton"] = m_muon
         self.ndim = ndim
         self.batch_mode = batch_mode
+
+    def kinetic_energy_list(self, Te_max, Npts):
+        minimum_KE = 1.25*self.event_info["mV"]
+        return np.geomspace(minimum_KE, Te_max, Npts)
 
     def __call__(self, phase_space_par_list):
         if self.batch_mode:
@@ -215,6 +224,7 @@ class dsig_dx_dcostheta_dark_brem_exact_tree_level:
 
         return np.where(allowed_kinematics, ans * tconv * Jacobian, 0)
 
+
 @vg.lbatchintegrand
 class dsigma_radiative_return_du:
     def __init__(self, event_info, ndim, batch_mode=False):
@@ -232,7 +242,16 @@ class dsigma_radiative_return_du:
         self.event_info = event_info
         self.ndim = ndim
         self.batch_mode = batch_mode
-            
+
+    def kinetic_energy_list(self, Te_max, Npts):
+        resonant_energy = (self.event_info["mV"]**2 - 2*m_electron**2)/(2*m_electron)
+        Ee_max = Te_max + m_electron
+        if resonant_energy > Ee_max:
+            print("Updating Ee_max to be higher than resonant energy for this process")
+            Ee_max = resonant_energy * 100.0
+        kinetic_energy_list = resonant_energy * (1.0 + np.geomspace(1e-4, (Ee_max - resonant_energy)/resonant_energy, Npts)) - m_electron
+        return kinetic_energy_list
+        
     def __call__(self, phase_space_par_list):
 
         mV = self.event_info["mV"]
@@ -363,6 +382,15 @@ class dsigma_compton_dCT:
         self.mV = self.event_info["mV"] if "mV" in self.event_info.keys() else 0
         self.batch_mode = batch_mode
 
+    def kinetic_energy_list(self, Te_max, Npts):
+        resonant_energy = self.event_info["mV"]*(1.0 + self.event_info["mV"]/(2.0*m_electron))
+        Eg_max_process = Te_max
+        if resonant_energy > Eg_max_process:
+            print("Updating Eg_max_process to be higher than resonant energy for this process")
+            Eg_max_process = resonant_energy * 100.0
+        kinetic_energy_list = resonant_energy * (1.0 + np.geomspace(1.0e-4, (Eg_max_process - resonant_energy)/resonant_energy, Npts))
+        return kinetic_energy_list
+    
     def __call__(self, phase_space_par_list):
 
         Eg = self.event_info["T_inc"]
@@ -594,7 +622,6 @@ def bsm_vegas_integration(event_info, process, verbose=False, mode="XSec"):
            -- 'T_inc' (incident particle kinetic energy)
            -- 'm_e' (electron mass)
            -- 'Z (Target Atomic Number)
-           -- 'alpha_FS' (electro-weak fine-structure constant)
            -- 'mV' (Dark vector mass, assumed to be zero if absent)
            -- 'Eg_min': minimum lab-frame energy (GeV) of outgoing photons
 

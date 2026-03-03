@@ -2,6 +2,7 @@ import numpy as np
 import vegas as vg
 import pickle 
 import os
+import importlib
 
 from scipy.interpolate import interp1d
 from scipy.integrate import quad
@@ -37,18 +38,6 @@ class interpolate1d(interp1d):
         else:
             return super().__call__(x, *args, **kwargs)
         
-from PETITE.dark_vector import bsm_process_information as bsm_info
-bsm_process_codes = bsm_info.bsm_process_info.keys()
-
-incident_particle_PIDs_BSM = []
-for proc_name in bsm_process_codes:
-    i_p_PID = bsm_info.bsm_process_info[proc_name]['incoming_particle_PID']
-    if type(i_p_PID) == int:
-        i_p_PID = np.array([i_p_PID])
-    for pid in i_p_PID:
-        incident_particle_PIDs_BSM.append(pid)
-incident_particle_PIDs_BSM = np.unique(incident_particle_PIDs_BSM)
-
 class BSMShower(Shower):
     """ A class to reprocess an existing EM shower to generate dark photons
     """
@@ -57,7 +46,8 @@ class BSMShower(Shower):
                  dict_dir,
                  target_material,
                  min_energy,
-                 mV_in_GeV ,
+                 model_keys={},
+                 model_name="dark_vector",
                  active_processes=None,
                  mode="exact",
                  maxF_fudge_global=1,
@@ -77,22 +67,10 @@ class BSMShower(Shower):
             min_energy: minimum particle energy in GeV at which the particle
             finishes its propagation through the target
             mV_in_GeV: vector mass in GeV
-            mode: determines whether mV is set to MV_in_GeV or the nearest value for which integrators have been trained
+            mode: determines whether mV is set to mV_in_GeV or the nearest value for which integrators have been trained
         """
 
-        self.active_processes = active_processes
-        if self.active_processes is None:
-            self.active_processes = bsm_process_codes
-
-        self.active_processes_by_incident_PID = {}
-        for pid in incident_particle_PIDs_BSM:
-            self.active_processes_by_incident_PID[pid] = []
-            for proc_name in self.active_processes:
-                i_p_PID = bsm_info.bsm_process_info[proc_name]['incoming_particle_PID']
-                if type(i_p_PID) == int:
-                    i_p_PID = np.array([i_p_PID])
-                if pid in i_p_PID:
-                    self.active_processes_by_incident_PID[pid].append(proc_name)
+        self.establish_model(model_name, model_keys, active_processes)
 
         self.set_bsm_dict_dir(dict_dir)
         self.set_target_material(target_material)
@@ -105,8 +83,9 @@ class BSMShower(Shower):
 
         self.set_material_properties()
         self.set_n_targets()
-        self.set_mV_list(dict_dir)
-        self.set_mV(mV_in_GeV, mode)
+
+        self.set_organizational_list(dict_dir)
+        self.set_organizational_parameter(self._input_organizational_parameter, mode)
  
         self.set_bsm_cross_sections()
         self.set_bsm_NSigmas()
@@ -119,6 +98,57 @@ class BSMShower(Shower):
 
         self._maxF_fudge_global = maxF_fudge_global
         self._max_n_integrators = max_n_integrators
+
+    def establish_model(self, model_name, model_keys, active_processes):
+        self._bsm_info = importlib.import_module(f'PETITE.{model_name}').bsm_process_information
+        bsm_process_codes = self._bsm_info.bsm_process_info.keys()
+        self._model_name = model_name
+        self._model_keys = model_keys
+        # Unless target Z/A explicitly specified, we assume that it matches the shower information
+        # This prevents errors in setting Z/A from the default model keys.
+        if "Z_T" not in self._model_keys.keys():
+            self._model_keys["Z_T"] = self._ZTarget
+        if "A_T" not in self._model_keys.keys():
+            self._model_keys["A_T"] = self._ATarget
+        if "mT" not in self._model_keys.keys():
+            self._model_keys["mT"] = self._ATarget
+        required_keys = self._bsm_info.model_required_keys
+        for key in required_keys:
+            if key not in self._model_keys:
+                if key in self._bsm_info.default_key_values:
+                    self._model_keys[key] = self._bsm_info.default_key_values[key]
+                    print(f"Warning: {key} not specified for model, setting to default value of {self._model_keys[key]}")
+                else:
+                    raise Exception(f"Key {key} required to specify model but not found in model_keys or default_key_values")
+        #organizational parameter necessary to navigate pre-computed integrators/cross sections.
+        self._input_organizational_parameter = self._model_keys[self._bsm_info.organizational_key]
+
+        self._incident_particle_PIDs_BSM = []
+        self.active_processes = active_processes
+        if self.active_processes is None:
+            #if no set of active processes is specified, load all for the given model
+            self.active_processes = bsm_process_codes
+
+        for proc_name in self.active_processes:
+            i_p_PID = self._bsm_info.bsm_process_info[proc_name]['incoming_particle_PID']
+            if type(i_p_PID) == int:
+                i_p_PID = np.array([i_p_PID])
+            for pid in i_p_PID:
+                self._incident_particle_PIDs_BSM.append(pid)
+        self._incident_particle_PIDs_BSM = np.unique(self._incident_particle_PIDs_BSM)
+
+        self.active_processes_by_incident_PID = {}
+        for pid in self._incident_particle_PIDs_BSM:
+            self.active_processes_by_incident_PID[pid] = []
+            for proc_name in self.active_processes:
+                i_p_PID = self._bsm_info.bsm_process_info[proc_name]['incoming_particle_PID']
+                if type(i_p_PID) == int:
+                    i_p_PID = np.array([i_p_PID])
+                if pid in i_p_PID:
+                    self.active_processes_by_incident_PID[pid].append(proc_name)
+
+    def get_model_name(self):
+        return self._model_name
 
     def set_MCS_rescale_factor(self, rescale_MCS):
         self._MCS_rescale_factor = rescale_MCS
@@ -136,14 +166,14 @@ class BSMShower(Shower):
         """Get the top level directory containing pre-computed MC pickles""" 
         return self._bsm_dict_dir
    
-    def set_mV_list(self,dict_dir):
-        sample_file=open(dict_dir + "dark_maps.pkl", 'rb')
+    def set_organizational_list(self, dict_dir):
+        sample_file=open(dict_dir + self._model_name + "_maps.pkl", 'rb')
         outer_dict=pickle.load(sample_file)
         sample_file.close()
 
-        mass_list=list(outer_dict.keys())
+        organizational_list=list(outer_dict.keys())
 
-        self._mV_list=mass_list
+        self._organizational_list=organizational_list
 
     def closest_lesser_value(self, input_list, input_value):
         arr = np.asarray(input_list)
@@ -154,27 +184,32 @@ class BSMShower(Shower):
         else:
             return(arr[index-1])
 
-    def set_mV(self, value, mode):
-        """Set MVStr to value and extract the corresponding numerical mass of the dark photon"""
-        if mode=='exact':
-            self._mV= self.closest_lesser_value(self._mV_list, value)
-            self._mV_estimator = self._mV
-        elif mode=='approx':
-            self._mV= value
-            self._mV_estimator = self.closest_lesser_value(self._mV_list, value)
+    def set_organizational_parameter(self, input_parameter, mode):
+        """ Set the model's organizational parameter according to pre-computed maps/cross sections
+            Can either be used exactly, or snap to a corresponding value already computed.
+
+            The object self._organizational_estimator corresponds to the value in look-up tables.
+            The object self._organizational_parameter corresponds to the value assumed for simulations.
+        """
+        if mode == 'exact':
+            self._organizational_parameter = self.closest_lesser_value(self._organizational_list, input_parameter)
+            self._organizational_estimator = self._organizational_parameter
+        elif mode == 'approx':
+            self._organizational_parameter = input_parameter
+            self._organizational_estimator = self.closest_lesser_value(self._organizational_list, input_parameter)
         else:
-            raise Exception("Mode not valid. Chose exact or approx.")
+            raise Exception("Mode for establishing organizational parameter not valid. Chose exact or approx.")
     
-    def get_mV(self):
-        """Get the numerical value of the dark vector mass"""
-        return self._mV
+    def get_organizational_parameter(self):
+        """Get the numerical value of the organizational parameter"""
+        return self._organizational_parameter
     
-    def load_bsm_sample(self, dict_dir, process): 
-        sample_file=open(dict_dir + "dark_maps.pkl", 'rb')
+    def load_bsm_sample(self, dict_dir, model_name, process): 
+        sample_file=open(dict_dir + model_name + "_maps.pkl", 'rb')
         outer_dict=pickle.load(sample_file)
         sample_file.close()
 
-        sample_dict=outer_dict[self._mV_estimator]
+        sample_dict=outer_dict[self._organizational_estimator]
         if process in sample_dict.keys():
             return(sample_dict[process])
         else:
@@ -185,14 +220,14 @@ class BSMShower(Shower):
         self._loaded_bsm_samples={}
         for process in self.active_processes:
             self._loaded_bsm_samples[process]= \
-                self.load_bsm_sample(self._dict_dir, process)
+                self.load_bsm_sample(self._dict_dir, self._model_name, process)
             
     def load_bsm_cross_section(self, dict_dir, process, target_material):
-        bsm_cross_section_file=open( dict_dir + "dark_xsec.pkl", 'rb')
+        bsm_cross_section_file=open( dict_dir + self._model_name + "_xsec.pkl", 'rb')
         outer_dict=pickle.load(bsm_cross_section_file)
         bsm_cross_section_file.close()
 
-        bsm_cross_section_dict=outer_dict[self._mV_estimator]
+        bsm_cross_section_dict=outer_dict[self._organizational_estimator]
 
         if process not in bsm_cross_section_dict:
             raise Exception("Process String does not match library")
@@ -207,26 +242,35 @@ class BSMShower(Shower):
         and extracts the minimum/maximum values of initial energies
         """
         self._bsm_cross_sections = {}
+        self._alternative_ranges = {}
         for process in self.active_processes:
-            self._bsm_cross_sections[process] = self.load_bsm_cross_section(self._dict_dir, process, self._target_material)
+            if "alternative_total_cross_section" in self._bsm_info.bsm_process_info[process].keys():
+                # Alternative method for calculating total cross section provided
+                # (e.g. for bound-electron annihilation).
+                # Using this method instead.
+                xsec_function_class = self._bsm_info.bsm_process_info[process]['alternative_total_cross_section']
+                xsec_function = xsec_function_class(event_info=self._model_keys)
+                kinetic_energy_list = xsec_function.kinetic_energy_list(-1.0, Npts=401)
+                event_info = deepcopy(self._model_keys)
+                cross_section_list = []
+                for Te in kinetic_energy_list:
+                    event_info['T_inc'] = Te
+                    cross_section_list.append([Te, xsec_function(event_info)])
+                self._bsm_cross_sections[process] = np.array(cross_section_list)
+
+                #Having an alternative method can induce nonzero weights where
+                #we don't have pre-trained integrators (and sampling will fail).
+                #Determine the range of kinetic energies over which this will happen.
+                minimum_sampled_energy = self.load_bsm_cross_section(self._dict_dir, process, self._target_material)[0][0]
+                minimum_kinetic_energy_alternative = self._bsm_cross_sections[process][0][0]
+                self._alternative_ranges[process] = [minimum_kinetic_energy_alternative, minimum_sampled_energy]
+            else:
+                self._bsm_cross_sections[process] = self.load_bsm_cross_section(self._dict_dir, process, self._target_material)
             while self._bsm_cross_sections[process][0][1] == 0.0:
                 self._bsm_cross_sections[process] = self._bsm_cross_sections[process][1:] #remove first element if it has zero cross-section
-
         self._minimum_calculable_dark_kinetic_energy = {}
-        for pid in incident_particle_PIDs_BSM:
+        for pid in self._incident_particle_PIDs_BSM:
             self._minimum_calculable_dark_kinetic_energy[pid] = np.min([self._bsm_cross_sections[process][0][0] for process in self.active_processes_by_incident_PID[pid]])
-        #self._resonant_annihilation_energy = (self._mV**2-2*m_electron**2)/(2*m_electron)
-        #self._compton_threshold_energy = self._mV**2/(2*m_electron) + self._mV
-        #self._minimum_calculable_dark_energy = {11:{"DarkBrem":self._dark_brem_cross_section[0][0]},
-        #                                        -11:{"DarkBrem":self._dark_brem_cross_section[0][0], "DarkAnn":self._resonant_annihilation_energy},
-        #                                        22:{"DarkComp":self._dark_compton_cross_section[0][0]},
-        #                                        111:{"TwoBody_BSMDecay":-1},
-        #                                        13:{"DarkMuonBrem":self._dark_muon_brem_cross_section[0][0]},
-        #                                        -13:{"DarkMuonBrem":self._dark_muon_brem_cross_section[0][0]}}
-        
-        #if self.bound_electron:
-        #    self._minimum_calculable_dark_energy[-11]["DarkAnn"] = self._resonant_annihilation_energy/1000.0
-        #    self._minimum_calculable_dark_energy[22]["DarkComp"] = self._compton_threshold_energy/1000.0
 
     def get_bsmXSec(self, process):
         """ Returns array of [kinetic_energy,cross-section] values for the given process """
@@ -244,7 +288,7 @@ class BSMShower(Shower):
         self._bsm_NSigma = {}
         for process in self.active_processes:
             x, y = np.transpose(self.get_bsmXSec(process))
-            target_particle = bsm_info.bsm_process_info[process]['scattering_target'] #string of either 'electron' or 'nucleus'
+            target_particle = self._bsm_info.bsm_process_info[process]['scattering_target'] #string of either 'electron' or 'nucleus'
             if target_particle == 'electron':
                 n_target = ne
             else:
@@ -286,7 +330,7 @@ class BSMShower(Shower):
 
     def set_weight_arrays(self):
         self._numerical_weights = {}
-        for pid in incident_particle_PIDs_BSM:
+        for pid in self._incident_particle_PIDs_BSM:
             if pid == 22:
                 continue #skipping numerical weight construction for incident photons
             self._numerical_weights[pid] = {}
@@ -313,7 +357,7 @@ class BSMShower(Shower):
 
     def set_drate_dE(self):
         self._d_rate_dict = {}
-        for pid in incident_particle_PIDs_BSM:
+        for pid in self._incident_particle_PIDs_BSM:
             if pid == 22:
                 continue #skipping d_rate_d_E construction for incident photons
             self._d_rate_dict[pid] = {}
@@ -326,6 +370,8 @@ class BSMShower(Shower):
         else:
             PID, kinetic_energy_initial = particle.get_ids()["PID"], particle.get_p0()[0]
 
+        if PID not in self.active_processes_by_incident_PID.keys():
+            return 0.0 #incident particle PID not compatible with any processes, so weight is zero.
         if process not in self.active_processes_by_incident_PID[PID]:
             return 0.0 #process and incident particle PID not compatible, so weight is zero.
 
@@ -357,22 +403,22 @@ class BSMShower(Shower):
         max_F     = bsm_sample_dict["max_F"][self._target_material]*self._maxF_fudge_global
         integrand = vg.Integrator(map = bsm_sample_dict["adaptive_map"], 
                                   max_nhcube = 1, 
-                                  nstrat = np.ones(bsm_info.bsm_process_info[process]['dimensionalities']),
+                                  nstrat = np.ones(self._bsm_info.bsm_process_info[process]['dimensionalities']),
                                   neval=bsm_sample_dict["neval"])
+        event_info = {'T_inc': Tinc, 'Z_T': self._ZTarget, 'A_T': self._ATarget, 'mT': self._ATarget,
+                      'Eg_min':self._Egamma_min}
+        event_info.update(self._model_keys) # add model keys to event_info dictionary
 
-        event_info = {'T_inc': Tinc, 'm_e': m_electron, 'Z_T': self._ZTarget, 
-                      'A_T': self._ATarget, 'mT': self._ATarget, 'alpha_FS': alpha_em,
-                      'mV': self._mV, 'Eg_min':self._Egamma_min}
         if process == "DarkBrem":
             event_info['m_lepton'] = m_electron
         elif process == "DarkMuonBrem":
             event_info['m_lepton'] = m_muon
         
         if process in self.active_processes:
-            diff_xsec_func = bsm_info.bsm_process_info[process]['differential_cross_section']
+            diff_xsec_func = self._bsm_info.bsm_process_info[process]['differential_cross_section']
         else:
             raise Exception("Your process is not in the list of active processes for this shower")
-        f_integrand = diff_xsec_func(event_info=event_info, ndim=bsm_info.bsm_process_info[process]['dimensionalities'])
+        f_integrand = diff_xsec_func(event_info=event_info, ndim=self._bsm_info.bsm_process_info[process]['dimensionalities'])
 
         n_integrators_used = 0
         sample_found = False
@@ -386,63 +432,6 @@ class BSMShower(Shower):
             raise Exception("No Sample Found", process, Tinc, LU_Key)
         else:
             return x
-
-    '''
-    def draw_dark_sample(self,Einc,LU_Key=-1,process="DarkBrem",VB=False):
-        dark_sample_list=self._loaded_dark_samples 
-        if LU_Key<0 or LU_Key > len(dark_sample_list[process]):
-            energies = dark_sample_list[process][0:]
-            energies = np.array([x[0] for x in energies])
-
-            LU_Key = np.argmin(np.abs(energies - Einc)) + 1
-            if LU_Key < 0:
-                LU_Key = 0
-                print("Warning: sampling below minimum energy for process" + str(process) + " , Energy: " + str(Einc))
-            if LU_Key >= len(dark_sample_list[process]):
-                LU_Key = len(dark_sample_list[process]) - 1
-                print("Warning: sampling above maximum energy for process" + str(process) + " , Energy: " + str(Einc))
-
-        # this grabs the dictionary part rather than the energy. 
-        dark_sample_dict=dark_sample_list[process][LU_Key][1]
-
-        adaptive_map = dark_sample_dict["adaptive_map"]
-        max_F      = dark_sample_dict["max_F"][self._target_material]*self._maxF_fudge_global
-        neval_vegas= dark_sample_dict["neval"]
-        integrand=vg.Integrator(map=adaptive_map, max_nhcube=1, nstrat=np.ones(dimensionalities_dark[process]), neval=neval_vegas)
-
-
-        event_info={'E_inc': Einc, 'm_e': m_electron, 'Z_T': self._ZTarget, 'A_T':self._ATarget, 'mT':self._ATarget, 'alpha_FS': alpha_em, 'mV': self._mV, 'Eg_min':self._Egamma_min, 'Zeff':self.Zeff}
-        if process == "DarkBrem":
-            event_info['m_lepton'] = m_electron
-        elif process == "DarkMuonBrem":
-            event_info['m_lepton'] = m_muon
-
-        if process in dark_diff_xsection_options:
-            diff_xsec_func = dark_diff_xsection_options[process]
-        else:
-            raise Exception("Your process is not in the list")
-        f_integrand = diff_xsec_func(event_info=event_info, ndim=dimensionalities_dark[process])
-
-        if VB:
-            sampcount = 0
-        n_integrators_used = 0
-        sample_found = False
-        while sample_found is False and n_integrators_used < self._max_n_integrators:
-            n_integrators_used += 1
-            for x,wgt in integrand.random():
-                if VB:
-                    sampcount += 1  
-                #if  max_F*draw_U()<wgt*diff_xsec_func(event_info,x):
-                if  max_F*draw_U()<wgt*f_integrand(x):
-                    sample_found = True
-                    break
-        if sample_found is False:
-            raise Exception("No Sample Found", process, Einc, LU_Key)
-        if VB:
-            return np.concatenate([list(x), [sampcount]])
-        else:
-            return x
-    '''
 
     def produce_bsm_particle(self, p_original, process, weight=None):
         p0 = deepcopy(p_original)
@@ -483,9 +472,14 @@ class BSMShower(Shower):
         T_interact = p0.get_pf()[0] - p0.get_ids()['mass']
         RM = p0.rotation_matrix()
 
-        sample_event = self.draw_bsm_sample(T_interact, process=process)
-        #BSM-production is estabilished such that the last particle returned corresponds to the dark vector
-        EVf, pVxfZF, pVyfZF, pVzfZF = bsm_info.bsm_process_info[process]['kinematic_function'](p0, sample_event, mV=self._mV)[-1]
+
+        if process in self._alternative_ranges.keys() and T_interact > self._alternative_ranges[process][0] and T_interact < self._alternative_ranges[process][1]:
+            sample_event = None
+        else:
+            sample_event = self.draw_bsm_sample(T_interact, process=process)
+        #BSM-production is estabilished such that the last particle returned corresponds to the BSM particle
+        #FIXME: Need to fix the referencing so that we're not tied to a label "mV" for other BSM models than dark vectors.
+        EVf, pVxfZF, pVyfZF, pVzfZF = self._bsm_info.bsm_process_info[process]['kinematic_function'](p0, sample_event, mV=self._organizational_parameter)[-1]
         pV4LF = np.concatenate([[EVf], np.dot(RM, [pVxfZF, pVyfZF, pVzfZF])])
 
         init_IDs = p0.get_ids()
@@ -502,7 +496,7 @@ class BSMShower(Shower):
 
     def generate_bsm_shower(self, ExDir=None, SParams=None):
         """ Process an existing SM shower (or produce a new one) by interating 
-        through its particles and generating possible dark photon emissions using 
+        through its particles and generating possible BSM emissions using 
         all available processes.
         Args:
             ExDir: path to file containing existing SM shower OR an actual shower (list of Particle objects)
@@ -510,7 +504,7 @@ class BSMShower(Shower):
             consisting of a "Particle" object
         Returns:
             [ShowerToSamp, NewShower]: where ShowerToSamp is the initial SM shower and NewShower 
-            is the list of possible dark photon emissions generated from it
+            is the list of possible BSM emissions generated from it
         """
         if ExDir is None and SParams is None:
             print("Need an existing SM shower-file directory or SM incident particle to run dark shower")

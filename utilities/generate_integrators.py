@@ -3,25 +3,23 @@
 """
 
 import numpy as np
-import sys, os
+import os
+import importlib
 
-from PETITE.sm.sm_processes import vegas_integration
-from PETITE.dark_vector.bsm_processes import bsm_vegas_integration
-from PETITE.physical_constants import target_information, m_electron, alpha_em
+from PETITE.physical_constants import target_information
 from glob import glob
 
 from multiprocessing import Pool
 import pickle
 from functools import partial
-import argparse
 import datetime
 
 # helper function to turn float to string
-def generate_vector_mass_string(mV, mode="MeV"):
+def generate_mass_string(mass, mode="MeV"):
     if mode == "MeV":
-        return str(int(np.floor(mV*1000.)))+"MeV"
+        return str(int(np.floor(mass*1000.)))+"MeV"
     elif mode == "keV":
-        return str(int(np.floor(mV*1000000.)))+"keV"
+        return str(int(np.floor(mass*1000000.)))+"keV"
     else:
         raise ValueError("Mode must be either 'MeV' or 'keV'")
 
@@ -34,10 +32,6 @@ def make_readme(params, process, process_directory):
     """
     readme_file = open(process_directory + process + "_readme.txt", 'w')
     readme_file.write("Integrators for " + process)
-    if process == 'DarkBrem':
-        line = "\nTarget has (Z, A, mass) = ({atomic_Z}, {atomic_A}, {atomic_mass})\n".\
-            format(atomic_Z=params['Z_T'], atomic_A=params['A_T'], atomic_mass=params['mT'])
-        readme_file.write(line)
     readme_file.write("\n\nKinetic Energy/GeV |  Filename\n\n")
     for index, kinetic_energy in enumerate(params['initial_kinetic_energy_list']):
         line = "{kinen:9.3f}  |  {proc}_{indx}.p\n".format(kinen = kinetic_energy, indx = index, proc=process)
@@ -46,8 +40,7 @@ def make_readme(params, process, process_directory):
     readme_file.close()
     return()
 
-
-def run_vegas_in_parallel(params, process, verbosity_mode, process_directory, energy_index, overwrite=False):
+def run_vegas_in_parallel(params, process, verbosity_mode, model_name, process_directory, energy_index, overwrite=False):
     '''Run VEGAS in parallel for a given energy index and process, and save the integrator adaptive map 
     and relevant parameters to a pickle file.
     Input:
@@ -68,14 +61,13 @@ def run_vegas_in_parallel(params, process, verbosity_mode, process_directory, en
     else:
         if params["verbosity"]:
             print("Starting VEGAS for energy index ", energy_index)
-        if "mV" in params:
-            VEGAS_integrator = bsm_vegas_integration(
-                params, process, verbose=verbosity_mode, mode="Pickle"
-            )
-        else:   
-            VEGAS_integrator = vegas_integration(
-                params, process, verbose=verbosity_mode, mode="Pickle"
-            )
+
+        if model_name == "sm":
+            vegas_integration_function = importlib.import_module('PETITE.sm.sm_processes').vegas_integration
+        else:
+            vegas_integration_function = importlib.import_module(f'PETITE.{model_name}.bsm_processes').bsm_vegas_integration
+        VEGAS_integrator = vegas_integration_function(params, process, verbose=verbosity_mode, mode="Pickle")
+
         # VEGAS_integrator = 0
         if params["verbosity"]:
             print("Done VEGAS for energy index ", energy_index)
@@ -89,8 +81,7 @@ def run_vegas_in_parallel(params, process, verbosity_mode, process_directory, en
     return()
 
 
-
-def make_integrators(params, process, paralellize=True, overwrite=False):
+def make_integrators(params, model_name, process, paralellize=True, overwrite=False):
     """
     Generate vegas integrator pickles for a given process and set of parameters.
     Input:
@@ -102,54 +93,24 @@ def make_integrators(params, process, paralellize=True, overwrite=False):
         process: string of process name
         paralellize: boolean to run in parallel or not
     """
-    if 'mV' not in params:
-        mV = 0.0
-    else:
-        mV = params['mV']
-    if process == 'DarkBrem' or process == 'DarkAnn' or process == 'DarkComp' or process == 'DarkMuonBrem':
-        if 'training_target' not in params:
-            raise ValueError("Training target must be specified when running DarkBrem")
-        else:
-            training_target = params['training_target']
-        params['A_T'] = target_information[training_target]['A_T']
-        params['Z_T'] = target_information[training_target]['Z_T']
-        if 'mT' in params:
-            print("Using specified m_T = " + str(params['mT']))
-        else:
-            params['mT'] = target_information[params['training_target']]['mT']
-        # Create process specific directory in mother directory for saving VEGAS adaptive maps for dark sector production
-        if params['mode'] == 'MeV':
-            process_directory = params['save_location'] + '/' + process + '/mV_' + str(int(np.floor(mV*1000.))) + "MeV/"
-        elif params['mode'] == 'keV':
-            process_directory = params['save_location'] + '/' + process + '/mV_' + str(int(np.floor(mV*1000000.))) + "keV/"
-    else:
-        if 'training_target' in params:
-            raise ValueError("Training target redundant for SM processes")
-        else:
-            params['A_T'] = target_information['hydrogen']['A_T']
-            params['Z_T'] = target_information['hydrogen']['Z_T']
-            params['mT'] = target_information['hydrogen']['mT']
-        # Create process specific directory in mother directory for saving VEGAS adaptive maps
-        process_directory = params['save_location'] + '/' + process + '/'
 
+    if model_name == "sm":
+        process_directory = params['save_location'] + '/sm/' + process + '/'
+    else:
+        #determine the name of the organizational parameter and its value for this process
+        organizational_key = importlib.import_module(f'PETITE.{model_name}.bsm_process_information').organizational_key
+        organizational_parameter = params[organizational_key]
+        process_directory = params['save_location'] + '/' + model_name + '/' + process + '/' + organizational_key + '_' + generate_mass_string(organizational_parameter, mode=params['mode']) + '/'
 
     verbosity_mode = params['verbosity']
-    params['m_e'] = m_electron
-    params['alpha_FS'] = alpha_em
-
-    initial_kinetic_energy_list = params['initial_kinetic_energy_list']
-    
+    initial_kinetic_energy_list = params['initial_kinetic_energy_list'] 
     kinetic_energy_index_list = range(len(initial_kinetic_energy_list))
 
     if verbosity_mode:
         print("Doing process: ", process)
-        if mV != 0:
-            print("Dark Vector Mass: ", mV)
+        if model_name != "sm":
+            print("Mass: ", organizational_parameter)
 
-    # kinetic_energy_index_list = range(len(initial_kinetic_energy_list))
-    # vec_mass_string = generate_vector_mass_string(params['mV'])
-    
-    # If directory does not exist, create it
     if not(os.path.exists(process_directory)):
         os.system("mkdir -p " + process_directory)
 
@@ -162,6 +123,7 @@ def make_integrators(params, process, paralellize=True, overwrite=False):
                 params,
                 process,
                 verbosity_mode,
+                model_name,
                 process_directory,
                 overwrite=overwrite,
             ),
@@ -173,6 +135,7 @@ def make_integrators(params, process, paralellize=True, overwrite=False):
                 params,
                 process,
                 verbosity_mode,
+                model_name,
                 process_directory,
                 kinetic_energy_index,
                 overwrite=overwrite,
@@ -189,7 +152,7 @@ def make_integrators(params, process, paralellize=True, overwrite=False):
     return ()
 
 # Set up parameters for and then run find_maxes
-def call_find_maxes(params, list_of_processes, verbose=False): 
+def call_find_maxes(params, model_name, list_of_processes, verbose=False): 
     """Call find_maxes.py to find the maximum of the integrand for each energy.
     Note that find_maxes.py will save the maximum of the integrand and the corresponding energy to a pickle file.
     Input:
@@ -197,10 +160,6 @@ def call_find_maxes(params, list_of_processes, verbose=False):
         list_of_processes: vector containing all processes to be run
     """
     import find_maxes
-    #if (params['run_find_maxes']):
-    # find_maxes_params['process'] = process
-    # find_maxes_params['import_directory'] = params['save_location'] + "/" + process
-    # find_maxes_params['save_location'] = params['find_maxes_save_location']
     if verbose:
         print("Now running find_maxes....please wait")
     find_maxes_params = params
@@ -216,17 +175,11 @@ def call_find_maxes(params, list_of_processes, verbose=False):
         find_maxes_params['n_trials'] = 100
     if verbose:
         print("Parameters used in find_maxes: ", find_maxes_params)
-    if (
-        ("DarkBrem" in list_of_processes)
-        or ("DarkAnn" in list_of_processes)
-        or ("DarkComp" in list_of_processes)
-        or ("DarkMuonBrem" in list_of_processes)
-    ):
-        find_maxes.main_dark(find_maxes_params)
-    else:
+
+    if model_name == "sm":     
         find_maxes.main(find_maxes_params)
-    # else:
-    #    print('Not running find_maxes')
+    else:
+        find_maxes.main_bsm(find_maxes_params, model_name)
     return
 
 def stitch_integrators(dir):
@@ -274,103 +227,3 @@ def organize_directories_final(dir):
     for directory in directories:
         os.system("mv " + directory + " " + dir + "/auxiliary/")
     return
-
-
-def main(args):
-    """
-    Run make_integrators, stitch_integrators, cleanup, and call_find_maxes using the 
-    parameters in args to generate dictionaries of integrators and cross sections.
-    Works for both SM processes and dark processes.  
-    Input:
-        args: see below
-    """
-
-    #params = {'A_T': args.A, 'Z_T': np.unique(args.Z), 'mT': args.mT, 'save_location': args.save_location, 'run_find_maxes':args.run_find_maxes}
-    training_params = {'save_location':args.save_location, 'verbosity':args.verbosity}
-    if args.training_target != "unspecified":
-        training_params['training_target'] = args.training_target
-    processing_params = {'process_targets':args.process_targets, 'save_location':args.save_location, 'verbosity':args.verbosity, 'mV_list':args.mV}
-
-    if (args.mV == 0 or not(args.process == ['DarkBrem']) ):# doing SM processes
-        if  "all" in args.process:
-            process_list_to_do = ['Brem','PairProd','Comp','Ann','Moller','Bhabha']
-        else: # make sure DarkBrem not accidentally in list
-            try:
-                process_list_to_do = args.process.remove('DarkBrem')
-            except Exception as e:
-                print(e)
-                print("Removed all DarkBrem from process. Moving on.")
-                process_list_to_do = args.process
-                pass
-        for process in process_list_to_do:
-            initial_kinetic_energy_list = np.logspace(np.log10(args.min_kinetic_energy), np.log10(args.max_kinetic_energy), args.num_energy_pts)
-            training_params.update({'mV' : 0})
-            training_params.update({'initial_kinetic_energy_list': initial_kinetic_energy_list})
-            make_integrators(training_params, process)
-            # stitch integrators for different energies together
-            stitch_integrators(training_params['save_location'] + "/" + process + "/")
-            cleanup(training_params['save_location'] + "/" + process + "/")
-        if args.run_find_maxes:
-            call_find_maxes(processing_params, process_list_to_do)
-        else:
-            print("Not Running find_maxes")
-    else: # doing DarkBrem
-        for mV in args.mV:
-            process = 'DarkBrem'
-            print("Working on mV = ", mV)
-            min_kinetic_energy = max(args.min_kinetic_energy, 1.01 * mV)
-            initial_kinetic_energy_list = np.logspace(np.log10(min_kinetic_energy), np.log10(args.max_kinetic_energy), args.num_energy_pts)
-            training_params.update({'mV' : mV})
-            training_params.update({'initial_kinetic_energy_list': initial_kinetic_energy_list})
-            make_integrators(training_params, process)
-            # stitch integrators for different energies together (add mV to the name of output file)
-            stitch_integrators(training_params['save_location'] + '/DarkBrem/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
-            cleanup(training_params['save_location'] + '/DarkBrem/mV_' + str(int(np.floor(mV*1000.))) + "MeV/")
-
-        if args.run_find_maxes:
-            call_find_maxes(processing_params, process)
-        else:
-            print("Not Running find_maxes")
-    # move all directories in mother directory to auxiliary directory
-    organize_directories_final(training_params['save_location'])
-
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Produce VEGAS integrators for various production processes', formatter_class = argparse.ArgumentDefaultsHelpFormatter)    
-    # mandatory parameters
-    #None
-    
-
-    # optional parameters
-    #parser.add_argument('-A', type=float, default=12, help='atomic mass number')
-    #parser.add_argument('-Z', type=float, action='append', default=[6.0], help='atomic number of targets to save')
-    #parser.add_argument('-mT', type=float, default=11.178, help='nuclear target mass in GeV')
-    #parser.add_argument('-training_target', type=str, default='hydrogen', help='target on which to train (Dark Brem. Only)')
-    parser.add_argument('-training_target', type=str, default="unspecified", help='target on which to train (Dark Brem. Only)')
-    parser.add_argument('-process_targets', nargs='+', type=str, default=['graphite'], help='list of targets to process for shower code')
-
-    parser.add_argument('-save_location', type=str, default='../data/VEGAS_backend/SM/', help='directory to save integrators in (path relative to main PETITE directory)')
-    parser.add_argument('-process', nargs='+', type=str, default=['DarkBrem'], help='list of processes to be run "all" does whole list, if mV non-zero only DarkBrem \
-        (choose from "PairProd", "Brem", "DarkBrem", "Comp", "Ann", "Moller", "Bhabha")')
-    parser.add_argument('-mV', nargs='+', type=float, default=[0.05], help='dark vector mass in GeV (can be a space-separated list)')
-    parser.add_argument('-min_kinetic_energy', type=float, default=0.01, help='minimum initial kinetic energy (in GeV) to evaluate (must be larger than mV)')
-    parser.add_argument('-max_kinetic_energy', type=float, default=100., help='maximum initial kinetic energy (in GeV) to evaluate')
-    parser.add_argument('-num_energy_pts', type=int, default=100, help='number of initial energy values to evaluate, scan is done in log space')
-    parser.add_argument('-run_find_maxes', type=bool, default=True,  help='run Find_Maxes.py after done')
-    parser.add_argument('-verbosity', type=bool, default=False, help='verbosity mode')
-    # stich integrators
-    parser.add_argument('-stitch', type=bool, default=True, help='stitch integrators for different energies together')
-
-    args = parser.parse_args()
-
-    print('**** Arguments passed to generate_integrators ****')
-    print(args)
-
-    main(args)
-
-    print("Goodbye!")
-
-
-    
-
-        

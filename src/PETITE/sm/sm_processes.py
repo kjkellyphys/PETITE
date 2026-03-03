@@ -771,9 +771,7 @@ def vegas_integration(event_info, process, verbose=False, mode="XSec"):
     Input parameters needed:
          EI: dictionary containing
            -- 'T_inc' (incident particle kinetic energy)
-           -- 'm_e' (electron mass)
            -- 'Z (Target Atomic Number)
-           -- 'alpha_FS' (electro-weak fine-structure constant)
            -- 'Eg_min': minimum lab-frame energy (GeV) of outgoing photons
 
      Optional arguments:

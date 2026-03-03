@@ -98,8 +98,29 @@ def rad_tail_sigma(k,mV, Zeff):
     return( (4.0*np.pi*alpha_em)*((mV**2+2*m_e**2)* (2/3/Lambda/m_e)*(1/k**2)*(beta/2)*fancy_integral(a,b)) )
 
 
-def sigma_atomic(k,mV,Zeff):
+class sigma_atomic:
+    def __init__(self, event_info):
+        self.event_info = event_info
     
-    sigma_0 = tree_level_sigma(k,mV,Zeff)
-    sigma_1 = rad_tail_sigma  (k,mV,Zeff)
-    return(sigma_0 + sigma_1)
+    def kinetic_energy_list(self, Te_max, Npts):
+        Ee_max = Te_max + m_electron
+        resonant_energy = (self.event_info["mV"]**2 - 2*m_electron**2) / (2*m_electron)
+        if resonant_energy > Ee_max:
+            Ee_max = resonant_energy * 100.0
+        Ee_min = resonant_energy / 1000.0
+        if Ee_min < m_electron:
+            Ee_min = m_electron * 1.001
+        kinetic_energy_list = np.geomspace(Ee_min, Ee_max, Npts) - m_electron
+        return kinetic_energy_list
+    
+    def __call__(self, info):
+        T_e = info['T_inc']
+        k = T_e + m_electron
+        mV = info['mV']
+        try:
+            Zeff = info['Zeff']
+        except KeyError:
+            Zeff = 1.0 # default to hydrogenic target if not specified
+        sigma_0 = tree_level_sigma(k, mV, Zeff)
+        sigma_1 = rad_tail_sigma(k, mV, Zeff)
+        return sigma_0 + sigma_1

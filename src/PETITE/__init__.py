@@ -1,4 +1,4 @@
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 #from PETITE import all_processes
 #from PETITE import atomic_annihilation
 #from PETITE import atomic_compton

@@ -114,6 +114,16 @@ def compton_fourvecs(p0, sampled_event, mV=0.0):
         vector (SM or dark photon)
     """
     Eg = p0.get_pf()[0]
+
+    resonant_compton_energy = mV*(1.0 + mV/(2*m_electron))
+    if Eg < resonant_compton_energy or sampled_event == None:
+        EVf, pVxfZF, pVyfZF, pVzfZF = np.sqrt(Eg**2 + mV**2), 0, 0, Eg
+        return [[0.0, 0.0, 0.0, Eg], [EVf, pVxfZF, pVyfZF, pVzfZF]]
+        # if below the resonant energy, we just put the dark photon at rest in the lab frame 
+        # and give all the energy to the dark photon. 
+        # This is not physical but it is a very small region of phase space and 
+        # it allows us to avoid kinematic errors in this region.
+
     ct = sampled_event[0]
 
     s = m_electron**2 + 2*Eg*m_electron
@@ -311,6 +321,16 @@ def annihilation_fourvecs(p0, sampled_event, mV=0.0):
         two SM photons, or one SM photon and one dark photon
     """
     Ee = p0.get_pf()[0]
+
+    resonant_annihilation_energy = (mV**2 - 2*m_electron**2)/(2*m_electron)
+    if Ee < resonant_annihilation_energy or sampled_event == None:
+        EVf, pVxfZF, pVyfZF, pVzfZF = np.sqrt(Ee**2 - m_electron**2 + mV**2), 0, 0, np.sqrt(Ee**2 - m_electron**2)
+        return [[0., 0., 0., Ee], [EVf, pVxfZF, pVyfZF, pVzfZF]] 
+        # if below the resonant energy, we just put the dark photon at rest in the lab frame 
+        # and give all the energy to the dark photon. 
+        # This is not physical but it is a very small region of phase space and 
+        # it allows us to avoid kinematic errors in this region.
+
     ct = sampled_event[0]
 
     s = 2*m_electron*(Ee+m_electron)

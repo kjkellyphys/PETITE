@@ -9,8 +9,7 @@
 """
 import os
 
-import PETITE.sm.sm_processes as proc
-from PETITE.physical_constants import target_information, m_electron, m_muon
+from PETITE.physical_constants import target_information#, m_electron, m_muon
 import pickle
 import copy
 import numpy as np
@@ -19,23 +18,8 @@ import random as rnd
 from datetime import datetime
 import vegas
 from tqdm import tqdm
-import PETITE.sm.process_information as sm_info
-import PETITE.dark_vector.bsm_process_information as bsm_info
-import PETITE.dark_vector.bsm_processes as bsm_proc
-
-#sm_processes = sm_info.sm_process_info.keys()
-#bsm_processes = bsm_info.bsm_process_info.keys()
-
-# Dictionary of proceses with corresponding x-secs, form factors and Q**2 functions
-#process_info ={    'PairProd' : {'diff_xsection': proc.dsigma_pairprod_dimensionless},
-#                   'Comp'     : {'diff_xsection': proc.dsigma_compton_dCT},
-#                    'Brem'     : {'diff_xsection': proc.dsigma_brem_dimensionless},
-#                    'MuonBrem' : {'diff_xsection': proc.dsigma_brem_dimensionless},
-#                    'Ann'      : {'diff_xsection': proc.dsigma_annihilation_dCT},
-#                    'Moller'   : {'diff_xsection': proc.dsigma_moller_dCT},
-#                    'Bhabha'   : {'diff_xsection': proc.dsigma_bhabha_dCT},
-#                    'MuonE'    : {'diff_xsection': proc.dsigma_muonelectron_dCT},
-#                    }
+import importlib
+from generate_integrators import generate_mass_string
 
 def get_file_names(path):
     ''' Get the names of all the files in a directory.
@@ -55,7 +39,7 @@ def get_file_names(path):
     return(pickle_files, readme_file)
 
 # do the find max work on an individual file
-def do_find_max_work(params, process_file):
+def do_find_max_work(params, model_name, process_file):
     """ Find the maximum value of the integrand for a given process_file.
     Input:
         params: dictionary of parameters for the process
@@ -71,13 +55,18 @@ def do_find_max_work(params, process_file):
         event_info['T_inc']: kinetic energy of the incoming particle
     """
 
-    diff_xsec = params['diff_xsec']
-    event_info, integrand_or_map = process_file
-
-    if "mV" in params:
-        integrand = vegas.Integrator(map=integrand_or_map, **bsm_proc.bsm_vegas_integrator_options[event_info['process']])
+    if model_name == "sm":
+        process_info = importlib.import_module('PETITE.sm.process_information').sm_process_info
+        vg_options = importlib.import_module('PETITE.sm.sm_processes').vegas_integrator_options
     else:
-        integrand = vegas.Integrator(map=integrand_or_map, **proc.vegas_integrator_options[event_info['process']])#nstrat=nstrat_options[params['process']])
+        process_info = importlib.import_module(f'PETITE.{model_name}.bsm_process_information').bsm_process_info
+        vg_options = importlib.import_module(f'PETITE.{model_name}.bsm_processes').bsm_vegas_integrator_options
+    
+    event_info, integrand_or_map = process_file
+    process = event_info['process']
+    diff_xsec = process_info[process]['differential_cross_section']
+    
+    integrand = vegas.Integrator(map=integrand_or_map, **vg_options[process])
     save_copy = copy.deepcopy(integrand_or_map)
     integrand.set(max_nhcube=1, neval=params["neval"])
 
@@ -92,25 +81,9 @@ def do_find_max_work(params, process_file):
         event_info_target["Z_T"] = target_information[tm]["Z_T"]
         event_info_target["A_T"] = target_information[tm]["A_T"]
         event_info_target["mT"] = target_information[tm]["mT"]
-        if event_info['process'] == "Brem":
-            event_info_target["m_lepton"] = m_electron
-        elif event_info['process'] == "MuonBrem":
-            event_info_target["m_lepton"] = m_muon
-        if event_info['process'] == "DarkBrem":
-            event_info_target["m_lepton"] = m_electron
-        elif event_info['process'] == "DarkMuonBrem":
-            event_info_target["m_lepton"] = m_muon
+        ndim = process_info[process]['dimensionalities']
+        batch_f = diff_xsec(event_info_target, ndim, batch_mode=True)
 
-
-        if "mV" in params:
-            event_info_target["mV"] = params["mV"]
-            batch_f = diff_xsec(
-                event_info_target, len(bsm_proc.bsm_integration_range(event_info_target, event_info_target["process"])), batch_mode=True
-            )
-        else:
-            batch_f = diff_xsec(
-                event_info_target, len(proc.integration_range(event_info_target, event_info_target["process"])), batch_mode=True
-            )
         for trial_number in range(params["n_trials"]):
             for x, wgt in integrand.random_batch():  # scan over integrand
                 MM = wgt * batch_f(x)
@@ -161,10 +134,12 @@ def main(params):
     final_sampling_dict = {}
     final_xsec_dict = {}
 
+    process_info = importlib.import_module('PETITE.sm.process_information').sm_process_info
+
     # Before starting, check for invalid processes
     for process in params['process']:
         # if process is not in list of processes, raise an error
-        if process not in sm_info.sm_process_info.keys():
+        if process not in process_info.keys():
             raise ValueError('Process \'', process ,'\' not in list of available processes for standard model showers.')
 
     # Loop over all processes
@@ -193,15 +168,13 @@ def main(params):
         print('File being processed: ', adaptive_maps_file)
         # Add relevant info to params
         params['process']   = process
-        params['diff_xsec'] = sm_info.sm_process_info[process]['differential_cross_section']
-        #params['diff_xsec'] = process_info[process]['diff_xsection']
         #params['FF_func']   = process_info[process]['form_factor']
         #params['QSq_func']  = process_info[process]['QSq_func']
 
         ####=====------ FIND MAX ------=====####
         # loop over all adaptive_map in adaptive_maps
         for adaptive_map in adaptive_maps:
-            sampling, cross_section, incoming_energy = do_find_max_work(params, adaptive_map)
+            sampling, cross_section, incoming_energy = do_find_max_work(params, "sm", adaptive_map)
             # Append sampling dictionary to final sampling dictionary
             final_sampling_dict[process].append(sampling)
             # Append incoming energy and cross section dictionary to final cross section dictionary for each target material
@@ -218,7 +191,7 @@ def main(params):
     print("Saved samples to " + params['save_location'] + "/sm_maps.pkl")
     return
 
-def main_dark(params):
+def main_bsm(params, model_name="dark_vector"):
     """ Find the maximum value of the integrand for a given process by looking into the directory containing the adaptive maps.
     Input:
         params: dictionary of parameters for the process containing the following keys:
@@ -242,80 +215,80 @@ def main_dark(params):
     # If a single process is given, convert single process to a list if necessary
     if isinstance(params['process'], str):
         params['process'] = [params['process']]
+    if isinstance(params['process'], type({}.keys())):
+        params['process'] = list(params['process'])
     # Convert single target to a list if necessary
     if isinstance(params['process_targets'], str):
         params['process_targets'] = [params['process_targets']]
-    if isinstance(params['mV_list'], float):
-        params['mV_list'] = [params['mV_list']]
+    if isinstance(params['organizational_list'], float):
+        params['organizational_list'] = [params['organizational_list']]
 
     print('List of processes: ', params['process'])
     print('List of target materials: ', params['process_targets'])
-    print('List of mV Masses: ', params['mV_list'])
-
+    print('List of organizational parameters: ', params['organizational_list'])
+    
+    org_key = importlib.import_module(f'PETITE.{model_name}.bsm_process_information').organizational_key
+    process_info = importlib.import_module(f'PETITE.{model_name}.bsm_process_information').bsm_process_info
+    
     # Initialise dictionaries to store samples and cross sections
     final_sampling_dict = {}
     final_xsec_dict = {}
     
     #Loop over all masses
-    for mV in params['mV_list']:
-        final_sampling_dict[mV] = {}
-        final_xsec_dict[mV] = {}
+    for MM in params['organizational_list']:
+        final_sampling_dict[MM] = {}
+        final_xsec_dict[MM] = {}
 
         # Before starting, check for invalid processes
         for process in params['process']:
             # if process is not in list of processes, raise an error
-            if process not in bsm_info.bsm_process_info.keys():
-                raise ValueError('Process \'', process ,'\' not in list of available processes for dark showers.')
+            if process not in process_info.keys():
+                raise ValueError('Process \'', process ,'\' not in list of available processes for specified model, ', model_name, '.')
 
         # Loop over all processes
         for process in params['process']:
             # Get the path to the directory containing the adaptive maps
-            if params['mode'] == 'MeV':
-                path1 = params['save_location'] + '/auxiliary/' + process + '/mV_' + str(int(1000.*mV)) + "MeV/"
-                path2 = params['save_location'] + process + '/mV_' + str(int(1000.*mV)) + "MeV/"
-            elif params['mode'] == 'keV':
-                path1 = params['save_location'] + '/auxiliary/' + process + '/mV_' + str(int(1000000.*mV)) + "keV/"
-                path2 = params['save_location'] + process + '/mV_' + str(int(1000000.*mV)) + "keV/"
-            adaptive_maps_file = path1 + process + '_AdaptiveMaps.npy'
+            mass_str = generate_mass_string(MM, mode=params['mode'])
+            path1 = params['save_location'] + '/auxiliary/' + model_name + '/' + process + '/' + org_key + '_' + mass_str + '/' + process + '_AdaptiveMaps.npy'
+            path2 = params['save_location'] + '/' + model_name + '/' + process + '/' + org_key + '_' + mass_str + '/' + process + '_AdaptiveMaps.npy'
+            adaptive_maps_file = path1
             # Load adaptive map file. Format: list of [params, adaptive_map]
             try:
                 adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
             except Exception as e:
-                adaptive_maps_file = path2 + process + "_AdaptiveMaps.npy"
+                adaptive_maps_file = path2# + process + "_AdaptiveMaps.npy"
                 adaptive_maps = np.load(adaptive_maps_file, allow_pickle=True)
-            final_sampling_dict[mV][process] = []
-            final_xsec_dict[mV][process] = {}
+            final_sampling_dict[MM][process] = []
+            final_xsec_dict[MM][process] = {}
             # Initialise dictionary to store cross sections for each target material
             for tm in params['process_targets']:
-                final_xsec_dict[mV][process][tm] = []
+                final_xsec_dict[MM][process][tm] = []
             print('File being processed: ', adaptive_maps_file)
             # Add relevant info to params
             fm_params = copy.deepcopy(params)
             fm_params['process']   = process
-            fm_params['mV']        = mV
-            #fm_params['diff_xsec'] = process_info[process]['diff_xsection']
-            fm_params['diff_xsec'] = bsm_info.bsm_process_info[process]['differential_cross_section']
+            fm_params[org_key]        = MM
             #fm_params['FF_func']   = process_info[process]['form_factor']
             #fm_params['QSq_func']  = process_info[process]['QSq_func']
 
             ####=====------ FIND MAX ------=====####
             # loop over all adaptive_map in adaptive_maps
             for adaptive_map in adaptive_maps:
-                sampling, cross_section, incoming_energy = do_find_max_work(fm_params, adaptive_map)
+                sampling, cross_section, incoming_energy = do_find_max_work(fm_params, model_name, adaptive_map)
                 # Append sampling dictionary to final sampling dictionary
-                final_sampling_dict[mV][process].append(sampling)
+                final_sampling_dict[MM][process].append(sampling)
                 # Append incoming energy and cross section dictionary to final cross section dictionary for each target material
                 for tm in params['process_targets']:
-                    final_xsec_dict[mV][process][tm].append([incoming_energy, cross_section[tm]])
+                    final_xsec_dict[MM][process][tm].append([incoming_energy, cross_section[tm]])
             ####=====------ FIND MAX ------=====####
 
     # Save sampling and cross section dictionaries to mother directory
-    with open(params['save_location'] + '/dark_maps.pkl', 'wb') as f:
+    with open(params['save_location'] + '/' + model_name + '_maps.pkl', 'wb') as f:
         pickle.dump(final_sampling_dict, f)
-    with open(params['save_location'] + '/dark_xsec.pkl', 'wb') as f:
+    with open(params['save_location'] + '/' + model_name + '_xsec.pkl', 'wb') as f:
         pickle.dump(final_xsec_dict, f)
-    print("Saved cross sections to " + params['save_location'] + "/dark_xsecs.pkl")
-    print("Saved samples to " + params['save_location'] + "/dark_maps.pkl")
+    print("Saved cross sections to " + params['save_location'] + "/"+model_name+"_xsec.pkl")
+    print("Saved samples to " + params['save_location'] + "/"+model_name+"_maps.pkl")
     return
 
 
@@ -324,7 +297,7 @@ startTime = datetime.now()
 
 
 
-
+'''
 if __name__ == "__main__":
     #List of command line arguments
     parser = argparse.ArgumentParser(description='Process VEGAS integrators, find maxes etc', formatter_class = argparse.ArgumentDefaultsHelpFormatter)    
@@ -355,3 +328,4 @@ if __name__ == "__main__":
     main(params)
 
     print("Run Time of Script:  ", datetime.now() - startTime)
+'''
