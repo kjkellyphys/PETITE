@@ -8,7 +8,7 @@ from scipy.interpolate import interp1d
 from scipy.integrate import quad
 
 from PETITE.sm.moliere import get_scattered_momentum_fast, get_scattered_momentum_Bethe
-from PETITE.particle import Particle
+from PETITE.particle import Particle, mass_dict
 
 from PETITE.shower import Shower
 from copy import deepcopy
@@ -311,7 +311,7 @@ class BSMShower(Shower):
         dEdxT_GeVperm = self.get_material_properties()[3]*(0.1)
 
         #Calculating the incident particle's (SM) mean-free path for initial energies of interest.
-        mfp_TI = np.array([self.get_mfp([incident_PID, Ti]) for Ti in initial_kinetic_energies])
+        mfp_TI = np.array([self.get_mfp([incident_PID, Ti + mass_dict[incident_PID]]) for Ti in initial_kinetic_energies])
 
         energy_loss_ten_mfp = 10*mfp_TI*dEdxT_GeVperm
         minimum_energy_0 = initial_kinetic_energies[0]
@@ -340,7 +340,7 @@ class BSMShower(Shower):
 
     def _d_rate_d_E(self, T_initial, process, incident_PID):
         dEdxT_GeVperm = self.get_material_properties()[3]*(0.1)
-        mfp_TI = self.get_mfp([incident_PID, T_initial])
+        mfp_TI = self.get_mfp([incident_PID, T_initial + mass_dict[incident_PID]])
         energy_loss_ten_mfp = 10*mfp_TI*dEdxT_GeVperm
         kinetic_energy_min = self.get_bsmXSec(process)[0][0]
         kinetic_energy_array = np.linspace(np.max([T_initial-energy_loss_ten_mfp, kinetic_energy_min]), T_initial, 11)
@@ -368,7 +368,7 @@ class BSMShower(Shower):
         if isinstance(particle, list) or isinstance(particle, np.ndarray):
             PID, kinetic_energy_initial = particle
         else:
-            PID, kinetic_energy_initial = particle.get_ids()["PID"], particle.get_p0()[0]
+            PID, kinetic_energy_initial = particle.get_ids()["PID"], particle.get_p0()[0] - particle.get_ids()["mass"]
 
         if PID not in self.active_processes_by_incident_PID.keys():
             return 0.0 #incident particle PID not compatible with any processes, so weight is zero.
