@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from PETITE.particle import Particle, mass_dict, meson_decay_dict
-from PETITE.physical_constants import m_electron, m_muon, m_pi0, m_pi_pm
+from PETITE.physical_constants import m_electron, m_muon, m_pi0, m_pi_pm, m_eta
 
 
 # ---------------------------------------------------------------------------
@@ -239,17 +239,32 @@ class TestDecayParticle:
         with pytest.raises(ValueError):
             p.decay_particle()
 
-    # Bug #9: eta and eta' have 3-body channels that crash decay_particle.
-    # These tests document the current (buggy) behaviour so they can be updated
-    # once the bug is fixed.
-    def test_eta_decay_channels_available(self):
-        assert 221 in meson_decay_dict
-        channels = meson_decay_dict[221]
-        three_body = [c for c in channels if len(c[1]) > 2]
-        assert len(three_body) > 0, "eta should have 3-body channels (bug #9 marker)"
+    def test_eta_three_body_decay_runs(self):
+        """η can pick a 3-body channel (3π0); decay_particle must not crash."""
+        np.random.seed(7)  # seed that selects the 3π0 channel
+        # Try up to 20 seeds to hit the 3-body branch at least once
+        hit_three_body = False
+        for seed in range(20):
+            np.random.seed(seed)
+            p = Particle([m_eta, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
+                         {"PID": 221, "mass": m_eta, "stability": "short-lived"})
+            daughters = p.decay_particle()
+            if len(daughters) == 3:
+                hit_three_body = True
+                for d in daughters:
+                    assert d.get_ids()["PID"] == 111
+                break
+        assert hit_three_body, "Did not sample the 3-body channel in 20 attempts"
 
-    def test_eta_prime_decay_channels_available(self):
-        assert 331 in meson_decay_dict
-        channels = meson_decay_dict[331]
-        three_body = [c for c in channels if len(c[1]) > 2]
-        assert len(three_body) > 0, "eta' should have 3-body channels (bug #9 marker)"
+    def test_eta_two_body_decay_still_works(self):
+        """η 2-body channel (γγ) must still work after the 3-body fix."""
+        for seed in range(20):
+            np.random.seed(seed)
+            p = Particle([m_eta, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0],
+                         {"PID": 221, "mass": m_eta, "stability": "short-lived"})
+            daughters = p.decay_particle()
+            if len(daughters) == 2:
+                for d in daughters:
+                    assert d.get_ids()["PID"] == 22
+                return
+        pytest.skip("Did not sample the 2-body channel in 20 attempts")

@@ -399,8 +399,14 @@ class Particle:
             choice_weights = branching_ratios/br_sum
             decay = decay_options[np.random.choice(range(len(decay_options)), p=choice_weights)][1]
 
-        if len(decay) > 2:
-            raise ValueError("Three-body (and above) decays not yet implemented")
+        if len(decay) > 3:
+            raise ValueError("Four-body (and above) decays not yet implemented")
+        elif len(decay) == 3:
+            if self.get_ids()["stability"] == "short-lived":
+                p1_dict = {"PID":decay[0], "mass":mass_dict[decay[0]], "weight":self.get_ids()["weight"]*br_sum, "ID":3*(self.get_ids()["ID"]),   "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1), "production_time":self.get_ids()["decay_time"]}
+                p2_dict = {"PID":decay[1], "mass":mass_dict[decay[1]], "weight":self.get_ids()["weight"]*br_sum, "ID":3*(self.get_ids()["ID"])+1, "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1), "production_time":self.get_ids()["decay_time"]}
+                p3_dict = {"PID":decay[2], "mass":mass_dict[decay[2]], "weight":self.get_ids()["weight"]*br_sum, "ID":3*(self.get_ids()["ID"])+2, "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1), "production_time":self.get_ids()["decay_time"]}
+                new_particles = self.three_body_decay(p1_dict=p1_dict, p2_dict=p2_dict, p3_dict=p3_dict)
         elif len(decay) == 2:
             if self.get_ids()["stability"] == "short-lived":
                 p1_dict = {"PID":decay[0], "mass":mass_dict[decay[0]], "weight":self.get_ids()["weight"]*br_sum, "ID":2*(self.get_ids()["ID"]), "generation_process":"SMDecay", "generation_number":(self.get_ids()["generation_number"]+1), "production_time":self.get_ids()["decay_time"]}
