@@ -9,8 +9,7 @@ mass_dict = {11: m_electron, -11:m_electron,
              111:m_pi0, 211:m_pi_pm, -211:m_pi_pm,
              321:m_K_pm, -321:m_K_pm,
              221:m_eta, 331:m_eta_prime, 2212:m_proton,
-             223:m_omega,
-             12:0.0, -12:0.0, 14:0.0, -14:0.0}
+             223:m_omega}
 
 int_length_dict = {211:1.796e-1,-211:1.796e-1,
                    321:2.2875e-1,-321:2.2875e-1}
@@ -193,7 +192,7 @@ class Particle:
 
         gamma = E0/m0
         if gamma == 1.0: #Fixing error when gamma = 1 exactly
-            beta = 1.0
+            beta = 0.0
         else:
             beta = np.sqrt(1.0 - 1.0/gamma**2)
         pmag = np.linalg.norm([px0, py0, pz0])
