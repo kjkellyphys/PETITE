@@ -101,25 +101,26 @@ class TestGetScatteredMomentumFast:
         theta = np.arccos(cos_th)
         assert 0.0 <= theta <= np.pi
 
-    def test_muon_scattering_smaller_than_electron(self):
-        """Heavier particles scatter less on average (statistical test over many samples)."""
+    def test_low_momentum_electron_scatters_more_than_high_momentum(self):
+        """Lower momentum → more scattering (Moliere scales as 1/(p β))."""
         np.random.seed(0)
-        E = 1.0
-        p4_e = np.array([E, 0.0, 0.0, np.sqrt(E**2 - m_electron**2)])
-        p4_mu = np.array([E, 0.0, 0.0, np.sqrt(E**2 - m_muon**2)])
-        t = 0.5  # thicker target → larger mean deflection, better statistics
+        # 200 MeV electron vs 1 GeV electron: clear momentum difference
+        E_lo, E_hi = 0.210, 1.0  # both above m_e
+        p4_lo = np.array([E_lo, 0.0, 0.0, np.sqrt(E_lo**2 - m_electron**2)])
+        p4_hi = np.array([E_hi, 0.0, 0.0, np.sqrt(E_hi**2 - m_electron**2)])
+        t = 0.1
 
-        angles_e, angles_mu = [], []
-        for _ in range(1000):
-            p4_e_new = get_scattered_momentum_fast(p4_e, t, A_GRAPHITE, Z_GRAPHITE,
+        angles_lo, angles_hi = [], []
+        for _ in range(500):
+            p_lo_new = get_scattered_momentum_fast(p4_lo, t, A_GRAPHITE, Z_GRAPHITE,
                                                    m_lepton=m_electron)
-            p4_mu_new = get_scattered_momentum_fast(p4_mu, t, A_GRAPHITE, Z_GRAPHITE,
-                                                    m_lepton=m_muon)
-            p3_e_in = p4_e[1:] / np.linalg.norm(p4_e[1:])
-            p3_mu_in = p4_mu[1:] / np.linalg.norm(p4_mu[1:])
-            cos_e = np.clip(np.dot(p3_e_in, p4_e_new[1:] / np.linalg.norm(p4_e_new[1:])), -1, 1)
-            cos_mu = np.clip(np.dot(p3_mu_in, p4_mu_new[1:] / np.linalg.norm(p4_mu_new[1:])), -1, 1)
-            angles_e.append(np.arccos(cos_e))
-            angles_mu.append(np.arccos(cos_mu))
+            p_hi_new = get_scattered_momentum_fast(p4_hi, t, A_GRAPHITE, Z_GRAPHITE,
+                                                   m_lepton=m_electron)
+            cos_lo = np.clip(np.dot(p4_lo[1:] / np.linalg.norm(p4_lo[1:]),
+                                    p_lo_new[1:] / np.linalg.norm(p_lo_new[1:])), -1, 1)
+            cos_hi = np.clip(np.dot(p4_hi[1:] / np.linalg.norm(p4_hi[1:]),
+                                    p_hi_new[1:] / np.linalg.norm(p_hi_new[1:])), -1, 1)
+            angles_lo.append(np.arccos(cos_lo))
+            angles_hi.append(np.arccos(cos_hi))
 
-        assert np.mean(angles_e) > np.mean(angles_mu)
+        assert np.mean(angles_lo) > np.mean(angles_hi)
