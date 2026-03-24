@@ -55,6 +55,28 @@ class TestGetMFP:
 
 
 # ---------------------------------------------------------------------------
+# Branching fractions
+# ---------------------------------------------------------------------------
+@requires_data
+class TestBranchingFractions:
+    def test_BF_positron_brem_in_range(self, graphite_shower):
+        """Brem branching fraction must be in (0, 1)."""
+        bf = graphite_shower.BF_positron_brem(1.0)
+        assert 0.0 < bf < 1.0
+
+    def test_BF_photon_pairprod_in_range(self, graphite_shower):
+        """Pair-production branching fraction must be in (0, 1)."""
+        bf = graphite_shower.BF_photon_pairprod(1.0)
+        assert 0.0 < bf < 1.0
+
+    def test_BF_positron_brem_increases_with_energy(self, graphite_shower):
+        """At higher energies brem dominates over annihilation."""
+        bf_lo = graphite_shower.BF_positron_brem(0.1)
+        bf_hi = graphite_shower.BF_positron_brem(5.0)
+        assert bf_hi > bf_lo
+
+
+# ---------------------------------------------------------------------------
 # draw_sample
 # ---------------------------------------------------------------------------
 @requires_data

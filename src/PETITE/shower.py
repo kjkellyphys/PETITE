@@ -394,11 +394,11 @@ class Shower:
         
     def BF_positron_brem(self, T):
         """Branching fraction for a positron to undergo brem vs annihilation"""
-        b0, b1 = self._NSigmaBrem(T), self._NSigmaAnn(T)
+        b0, b1 = self._NSigma["Brem"](T), self._NSigma["Ann"](T)
         return b0/(b0+b1)
     def BF_photon_pairprod(self, T):
         """Branching fraction for a photon to undergo pair production vs compton"""
-        b0, b1 = self._NSigmaPP(T), self._NSigmaComp(T)
+        b0, b1 = self._NSigma["PairProd"](T), self._NSigma["Comp"](T)
         return b0/(b0+b1)
 
 
