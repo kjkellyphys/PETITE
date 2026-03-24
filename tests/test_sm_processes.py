@@ -186,26 +186,18 @@ class TestMollerDCT:
 # dsigma_compton_dxdpt — Bug #1 regression test
 # ---------------------------------------------------------------------------
 class TestComptonDxDpt:
-    """
-    Bug #1: variables `a` and `b` are computed before `x = variables[0]` is
-    assigned, causing an UnboundLocalError.  These tests are marked xfail
-    until the bug is fixed; they will become passing xfails once corrected.
-    """
+    """Tests for dsigma_compton_dxdpt (bound-electron Compton)."""
 
-    @pytest.mark.xfail(strict=True, reason="Bug #1: x used before assignment in dsigma_compton_dxdpt")
     def test_returns_without_name_error(self):
-        """After fixing Bug #1 this should not raise UnboundLocalError."""
         ei = {"T_inc": 1.0, "Z_eff": 6, "mV": 0.0}
         result = dsigma_compton_dxdpt(ei, [0.5, 0.1])
         assert np.isfinite(result)
 
-    @pytest.mark.xfail(strict=True, reason="Bug #1: x used before assignment in dsigma_compton_dxdpt")
     def test_returns_non_negative(self):
         ei = {"T_inc": 1.0, "Z_eff": 6, "mV": 0.0}
         result = dsigma_compton_dxdpt(ei, [0.5, 0.1])
         assert result >= 0.0
 
-    @pytest.mark.xfail(strict=True, reason="Bug #1: x used before assignment in dsigma_compton_dxdpt")
     def test_batch_returns_array(self):
         ei = {"T_inc": 1.0, "Z_eff": 6, "mV": 0.0}
         batch = [[0.3, 0.05], [0.5, 0.1], [0.7, 0.2]]

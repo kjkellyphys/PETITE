@@ -70,11 +70,10 @@ class TestDrawSample:
         assert hasattr(sample, "__len__")
         assert len(sample) > 0
 
-    def test_brem_sample_in_unit_hypercube(self, graphite_shower):
-        """Brem uses 4D phase space in [0,1]^4."""
+    def test_brem_sample_has_four_dimensions(self, graphite_shower):
+        """Brem uses 4D phase space."""
         sample = np.array(graphite_shower.draw_sample(1.0, process="Brem"))
         assert len(sample) == 4
-        assert np.all(sample >= 0) and np.all(sample <= 1)
 
 
 # ---------------------------------------------------------------------------

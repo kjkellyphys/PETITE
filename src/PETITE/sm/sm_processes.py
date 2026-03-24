@@ -413,10 +413,10 @@ def dsigma_compton_dxdpt(event_info, phase_space_par_list):
         phase_space_par_list = np.array([phase_space_par_list])
     dSigs = []
     for variables in phase_space_par_list:
-        a = m_electron/Lambda
-        b = mV**2/(2*Lambda*x*s)
         x = variables[0]
         pts = variables[1]
+        a = m_electron/Lambda
+        b = mV**2/(2*Lambda*x*s)
         dSig0 = alpha_em/np.pi * 1/pts * (x**2+(1-x)**2)*(mV**2+2*m_electron**2)*2/ (3*m_electron*Lambda) \
         * (1/(x**2*s**2)) * (1/(x**2*((a-b/x)**2+1)**3))
         if np.isnan(dSig0):
