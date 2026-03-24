@@ -390,9 +390,6 @@ class BSMShower(Shower):
             kinetic_energies = np.array([x[0] for x in kinetic_energies])
 
             LU_Key = np.argmin(np.abs(kinetic_energies - Tinc)) + 1
-            if LU_Key < 0:
-                LU_Key = 0
-                print("Warning: sampling below minimum kinetic energy for process" + str(process) + " , Kinetic Energy: " + str(Tinc))
             if LU_Key >= len(bsm_sample_list[process]):
                 LU_Key = len(bsm_sample_list[process]) - 1
                 print("Warning: sampling above maximum kinetic energy for process" + str(process) + " , Kinetic Energy: " + str(Tinc))

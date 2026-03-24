@@ -422,9 +422,6 @@ class Shower:
             energies = np.array([x[0] for x in energies])
 
             LU_Key = np.argmin(np.abs(energies - T_inc)) + 1
-            if LU_Key < 0:
-                LU_Key = 0
-                print("Warning: sampling below minimum energy for process" + str(process))
             if LU_Key >= len(sample_list[process]):
                 LU_Key = len(sample_list[process]) - 1
                 print("Warning: sampling above maximum energy for process" + str(process))
@@ -603,7 +600,8 @@ class Shower:
                 if MS:
                     Part0.set_pf(self._get_MCS_p(Part0.get_pf(),
                                                  self._rhoTarget*(last_increment/cmtom),
-                                                 self._ATarget, self._ZTarget, self._MCS_rescale_factor) )
+                                                 self._ATarget, self._ZTarget, self._MCS_rescale_factor,
+                                                 m_lepton=mass_dict[Part0.get_ids()["PID"]]) )
 
             Part0.set_ended(True)
             return Part0
