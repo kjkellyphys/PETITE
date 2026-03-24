@@ -41,7 +41,7 @@ def mainSM(Te_min=0.0015, Te_max=100.0, Npoints=100, path=DEFAULT_PATH):
             print("Already finished this whole process, skipping")
             continue
         else:
-            genint.make_integrators(training_params, process)
+            genint.make_integrators(training_params, "sm", process)
             genint.stitch_integrators(training_params['save_location'] + '/' + process + '/')
             genint.cleanup(training_params['save_location'] + "/" + process + "/")
     # List of processes to run find_maxes on, need not be the same as list above

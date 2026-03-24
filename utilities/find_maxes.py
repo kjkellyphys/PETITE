@@ -187,7 +187,7 @@ def main(params):
         pickle.dump(final_sampling_dict, f)
     with open(params['save_location'] + '/sm_xsec.pkl', 'wb') as f:
         pickle.dump(final_xsec_dict, f)
-    print("Saved cross sections to " + params['save_location'] + "/sm_xsecs.pkl")
+    print("Saved cross sections to " + params['save_location'] + "/sm_xsec.pkl")
     print("Saved samples to " + params['save_location'] + "/sm_maps.pkl")
     return
 
