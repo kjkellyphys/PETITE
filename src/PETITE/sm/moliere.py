@@ -174,7 +174,7 @@ def get_capital_B(t, beta, A, Z, z):
     return B
 
 # Different versions of chic implemented below are called by different versions of generate_moliere_angle
-def get_chic_squared(t, beta, A, Z, z):
+def get_chic_squared(t, beta, A, Z, z, m_lepton=m_electron):
     """
     squared critical angle for Rutherford scattering, eq. 10 in Bethe, 1953
     t - target thickness is measured in g/cm^2 (a common unit for the radiation length)
@@ -184,7 +184,7 @@ def get_chic_squared(t, beta, A, Z, z):
     z - charge of beam particle
     """
     
-    me_in_inv_cm = m_electron/hbarc # 511 keV in 1/cm
+    me_in_inv_cm = m_lepton/hbarc # in 1/cm
 
     p = me_in_inv_cm * beta / np.sqrt(1. - beta**2)
 
